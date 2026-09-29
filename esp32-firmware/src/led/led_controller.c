@@ -2,18 +2,24 @@
  * @file led_controller.c
  * @brief Onboard LED control implementation for ESP32
  * 
- * Controls the onboard LED using GPIO or PWM.
- * Supports solid on/off, and blinking patterns via timer interrupts.
+ * Controls the onboard LED using GPIO with support for:
+ * - Solid ON (recording state)
+ * - Solid OFF (idle state)
+ * - Fast blink ~5Hz (error state - no commands from host)
+ * - Slow blink ~1Hz (idle state - waiting for commands)
+ * - Optional PWM dimming
+ * 
+ * Blinking patterns use FreeRTOS one-shot timers with 
+ * periodic callback to toggle the LED state.
  */
 
 #include "led_controller.h"
 #include "driver/gpio.h"
-#include "driver/mcpwm_pwm_soc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
 #include <string.h>
 
-// Configuration from sdkconfig
+// Configuration from sdkconfig (configure via menuconfig)
 #ifndef CONFIG_LED_GPIO_NUM
 #define CONFIG_LED_GPIO_NUM 8  // Default for Freenove ESP32-S3-WROOM
 #endif
@@ -26,8 +32,8 @@ static led_mode_t s_current_mode = LED_MODE_OFF;
 typedef enum {
     LED_MODE_OFF,
     LED_MODE_ON,
-    LED_MODE_BLINK_FAST,  // ~5Hz
-    LED_MODE_BLINK_SLOW,  // ~1Hz
+    LED_MODE_BLINK_FAST,  // ~5Hz (100ms period)
+    LED_MODE_BLINK_SLOW,  // ~1Hz (500ms period)
 } led_mode_t;
 
 esp_err_t led_init(uint8_t pin)
@@ -53,12 +59,14 @@ esp_err_t led_init(uint8_t pin)
     // Start with LED off
     gpio_set_level(s_led_pin, 0);
     
-    // Create blink timer (one-shot for pattern control)
-    s_blink_timer = xTimerCreate("led_blink", 
-                                  pdMS_TO_TICKS(200),  // 200ms default period
-                                  pdTRUE,  // auto-reload
-                                  0, 
-                                  NULL);
+    // Create blink timer (periodic, auto-reload)
+    s_blink_timer = xTimerCreate(
+        "led_blink",           // Timer name
+        pdMS_TO_TICKS(200),    // Initial period (will be changed)
+        pdTRUE,                // Auto-reload
+        0,                     // Timer ID
+        NULL                   // Callback (set by timer event callback)
+    );
     
     if (s_blink_timer == NULL) {
         return ESP_FAIL;
@@ -73,6 +81,7 @@ void led_on(void)
 {
     s_current_mode = LED_MODE_ON;
     gpio_set_level(s_led_pin, 1);
+    
     if (s_blink_timer != NULL) {
         xTimerStop(s_blink_timer, 0);
     }
@@ -82,6 +91,7 @@ void led_off(void)
 {
     s_current_mode = LED_MODE_OFF;
     gpio_set_level(s_led_pin, 0);
+    
     if (s_blink_timer != NULL) {
         xTimerStop(s_blink_timer, 0);
     }
@@ -94,6 +104,7 @@ void led_blink_fast(void)
     if (s_blink_timer != NULL) {
         xTimerChangePeriod(s_blink_timer, pdMS_TO_TICKS(100), 0);  // 100ms = ~5Hz
         xTimerReset(s_blink_timer, 0);
+        xTimerStart(s_blink_timer, 0);
     }
 }
 
@@ -104,6 +115,7 @@ void led_blink_slow(void)
     if (s_blink_timer != NULL) {
         xTimerChangePeriod(s_blink_timer, pdMS_TO_TICKS(500), 0);  // 500ms = ~1Hz
         xTimerReset(s_blink_timer, 0);
+        xTimerStart(s_blink_timer, 0);
     }
 }
 
@@ -113,13 +125,11 @@ void led_set_pwm(uint8_t brightness)
     // Configure MCPWM for LED PWM dimming
     // This is optional and board-specific
     
-    // For now, use simple GPIO toggle as approximation
     if (brightness == 0) {
         led_off();
     } else if (brightness >= 128) {
         led_on();
     } else {
-        // Partial brightness - turn on for a portion of the time
         gpio_set_level(s_led_pin, 1);
     }
 }
@@ -139,11 +149,13 @@ void led_set_pattern(const char *pattern)
     }
 }
 
-// Timer callback for blink patterns
+// Timer callback function - called by FreeRTOS timer when it expires
+// The timer must be created with a callback using xTimerCreate()
 static void blink_timer_callback(TimerHandle_t xTimer)
 {
     (void)xTimer;
     
+    // Toggle the LED state
     gpio_set_level(s_led_pin, !gpio_get_level(s_led_pin));
     
     // Restart timer based on current mode
@@ -162,7 +174,3 @@ static void blink_timer_callback(TimerHandle_t xTimer)
     xTimerChangePeriod(s_blink_timer, period, 0);
     xTimerStart(s_blink_timer, 0);
 }
-
-// Note: The timer callback needs to be set up in led_init():
-// xTimerChangePeriod(s_blink_timer, pdMS_TO_TICKS(100), 0);
-// xTimerRegister(s_blink_timer, blink_timer_callback, 0);

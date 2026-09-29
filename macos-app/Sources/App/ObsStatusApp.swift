@@ -1,6 +1,7 @@
 //
 //  ObsStatusApp.swift
-//  ObsStatus - OBS Recording Status Indicator
+//  ObsStatus - macOS application to monitor OBS recording status
+//  and control an ESP32 LED indicator via USB serial.
 //
 
 import SwiftUI
@@ -19,7 +20,7 @@ struct ObsStatusApp: App {
                 Button("Connect to OBS") {
                     Task { await viewModel.connectOBS() }
                 }
-                .disabled(viewModel.obsConnected)
+                .disabled(viewModel.obsConnected || viewModel.obsConnecting)
                 
                 Button("Disconnect from OBS") {
                     Task { await viewModel.disconnectOBS() }
@@ -35,7 +36,7 @@ struct ObsStatusApp: App {
                 Button("Connect to ESP32") {
                     Task { await viewModel.connectESP() }
                 }
-                .disabled(viewModel.espConnected || viewModel.selectedDevice == nil)
+                .disabled(viewModel.espConnected || viewModel.espConnecting || viewModel.selectedDevice == nil)
                 
                 Button("Disconnect from ESP32") {
                     viewModel.disconnectESP()
@@ -44,6 +45,6 @@ struct ObsStatusApp: App {
             }
         }
         .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.expanded)
+        .windowToolbarStyle(.unified)
     }
 }

@@ -1,6 +1,7 @@
 //
 //  ESP32ConnectionView.swift
-//  Panel for finding and connecting to ESP32 device
+//  Panel for finding and connecting to ESP32 device via USB serial.
+//  Includes device picker, connection controls, and status display.
 //
 
 import SwiftUI
@@ -12,8 +13,13 @@ struct ESP32ConnectionView: View {
         Form {
             Section("Device Selection") {
                 if viewModel.availableDevices.isEmpty {
-                    Text("No devices found")
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Image(systemName: "usb.super")
+                            .foregroundColor(.secondary)
+                        Text("No devices found. Connect your ESP32 and click Scan.")
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
                 } else {
                     Picker("ESP32 Device", selection: $viewModel.selectedDevice) {
                         ForEach(viewModel.availableDevices) { device in
@@ -26,34 +32,25 @@ struct ESP32ConnectionView: View {
                     Button(action: {
                         Task { await viewModel.scanDevices() }
                     }) {
-                        Text("Scan Devices")
+                        Label("Scan Devices", systemImage: "arrow.clockwise")
                     }
                     .buttonStyle(.bordered)
                 }
             }
             
             Section("Connection Status") {
-                HStack {
-                    Image(systemName: viewModel.espConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(viewModel.espConnected ? .green : .red)
-                    
-                    Text(viewModel.espConnected ? "Connected to ESP32" : "Disconnected from ESP32")
-                    
-                    if viewModel.espConnecting {
-                        ProgressView()
-                    }
+                connectionStatusRow
+            }
+            
+            if let response = viewModel.lastESPResponse {
+                Section("Last ESP32 Response") {
+                    Text(response)
+                        .font(.system(.body, design: .monospaced))
                 }
             }
             
             Section("Actions") {
-                Button(action: {
-                    Task { await viewModel.connectESP() }
-                }) {
-                    Text(viewModel.espConnected ? "Disconnect" : "Connect to ESP32")
-                        .frame(maxWidth: .infinity)
-                }
-                .disabled(viewModel.espConnected || viewModel.selectedDevice == nil || viewModel.espConnecting)
-                .buttonStyle(.borderedProminent)
+                connectButton
             }
             
             if let error = viewModel.espError {
@@ -69,6 +66,32 @@ struct ESP32ConnectionView: View {
                 await viewModel.scanDevices()
             }
         }
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var connectionStatusRow: some View {
+        HStack {
+            Image(systemName: viewModel.espConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundColor(viewModel.espConnected ? .green : .red)
+            
+            Text(viewModel.espConnected ? "Connected to ESP32" : "Disconnected from ESP32")
+            
+            if viewModel.espConnecting {
+                ProgressView()
+            }
+        }
+    }
+    
+    private var connectButton: some View {
+        Button(action: {
+            Task { await viewModel.connectESP() }
+        }) {
+            Text(viewModel.espConnected ? "Disconnect" : "Connect to ESP32")
+                .frame(maxWidth: .infinity)
+        }
+        .disabled(viewModel.espConnected || viewModel.selectedDevice == nil || viewModel.espConnecting)
+        .buttonStyle(.borderedProminent)
     }
 }
 

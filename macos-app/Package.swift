@@ -20,7 +20,22 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ObsStatus",
-            path: "Sources"
+            path: "Sources",
+            sources: [
+                "App/ObsStatusApp.swift",
+                "UI/ContentView.swift",
+                "UI/OBSConnectionView.swift",
+                "UI/ESP32ConnectionView.swift",
+                "UI/LEDIndicatorView.swift",
+                "Services/OBSWebSocketService.swift",
+                "Services/USBCDCService.swift",
+                "Models/AppViewModel.swift",
+                "Models/OBSConfig.swift",
+                "Models/USBDevice.swift",
+                "Models/AppSettings.swift",
+                "Models/ObsProtocol.swift",
+                "Extensions/AsyncStream+Extensions.swift",
+            ]
         )
     ]
 )

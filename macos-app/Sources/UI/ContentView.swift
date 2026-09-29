@@ -1,6 +1,7 @@
 //
 //  ContentView.swift
-//  Main application window with OBS and ESP32 connection panels
+//  Main application window with OBS and ESP32 connection panels.
+//  Displays a large visual LED indicator showing the current recording status.
 //
 
 import SwiftUI
@@ -22,13 +23,27 @@ struct ContentView: View {
             }
             .listStyle(.sidebar)
         } detail: {
-            // Main content: Large LED indicator
+            // Main content: Large LED indicator showing recording status
             LEDIndicatorView()
                 .padding()
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 RecordingStateBadge(state: viewModel.obsRecording ? .recording : .notRecording)
+            }
+            
+            ToolbarItemGroup(placement: .automatic) {
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+                
+                Spacer()
+                
+                Text("ObsStatus v1.0.0")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
         .task {

@@ -1,6 +1,6 @@
 //
 //  OBSConfig.swift
-//  OBS connection configuration model
+//  OBS connection configuration model and recording state.
 //
 
 import Foundation

@@ -1,6 +1,7 @@
 //
 //  ObsProtocol.swift
-//  Protocol definitions for macOS <-> ESP32 communication
+//  Protocol definitions for macOS <-> ESP32 communication.
+//  Text-based protocol sent over USB CDC serial.
 //
 
 import Foundation
@@ -13,23 +14,13 @@ enum ObsCommand: String, CaseIterable {
     case blinkSlow = "BLINK_SLOW"
     case status = "STATUS"
     
-    var rawValue: String {
-        self.rawValue
-    }
-    
     var lineTerminated: String {
         "\(rawValue)\n"
     }
 }
 
-/// Responses from ESP32 back to macOS app
-enum ObsResponse: String {
-    case ok = "OK"
-    case unknownCommand = "ERROR: UNKNOWN_COMMAND"
-    case invalidFormat = "ERROR: INVALID_FORMAT"
-}
-
-/// Parsed status response from ESP32
+/// Parsed status response from ESP32.
+/// Format: "STATUS:LED=<state>|OBS=<state>|ERROR=<code>"
 struct ObsStatusResponse: Codable {
     let led: String
     let obs: String
@@ -60,17 +51,6 @@ struct ObsStatusResponse: Codable {
 
 /// Utility functions for protocol handling
 enum ObsProtocolUtil {
-    /// Parse incoming line and return the corresponding command (or nil if unknown)
-    static func parseCommand(_ line: String) -> ObsCommand? {
-        guard !line.isEmpty else { return nil }
-        return ObsCommand(rawValue: line.trimmingCharacters(in: .whitespacesAndNewlines))
-    }
-    
-    /// Format a command as a line-terminated string for transmission
-    static func formatCommand(_ command: ObsCommand) -> String {
-        command.lineTerminated
-    }
-    
     /// Check if a response indicates an error
     static func isErrorResponse(_ response: String) -> Bool {
         response.hasPrefix("ERROR:")

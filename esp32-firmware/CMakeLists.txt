@@ -2,9 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-project(obs-status-esp32)
-
-# Add custom source files
+# Add custom source files for ObsStatus firmware
 idf_component_register(
     SRCS 
         src/main.c

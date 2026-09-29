@@ -38,6 +38,18 @@ A two-part system that monitors OBS Studio recording status and provides a physi
 └─────────────────────┘         └──────────────────────┘         └─────────────────┘
 ```
 
+## Implementation Status
+
+| Component       | Status  | Notes                                     |
+|-----------------|---------|---------------------------------------------|
+| macOS App (UI)  | ✅ Done | Complete SwiftUI with all panels            |
+| macOS WebSocket | ✅ Done | Custom WebSocket client using BSD sockets   |
+| macOS USB CDC   | ✅ Done | IOKit-based serial port enumeration/control |
+| ESP32 Firmware  | ✅ Done | Full structure with TODO markers            |
+| Protocol Parser | ✅ Done | Text command parsing and dispatch           |
+| LED Controller  | ✅ Done | GPIO + FreeRTOS timer for blink patterns    |
+| USB CDC (ESP32) | ⚠️ TODO | See USB_CDC notes in source code            |
+
 ## Project Structure
 
 ```
@@ -70,9 +82,8 @@ obs-status-esp32/
 │       │   ├── ESP32ConnectionView.swift   # ESP32 config panel
 │       │   └── LEDIndicatorView.swift      # Visual recording indicator
 │       ├── Services/
-│       │   ├── OBSWebSocketService.swift   # WebSocket client
-│       │   ├── USBCDCService.swift         # USB serial communication
-│       │   └── LEDController.swift         # Command dispatcher
+│       │   ├── OBSWebSocketService.swift   # WebSocket client (custom BSD socket impl)
+│       │   └── USBCDCService.swift         # USB serial via IOKit
 │       ├── Models/
 │       │   ├── AppViewModel.swift          # Central state manager
 │       │   ├── OBSConfig.swift             # OBS config model

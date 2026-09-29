@@ -1,6 +1,7 @@
 //
 //  AppSettings.swift
-//  Persistent application settings
+//  Persistent application settings storage.
+//  Saves OBS configuration and connection preferences.
 //
 
 import Foundation
@@ -51,13 +52,14 @@ class AppSettings {
     private func load() {
         do {
             let data = try Data(contentsOf: fileURL)
-            let decoder = JSONDecoder()
-            
-            if let configData = try? decoder.decode([String: OBSConfig].self, from: data)[Key.obsConfigKey] {
-                _obsConfig = configData
-            }
-            
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let configDict = json[Key.obsConfigKey] as? [String: Any] {
+                    _obsConfig = OBSConfig(
+                        host: configDict["host"] as? String ?? "localhost",
+                        port: configDict["port"] as? Int ?? 4444,
+                        token: configDict["token"] as? String ?? ""
+                    )
+                }
                 _lastESPDevicePath = json[Key.espDevicePathKey] as? String
                 _autoConnect = (json[Key.autoConnectKey] as? Bool) ?? false
             }
@@ -69,16 +71,13 @@ class AppSettings {
     private func save() {
         do {
             var dict: [String: Any] = [
-                Key.obsConfigKey: _obsConfig,
+                Key.obsConfigKey: [
+                    "host": _obsConfig.host,
+                    "port": _obsConfig.port,
+                    "token": _obsConfig.token,
+                ],
                 Key.espDevicePathKey: _lastESPDevicePath as Any,
                 Key.autoConnectKey: _autoConnect,
-            ]
-            
-            // Transform OBSConfig for encoding
-            dict[Key.obsConfigKey] = [
-                "host": _obsConfig.host,
-                "port": _obsConfig.port,
-                "token": _obsConfig.token,
             ]
             
             let data = try JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys])

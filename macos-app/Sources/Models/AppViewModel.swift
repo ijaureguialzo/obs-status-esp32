@@ -1,6 +1,7 @@
 //
 //  AppViewModel.swift
 //  Central state manager for the ObsStatus application
+//  Manages connection state for both OBS Studio and ESP32 devices.
 //
 
 import Foundation
@@ -23,11 +24,13 @@ class AppViewModel: ObservableObject {
     var selectedDevice: USBDevice?
     
     var errorMessage: String?
+    var lastESPResponse: String?
     
     // MARK: - Services
     
     private let obsService: OBSWebSocketServiceProtocol
     private let usbService: USBCDCServiceProtocol
+    private var statusTask: Task<String?, Never>?
     
     init(obsService: OBSWebSocketServiceProtocol? = nil, usbService: USBCDCServiceProtocol? = nil) {
         self.obsService = obsService ?? OBSWebSocketService()
@@ -42,17 +45,24 @@ class AppViewModel: ObservableObject {
     func connectOBS() async {
         guard !obsConnected else { return }
         
+        // Validate configuration
+        let config = AppSettings.shared.obsConfig
+        guard !config.host.isEmpty, config.port > 0 else {
+            obsError = "Please configure OBS host and port"
+            return
+        }
+        
         obsConnecting = true
         obsError = nil
         
         do {
-            let config = AppSettings.shared.obsConfig
             try await obsService.connect(
                 host: config.host,
                 port: config.port,
                 token: config.token
             )
             obsConnected = true
+            obsError = nil
         } catch {
             obsError = error.localizedDescription
         }
@@ -68,12 +78,10 @@ class AppViewModel: ObservableObject {
     
     func updateRecordingState(_ state: RecordingState) {
         obsRecording = (state == .recording)
+        
         // Send command to ESP32 if connected
         Task {
-            if espConnected, let device = selectedDevice {
-                let command = (state == .recording) ? ObsCommand.ledOn : ObsCommand.ledOff
-                try await usbService.sendCommand(command.lineTerminated, to: device)
-            }
+            await sendLEDCommand(state)
         }
     }
     
@@ -94,6 +102,10 @@ class AppViewModel: ObservableObject {
             try await usbService.connect(device)
             espConnected = true
             espError = nil
+            
+            // Start periodic status polling
+            startStatusPolling()
+            
         } catch {
             espError = error.localizedDescription
         }
@@ -103,19 +115,76 @@ class AppViewModel: ObservableObject {
     
     func disconnectESP() {
         espConnected = false
+        stopStatusPolling()
         Task {
             await usbService.disconnect()
         }
     }
     
+    // MARK: - LED Control
+    
+    func sendLEDCommand(_ state: RecordingState) async {
+        guard espConnected else { return }
+        guard let device = selectedDevice else { return }
+        
+        let command: ObsCommand
+        switch state {
+        case .recording:
+            command = .ledOn
+        case .notRecording:
+            command = .ledOff
+        case .unknown:
+            return
+        }
+        
+        do {
+            let response = try await usbService.sendCommand(
+                command.lineTerminated,
+                to: device
+            )
+            lastESPResponse = response
+        } catch {
+            // Mark ESP as disconnected on error
+            await MainActor.run {
+                espConnected = false
+                self.errorMessage = error.localizedDescription
+            }
+        }
+    }
+    
+    func queryESPStatus() async {
+        guard espConnected, let device = selectedDevice else { return }
+        
+        do {
+            let response = try await usbService.sendCommand(
+                ObsCommand.status.lineTerminated,
+                to: device
+            )
+            lastESPResponse = response
+        } catch {}
+    }
+    
     // MARK: - Private
     
     private func observeOBSState() {
-        // Monitor OBS WebSocket events for recording state changes
         Task {
             for await state in obsService.recordingStateStream {
                 await updateRecordingState(state)
             }
         }
+    }
+    
+    private func startStatusPolling() {
+        statusTask = Task {
+            while espConnected {
+                try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+                await queryESPStatus()
+            }
+        }
+    }
+    
+    private func stopStatusPolling() {
+        statusTask?.cancel()
+        statusTask = nil
     }
 }
