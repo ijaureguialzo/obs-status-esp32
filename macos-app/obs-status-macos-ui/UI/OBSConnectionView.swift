@@ -22,7 +22,6 @@ struct OBSConnectionView: View {
                 
                 TextField("Port", text: $port)
                     .disabled(viewModel.obsConnected)
-                    .keyboardType(.numberPad)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: port) { newValue in
                         // Validate port number

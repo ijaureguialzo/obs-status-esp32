@@ -175,9 +175,9 @@ class AppViewModel: ObservableObject {
     }
     
     private func startStatusPolling() {
-        statusTask = Task {
+        _ = Task<Void, Never> {
             while espConnected {
-                try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+                do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch {}  // 2 seconds
                 await queryESPStatus()
             }
         }

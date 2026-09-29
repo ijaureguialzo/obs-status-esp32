@@ -5,13 +5,10 @@
 //
 
 import Foundation
+#if canImport(Darwin)
 import IOKit
 import IOKit.usb
-
-#if canImport(Darwin)
-import Darwin
-#else
-import Glibc
+import IOKit.serial
 #endif
 
 enum USBCDCError: LocalizedError {
@@ -54,7 +51,7 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
     // MARK: - Properties
     
     private var fileDescriptor: Int32 = -1
-    private var connectedDevice: USBDevice?
+    open var connectedDevice: USBDevice?
     private var isConnectedFlag: Bool = false
     
     var isConnected: Bool {
@@ -64,41 +61,40 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
     // MARK: - Public API
     
     func enumerateDevices() async -> [USBDevice] {
+#if canImport(Darwin)
         await Task {
             var devices: [USBDevice] = []
             
             // Use IOKit to find all serial devices
-            var matchingDict: io_iterator_t?
-            let matching = IOServiceMatching(kIOSerialBSDServiceValue) as NSMutableDictionary
-            matching[kIOSerialBSDTypeKey] = kIOSerialBSDAllTypes
+            var matchingDict: io_object_t = 0
+            let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary
             
             let status = IOServiceGetMatchingServices(kIOMasterPortDefault, matching, &matchingDict)
             
-            guard status == KERN_SUCCESS, let iterator = matchingDict else {
+            guard status == KERN_SUCCESS else {
                 return []
             }
+            
+            // Handle io_object_t (Swift 6 makes it Optional)
+            guard matchingDict != 0 else {
+                return []
+            }
+            
+            let iterator = matchingDict
             
             var service = IOIteratorNext(iterator)
             
             while service != 0 {
                 // Get device info from registry
-                let name = IORegistryEntryCreateCFProperty(service, kIONameKey as CFString, kCFAllocatorDefault, 0)
-                    .takeRetainedValue() as? String ?? "Unknown Device"
+                let name = (IORegistryEntryCreateCFProperty(service, "name" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? String) ?? "Unknown Device"
                 
-                let callout = IORegistryEntryCreateCFProperty(service, kIOCalloutDeviceKey as CFString, kCFAllocatorDefault, 0)
-                    .takeRetainedValue() as? String
-                
-                let serialPath = IORegistryEntryCreateCFProperty(service, kIODialinDeviceKey as CFString, kCFAllocatorDefault, 0)
-                    .takeRetainedValue() as? String
+                let callout = (IORegistryEntryCreateCFProperty(service, "CalloutDevices" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? String)
+                let serialPath = (IORegistryEntryCreateCFProperty(service, "DialinDevices" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? String)
                 
                 // Get USB properties
                 var usbVendorID: UInt16?
                 var usbProductID: UInt16?
                 var usbSerialNumber: String?
-                
-                // Navigate to USB interface
-                var parent = IORegistryEntryCreateCFProperty(service, kIOProviderClassKey as CFString, kCFAllocatorDefault, 0)
-                    .takeRetainedValue() as? String
                 
                 // Try to get USB properties directly
                 if let vendorIDData = IORegistryEntryCreateCFProperty(service, kUSBVendorID as CFString, kCFAllocatorDefault, 0)
@@ -109,11 +105,6 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
                 if let productIDData = IORegistryEntryCreateCFProperty(service, kUSBProductID as CFString, kCFAllocatorDefault, 0)
                     .takeRetainedValue() as? UInt16 {
                     usbProductID = productIDData
-                }
-                
-                if let serialNumberData = IORegistryEntryCreateCFProperty(service, kUSBSerialNumber as CFString, kCFAllocatorDefault, 0)
-                    .takeRetainedValue() as? String {
-                    usbSerialNumber = serialNumberData
                 }
                 
                 // Use callout path or dialin path
@@ -135,6 +126,9 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             IOObjectRelease(iterator)
             return devices
         }.value
+#else
+        return []
+#endif
     }
     
     func connect(_ device: USBDevice) async throws {
@@ -157,26 +151,22 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
         cfsetospeed(&termios, speed_t(B115200))
         
         // 8N1: 8 data bits, no parity, 1 stop bit
-        termios.c_cflag |= (CLOCAL | CREAD)
-        termios.c_cflag &= ~PARENB
-        termios.c_cflag &= ~CSTOPB
-        termios.c_cflag &= ~CSIZE
-        termios.c_cflag |= CS8
+        termios.c_cflag |= UInt(CLOCAL | CREAD)
+        termios.c_cflag &= ~UInt(PARENB)
+        termios.c_cflag &= ~UInt(CSTOPB)
+        termios.c_cflag &= ~UInt(CSIZE)
+        termios.c_cflag |= UInt(CS8)
         
         // Raw mode: no canonical processing, no echo, no signal processing
-        termios.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG | IEXTEN)
-        termios.c_lflag &= ~(ECHOK | ECHOCTL | ECHOKE)
+        termios.c_lflag &= ~UInt(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG | IEXTEN)
+        termios.c_lflag &= ~UInt(ECHOK | ECHOCTL | ECHOKE)
         
         // Raw output: no post-processing
-        termios.c_oflag &= ~OPOST
+        termios.c_oflag &= ~UInt(OPOST)
         
         // No flow control
-        termios.c_cflag &= ~CRTSCTS
-        termios.c_iflag &= ~(IXON | IXOFF | IXANY)
-        
-        // Set control character limits
-        termios.c_cc[VMIN] = 1
-        termios.c_cc[VTIME] = 20  // 2 second timeout
+        termios.c_cflag &= ~UInt(CRTSCTS)
+        termios.c_iflag &= ~UInt(IXON | IXOFF | IXANY)
         
         // Apply settings
         if tcsetattr(fileDescriptor, TCSANOW, &termios) < 0 {

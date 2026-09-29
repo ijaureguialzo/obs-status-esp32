@@ -8,6 +8,14 @@ import SwiftUI
 
 struct ESP32ConnectionView: View {
     @Environment(AppViewModel.self) private var viewModel
+    @State private var localSelectedDevice: USBDevice? = nil
+    
+    private var selectedDeviceBinding: Binding<USBDevice?> {
+        Binding(
+            get: { localSelectedDevice },
+            set: { localSelectedDevice = $0; viewModel.selectedDevice = $0 }
+        )
+    }
     
     var body: some View {
         Form {
@@ -21,7 +29,9 @@ struct ESP32ConnectionView: View {
                     }
                     .padding(.vertical, 8)
                 } else {
-                    Picker("ESP32 Device", selection: $viewModel.selectedDevice) {
+                    Picker("ESP32 Device", selection: selectedDeviceBinding) {
+                        Text("No device")
+                            .tag(Optional<USBDevice>(nil))
                         ForEach(viewModel.availableDevices) { device in
                             Text(device.name)
                                 .tag(device as USBDevice?)

@@ -6,78 +6,98 @@
 	objectVersion = 110;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		A0001001 /* ObsStatusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001101 /* ObsStatusApp.swift */; };
-		A0001002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001102 /* ContentView.swift */; };
-		A0001003 /* OBSConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001103 /* OBSConnectionView.swift */; };
-		A0001004 /* ESP32ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001104 /* ESP32ConnectionView.swift */; };
-		A0001005 /* LEDIndicatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001105 /* LEDIndicatorView.swift */; };
-		A0001006 /* OBSWebSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001106 /* OBSWebSocketService.swift */; };
-		A0001007 /* USBCDCService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001107 /* USBCDCService.swift */; };
-		A0001008 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001108 /* AppViewModel.swift */; };
-		A0001009 /* OBSConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0001109 /* OBSConfig.swift */; };
-		A000100A /* USBDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000110A /* USBDevice.swift */; };
-		A000100B /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000110B /* AppSettings.swift */; };
-		A000100C /* ObsProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000110C /* ObsProtocol.swift */; };
-		A000100D /* AsyncStream+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A000110D /* AsyncStream+Extensions.swift */; };
-		A000100E /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A000110E /* Info.plist */; };
-/* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		414C320B306C70A100633EA1 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 414C31F5306C70A000633EA1 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 414C31FC306C70A000633EA1;
-			remoteInfo = "obs-status-macos-ui";
-		};
-		414C3215306C70A100633EA1 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 414C31F5306C70A000633EA1 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 414C31FC306C70A000633EA1;
-			remoteInfo = "obs-status-macos-ui";
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
-		A0001101 /* ObsStatusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/ObsStatusApp.swift; sourceTree = "<group>"; };
-		A0001102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/ContentView.swift; sourceTree = "<group>"; };
-		A0001103 /* OBSConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/OBSConnectionView.swift; sourceTree = "<group>"; };
-		A0001104 /* ESP32ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/ESP32ConnectionView.swift; sourceTree = "<group>"; };
-		A0001105 /* LEDIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/LEDIndicatorView.swift; sourceTree = "<group>"; };
-		A0001106 /* OBSWebSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/OBSWebSocketService.swift; sourceTree = "<group>"; };
-		A0001107 /* USBCDCService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/USBCDCService.swift; sourceTree = "<group>"; };
-		A0001108 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AppViewModel.swift; sourceTree = "<group>"; };
-		A0001109 /* OBSConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/OBSConfig.swift; sourceTree = "<group>"; };
-		A000110A /* USBDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/USBDevice.swift; sourceTree = "<group>"; };
-		A000110B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AppSettings.swift; sourceTree = "<group>"; };
-		A000110C /* ObsProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/ObsProtocol.swift; sourceTree = "<group>"; };
-		A000110D /* AsyncStream+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions/AsyncStream+Extensions.swift; sourceTree = "<group>"; };
-		A000110E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Resources/Info.plist; sourceTree = "<group>"; };
 		414C31FD306C70A000633EA1 /* obs-status-macos-ui.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "obs-status-macos-ui.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		414C320A306C70A100633EA1 /* obs-status-macos-uiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "obs-status-macos-uiTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		414C3214306C70A100633EA1 /* obs-status-macos-uiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "obs-status-macos-uiUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		414C3311306C70A100633EA1 /* ObsStatusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObsStatusApp.swift; sourceTree = "<group>"; };
+		414C3312306C70A100633EA1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		414C3313306C70A100633EA1 /* OBSConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OBSConnectionView.swift; sourceTree = "<group>"; };
+		414C3314306C70A100633EA1 /* ESP32ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ESP32ConnectionView.swift; sourceTree = "<group>"; };
+		414C3315306C70A100633EA1 /* LEDIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LEDIndicatorView.swift; sourceTree = "<group>"; };
+		414C3316306C70A100633EA1 /* OBSWebSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OBSWebSocketService.swift; sourceTree = "<group>"; };
+		414C3317306C70A100633EA1 /* USBCDCService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBCDCService.swift; sourceTree = "<group>"; };
+		414C3318306C70A100633EA1 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
+		414C3319306C70A100633EA1 /* OBSConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OBSConfig.swift; sourceTree = "<group>"; };
+		414C331A306C70A100633EA1 /* USBDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBDevice.swift; sourceTree = "<group>"; };
+		414C331B306C70A100633EA1 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		414C331C306C70A100633EA1 /* ObsProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObsProtocol.swift; sourceTree = "<group>"; };
+		414C331D306C70A100633EA1 /* AsyncStream+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AsyncStream+Extensions.swift"; sourceTree = "<group>"; };
+		414C331E306C70A100633EA1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		414C31FF306C70A000633EA1 /* obs-status-macos-ui */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			children = (
-				A0001101 /* ObsStatusApp.swift */,
-				A0001102 /* ContentView.swift */,
-				A0001103 /* OBSConnectionView.swift */,
-				A0001104 /* ESP32ConnectionView.swift */,
-				A0001105 /* LEDIndicatorView.swift */,
-				A0001106 /* OBSWebSocketService.swift */,
-				A0001107 /* USBCDCService.swift */,
-				A0001108 /* AppViewModel.swift */,
-				A0001109 /* OBSConfig.swift */,
-				A000110A /* USBDevice.swift */,
-				A000110B /* AppSettings.swift */,
-				A000110C /* ObsProtocol.swift */,
-				A000110D /* AsyncStream+Extensions.swift */,
+				414C3301306C70A100633EA1 /* App */,
+				414C3302306C70A100633EA1 /* UI */,
+				414C3303306C70A100633EA1 /* Services */,
+				414C3304306C70A100633EA1 /* Models */,
+				414C3305306C70A100633EA1 /* Extensions */,
+				414C3306306C70A100633EA1 /* Resources */,
 			);
-			fileSystemSyncedRootContentType = 1;
-			path = "obs-status-macos-ui";
+			path = "../macos-app/obs-status-macos-ui";
+			sourceTree = SOURCE_ROOT;
+		};
+		414C3301306C70A100633EA1 /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			children = (
+				414C3311306C70A100633EA1 /* ObsStatusApp.swift */,
+			);
+			sourceTree = "<group>";
+		};
+		414C3302306C70A100633EA1 /* UI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			children = (
+				414C3312306C70A100633EA1 /* ContentView.swift */,
+				414C3313306C70A100633EA1 /* OBSConnectionView.swift */,
+				414C3314306C70A100633EA1 /* ESP32ConnectionView.swift */,
+				414C3315306C70A100633EA1 /* LEDIndicatorView.swift */,
+			);
+			sourceTree = "<group>";
+		};
+		414C3303306C70A100633EA1 /* Services */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			children = (
+				414C3316306C70A100633EA1 /* OBSWebSocketService.swift */,
+				414C3317306C70A100633EA1 /* USBCDCService.swift */,
+			);
+			sourceTree = "<group>";
+		};
+		414C3304306C70A100633EA1 /* Models */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			children = (
+				414C3318306C70A100633EA1 /* AppViewModel.swift */,
+				414C3319306C70A100633EA1 /* OBSConfig.swift */,
+				414C331A306C70A100633EA1 /* USBDevice.swift */,
+				414C331B306C70A100633EA1 /* AppSettings.swift */,
+				414C331C306C70A100633EA1 /* ObsProtocol.swift */,
+			);
+			sourceTree = "<group>";
+		};
+		414C3305306C70A100633EA1 /* Extensions */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			children = (
+				414C331D306C70A100633EA1 /* AsyncStream+Extensions.swift */,
+			);
+			sourceTree = "<group>";
+		};
+		414C3306306C70A100633EA1 /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			children = (
+				414C331E306C70A100633EA1 /* Info.plist */,
+			);
+			sourceTree = "<group>";
+		};
+		414C320D306C70A100633EA1 /* obs-status-macos-uiTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "obs-status-macos-uiTests";
+			sourceTree = "<group>";
+		};
+		414C3217306C70A100633EA1 /* obs-status-macos-uiUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "obs-status-macos-uiUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -128,6 +148,27 @@
 			productReference = 414C31FD306C70A000633EA1 /* obs-status-macos-ui.app */;
 			productType = "com.apple.product-type.application";
 		};
+		414C3209306C70A100633EA1 /* obs-status-macos-uiTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 414C321F306C70A100633EA1 /* Build configuration list for PBXNativeTarget "obs-status-macos-uiTests" */;
+			buildPhases = (
+				414C3206306C70A100633EA1 /* Sources */,
+				414C3207306C70A100633EA1 /* Frameworks */,
+				414C3208306C70A100633EA1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				414C320C306C70A100633EA1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				414C320D306C70A100633EA1 /* obs-status-macos-uiTests */,
+			);
+			name = "obs-status-macos-uiTests";
+			productName = "obs-status-macos-uiTests";
+			productReference = 414C320A306C70A100633EA1 /* obs-status-macos-uiTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -166,7 +207,6 @@
 		414C31FB306C70A000633EA1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
-				A000100E /* Info.plist in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -175,35 +215,9 @@
 		414C31F9306C70A000633EA1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
-				A0001001 /* ObsStatusApp.swift in Sources */,
-				A0001002 /* ContentView.swift in Sources */,
-				A0001003 /* OBSConnectionView.swift in Sources */,
-				A0001004 /* ESP32ConnectionView.swift in Sources */,
-				A0001005 /* LEDIndicatorView.swift in Sources */,
-				A0001006 /* OBSWebSocketService.swift in Sources */,
-				A0001007 /* USBCDCService.swift in Sources */,
-				A0001008 /* AppViewModel.swift in Sources */,
-				A0001009 /* OBSConfig.swift in Sources */,
-				A000100A /* USBDevice.swift in Sources */,
-				A000100B /* AppSettings.swift in Sources */,
-				A000100C /* ObsProtocol.swift in Sources */,
-				A000100D /* AsyncStream+Extensions.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		414C320C306C70A100633EA1 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 414C31FC306C70A000633EA1 /* obs-status-macos-ui */;
-			targetProxy = 414C320B306C70A100633EA1 /* PBXContainerItemProxy */;
-		};
-		414C3216306C70A100633EA1 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 414C31FC306C70A000633EA1 /* obs-status-macos-ui */;
-			targetProxy = 414C3215306C70A100633EA1 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		414C321A306C70A100633EA1 /* Debug configuration for PBXProject "obs-status-macos-ui" */ = {
@@ -243,6 +257,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = RSEH385M54;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -337,7 +352,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = obs-status-macos-ui/Resources/Info.plist;
+				INFOPLIST_FILE = ../macos-app/obs-status-macos-ui/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "OBS Status";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -371,7 +386,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = obs-status-macos-ui/Resources/Info.plist;
+				INFOPLIST_FILE = ../macos-app/obs-status-macos-ui/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "OBS Status";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (

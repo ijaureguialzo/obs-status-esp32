@@ -28,8 +28,7 @@ struct LEDIndicatorView: View {
                 .shadow(color: shadowColor, radius: 30, y: 10)
                 .overlay {
                     Circle()
-                        .strokeBorder(StrokeStyle(lineWidth: 4))
-                        .foregroundColor(borderColor)
+                        .strokeBorder(borderColor, style: StrokeStyle(lineWidth: 4))
                 }
             
             // Center icon and status text
