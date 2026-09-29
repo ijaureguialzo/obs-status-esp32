@@ -122,16 +122,46 @@ obs-status-esp32/
 - **ESP32-S3 board** (Freenove ESP32-S3-WROOM recommended)
 - **PlatformIO** (for ESP32 firmware)
 
-### 1. macOS Application
+### 1. macOS Application (Xcode)
+
+**Crear el proyecto Xcode (una sola vez):**
+
+1. Abre Xcode
+2. Ve a `File > New > Project...`
+3. Selecciona `macOS > App` y pulsa `Next`
+4. Configura:
+   - **Product Name**: `obs-status-macos-ui`
+   - **Bundle Identifier**: `com.obsstatus.app` (o tu dominio)
+   - **Interface**: `SwiftUI`
+   - **Language**: `Swift`
+5. Guarda el proyecto en la carpeta `macos-app/` (fuera de obs-status-macos-ui)
+6. En el proyecto creado:
+   - Arrastra los archivos de `obs-status-macos-ui/Sources/` al grupo `Sources`
+   - Arrastra `obs-status-macos-ui/Resources/Info.plist` al grupo `Resources`
+   - En Build Settings, establece:
+     - ` macOS Deployment Target` a `14.0`
+     - `Swift Version` a `5.9`
+
+**O usar XcodeGen (alternativa):**
 
 ```bash
+brew install xcodegen
 cd macos-app
+xcodegen generate
+```
 
-# Build with Swift Package Manager
-swift build
-
-# Or open in Xcode and build
-open Package.swift
+Con un archivo `codegen.yml`:
+```yaml
+name: obs-status-macos-ui
+targets:
+  obs-status-macos-ui:
+    type: application
+    platform: macOS
+    sources: [obs-status-macos-ui/Sources]
+    settings:
+      base:
+        macOSXDeploymentTarget: 14.0
+        SWIFT_VERSION: 5.9
 ```
 
 ### 2. ESP32 Firmware
