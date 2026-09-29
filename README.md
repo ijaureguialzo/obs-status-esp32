@@ -1,4 +1,4 @@
-# obs-status-esp32
+# ObsStatus - OBS Recording Status Indicator
 
 ```
  _________________________________________
@@ -17,9 +17,163 @@
 | accounting department can call it       |
 \ overhead.                               /
  -----------------------------------------
-        \   ^__^
-         \  (oo)\_______
-            (__)\       )\/\
-                ||----w |
-                ||     ||
+         \   ^__^
+          \  (oo)\_______
+             (__)\       )\/\
+                 ||----w |
+                 ||     ||
 ```
+
+## Overview
+
+A two-part system that monitors OBS Studio recording status and provides a physical LED indicator via an ESP32 microcontroller.
+
+```
+┌─────────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
+│  OBS Studio         │         │  macOS Application    │         │  ESP32 Board     │
+│  (WebSocket API)    │◄───────►│  (SwiftUI App)       │◄───────►│  (ESP-IDF)       │
+│                     │  ws:4444│                      │  USB    │                 │
+│ Recording State     │         │  • Connect to OBS    │  CDC    │ LED Control     │
+│ (via WebSocket)     │         │  • Connect to ESP32  │◄───────►│  (onboard LED)  │
+└─────────────────────┘         └──────────────────────┘         └─────────────────┘
+```
+
+## Project Structure
+
+```
+obs-status-esp32/
+├── specs/                          # Project specifications (SpecKit)
+│   ├── 01-overview/
+│   │   └── PROJECT_SPEC.md         # Overall system design
+│   ├── 02-protocol/
+│   │   └── PROTOCOL_SPEC.md        # Communication protocol definition
+│   ├── 03-macos-app/
+│   │   └── APP_SPEC.md             # macOS app requirements
+│   ├── 04-esp32-firmware/
+│   │   └── FIRMWARE_SPEC.md        # Firmware requirements
+│   └── 05-deployment/
+│       └── DEPLOYMENT_SPEC.md      # Build & distribution guide
+│
+├── protocol/                       # Shared protocol definitions
+│   └── obs_protocol.h              # C header (ESP32)
+│
+├── macos-app/                      # macOS SwiftUI application
+│   ├── Package.swift               # Swift Package
+│   ├── Resources/
+│   │   └── Info.plist              # App configuration
+│   └── Sources/
+│       ├── App/
+│       │   └── ObsStatusApp.swift   # @main entry point
+│       ├── UI/
+│       │   ├── ContentView.swift           # Main window layout
+│       │   ├── OBSConnectionView.swift     # OBS config panel
+│       │   ├── ESP32ConnectionView.swift   # ESP32 config panel
+│       │   └── LEDIndicatorView.swift      # Visual recording indicator
+│       ├── Services/
+│       │   ├── OBSWebSocketService.swift   # WebSocket client
+│       │   ├── USBCDCService.swift         # USB serial communication
+│       │   └── LEDController.swift         # Command dispatcher
+│       ├── Models/
+│       │   ├── AppViewModel.swift          # Central state manager
+│       │   ├── OBSConfig.swift             # OBS config model
+│       │   ├── USBDevice.swift             # USB device model
+│       │   ├── AppSettings.swift           # Persistent settings
+│       │   └── ObsProtocol.swift           # Protocol definitions
+│       └── Extensions/
+│           └── AsyncStream+Extensions.swift
+│
+├── esp32-firmware/              # ESP-IDF firmware for ESP32
+│   ├── platformio.ini           # PlatformIO configuration
+│   ├── CMakeLists.txt           # Build configuration
+│   ├── include/
+│   │   ├── usb_cdc.h            # USB CDC interface
+│   │   ├── led_controller.h     # LED control interface
+│   │   └── protocol_parser.h    # Command parser interface
+│   └── src/
+│       ├── main.c               # Application entry point
+│       ├── usb/
+│       │   └── usb_cdc.c        # USB CDC implementation
+│       ├── led/
+│       │   └── led_controller.c # LED control implementation
+│       └── protocol/
+│           └── protocol_parser.c # Command parser implementation
+│
+└── LICENSE
+```
+
+## Getting Started
+
+### Prerequisites
+
+- **macOS 14.0+** (Sonoma)
+- **Xcode 15.0+** (for macOS app)
+- **OBS Studio** with the [obs-websocket](https://github.com/obsproject/obs-websocket) plugin
+- **ESP32-S3 board** (Freenove ESP32-S3-WROOM recommended)
+- **PlatformIO** (for ESP32 firmware)
+
+### 1. macOS Application
+
+```bash
+cd macos-app
+
+# Build with Swift Package Manager
+swift build
+
+# Or open in Xcode and build
+open Package.swift
+```
+
+### 2. ESP32 Firmware
+
+```bash
+cd esp32-firmware
+
+# Build firmware
+pio run
+
+# Upload to ESP32
+pio run -e freenove_esp32_s3_wroom -t upload
+
+# Monitor serial output
+pio device monitor -b 115200
+```
+
+### 3. Usage
+
+1. Install and enable the obs-websocket plugin in OBS Studio
+2. Launch the ObsStatus macOS application
+3. Configure OBS connection (host, port, token)
+4. Connect to OBS Studio
+5. Select your ESP32 device from the dropdown
+6. Connect to ESP32
+7. The onboard LED will now respond to OBS recording state!
+
+## Communication Protocol
+
+Text-based protocol over USB CDC serial (115200 baud, 8N1):
+
+| Command     | Description                    |
+|-------------|--------------------------------|
+| `LED_ON`    | Turn LED on (recording)        |
+| `LED_OFF`   | Turn LED off (not recording)   |
+| `BLINK_FAST`| Blink fast (error state)       |
+| `BLINK_SLOW`| Blink slow (idle/disconnected) |
+| `STATUS`    | Query current state            |
+
+Responses: `OK` or `ERROR: <description>`
+
+Full specification: [specs/02-protocol/PROTOCOL_SPEC.md](specs/02-protocol/PROTOCOL_SPEC.md)
+
+## Specs
+
+Full project specifications organized by component:
+
+- [Project Overview](specs/01-overview/PROJECT_SPEC.md)
+- [Communication Protocol](specs/02-protocol/PROTOCOL_SPEC.md)
+- [macOS Application](specs/03-macos-app/APP_SPEC.md)
+- [ESP32 Firmware](specs/04-esp32-firmware/FIRMWARE_SPEC.md)
+- [Deployment & Distribution](specs/05-deployment/DEPLOYMENT_SPEC.md)
+
+## License
+
+GPL-3.0 - See [LICENSE](LICENSE) for details.
