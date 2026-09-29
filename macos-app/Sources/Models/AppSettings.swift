@@ -1,0 +1,90 @@
+//
+//  AppSettings.swift
+//  Persistent application settings
+//
+
+import Foundation
+
+private enum Key {
+    static let bundleID = Bundle.main.bundleIdentifier ?? "com.unknown.obs-status"
+    static let settingsFile = "obs-status-config.json"
+    static let obsConfigKey = "obsConfig"
+    static let espDevicePathKey = "lastESPDevicePath"
+    static let autoConnectKey = "autoConnect"
+}
+
+class AppSettings {
+    static let shared = AppSettings()
+    
+    private let fileURL: URL
+    
+    private var _obsConfig: OBSConfig
+    private var _lastESPDevicePath: String?
+    private var _autoConnect: Bool
+    
+    var obsConfig: OBSConfig {
+        get { _obsConfig }
+        set { _obsConfig = newValue; save() }
+    }
+    
+    var lastESPDevicePath: String? {
+        get { _lastESPDevicePath }
+        set { _lastESPDevicePath = newValue; save() }
+    }
+    
+    var autoConnect: Bool {
+        get { _autoConnect }
+        set { _autoConnect = newValue; save() }
+    }
+    
+    private init() {
+        let directory = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
+        fileURL = directory.appendingPathComponent(Key.settingsFile)
+        
+        _obsConfig = OBSConfig()
+        _lastESPDevicePath = nil
+        _autoConnect = false
+        
+        load()
+    }
+    
+    private func load() {
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let decoder = JSONDecoder()
+            
+            if let configData = try? decoder.decode([String: OBSConfig].self, from: data)[Key.obsConfigKey] {
+                _obsConfig = configData
+            }
+            
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                _lastESPDevicePath = json[Key.espDevicePathKey] as? String
+                _autoConnect = (json[Key.autoConnectKey] as? Bool) ?? false
+            }
+        } catch {
+            // Use defaults
+        }
+    }
+    
+    private func save() {
+        do {
+            var dict: [String: Any] = [
+                Key.obsConfigKey: _obsConfig,
+                Key.espDevicePathKey: _lastESPDevicePath as Any,
+                Key.autoConnectKey: _autoConnect,
+            ]
+            
+            // Transform OBSConfig for encoding
+            dict[Key.obsConfigKey] = [
+                "host": _obsConfig.host,
+                "port": _obsConfig.port,
+                "token": _obsConfig.token,
+            ]
+            
+            let data = try JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys])
+            try data.write(to: fileURL, options: [.atomic])
+        } catch {
+            // Silently fail
+        }
+    }
+}

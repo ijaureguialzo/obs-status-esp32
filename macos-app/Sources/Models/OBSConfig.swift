@@ -1,0 +1,24 @@
+//
+//  OBSConfig.swift
+//  OBS connection configuration model
+//
+
+import Foundation
+
+struct OBSConfig: Codable {
+    var host: String
+    var port: Int
+    var token: String
+    
+    init(host: String = "localhost", port: Int = 4444, token: String = "") {
+        self.host = host
+        self.port = port
+        self.token = token
+    }
+}
+
+enum RecordingState {
+    case recording
+    case notRecording
+    case unknown
+}
