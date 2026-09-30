@@ -15,6 +15,12 @@
             "state" : "translated",
             "value" : "OBS Status"
           }
+        },
+        "eu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OBS Status"
+          }
         }
       }
     },
@@ -55,6 +61,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Esta app necesita conectarse a OBS Studio en tu equipo local para monitorizar el estado de grabación mediante WebSocket."
+          }
+        },
+        "eu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aplikazioak OBS Studiora konektatu behar du tokiko ekipoan, grabaketaren egoera WebSocket bidez jarraitzeko."
           }
         }
       }

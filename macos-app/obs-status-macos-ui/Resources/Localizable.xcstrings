@@ -1,606 +1,966 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "● RECORDING" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "● GRABANDO"
+  "sourceLanguage": "en",
+  "strings": {
+    "● RECORDING": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● GRABANDO"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● GRABATZEN"
           }
         }
       }
     },
-    "Already connected to an ESP32 device" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ya hay un dispositivo ESP32 conectado"
+    "Already connected to an ESP32 device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ya hay un dispositivo ESP32 conectado"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dagoeneko ESP32 gailu bati konektatuta"
           }
         }
       }
     },
-    "Applied to the ESP32 while OBS is recording." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Se aplica al ESP32 mientras OBS está grabando."
+    "Applied to the ESP32 while OBS is recording.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se aplica al ESP32 mientras OBS está grabando."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESP32ari aplikatzen zaio OBS grabatzen ari den bitartean."
           }
         }
       }
     },
-    "Cannot open serial port: %@" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se puede abrir el puerto serie: %@"
+    "Cannot open serial port: %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede abrir el puerto serie: %@"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ezin da serie ataka ireki: %@"
           }
         }
       }
     },
-    "Color" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Color"
+    "Color": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kolorea"
           }
         }
       }
     },
-    "Connect" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectar"
+    "Connect": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectar"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konektatu"
           }
         }
       }
     },
-    "Connect automatically on launch" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectar automáticamente al iniciar"
+    "Connect automatically on launch": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectar automáticamente al iniciar"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konektatu automatikoki abiaraztean"
           }
         }
       }
     },
-    "Connect to ESP32" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectar con el ESP32"
+    "Connect to ESP32": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectar con el ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konektatu ESP32ra"
           }
         }
       }
     },
-    "Connect to OBS" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectar con OBS"
+    "Connect to OBS": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectar con OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konektatu OBSra"
           }
         }
       }
     },
-    "Connect to OBS Studio first." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conéctate primero a OBS Studio."
+    "Connect to OBS Studio first.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conéctate primero a OBS Studio."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konektatu lehenengo OBS Studiora."
           }
         }
       }
     },
-    "Connect to your ESP32 device." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conéctate a tu dispositivo ESP32."
+    "Connect to your ESP32 device.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conéctate a tu dispositivo ESP32."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konektatu zure ESP32 gailura."
           }
         }
       }
     },
-    "Connected to ESP32" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectado al ESP32"
+    "Connected to ESP32": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado al ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESP32ra konektatuta"
           }
         }
       }
     },
-    "Connected to OBS" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectado a OBS"
+    "Connected to OBS": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado a OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBSra konektatuta"
           }
         }
       }
     },
-    "Connecting to ESP32" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectando con el ESP32"
+    "Connecting to ESP32": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectando con el ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESP32ra konektatzen"
           }
         }
       }
     },
-    "Connecting to OBS" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conectando con OBS"
+    "Connecting to OBS": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectando con OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBSra konektatzen"
           }
         }
       }
     },
-    "Connection" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conexión"
+    "Connection": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conexión"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konexioa"
           }
         }
       }
     },
-    "Device Selection" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selección de dispositivo"
+    "Device Selection": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selección de dispositivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailuaren hautapena"
           }
         }
       }
     },
-    "Disconnect" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desconectar"
+    "Disconnect": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconectar"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deskonektatu"
           }
         }
       }
     },
-    "Disconnect from ESP32" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desconectar del ESP32"
+    "Disconnect from ESP32": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconectar del ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deskonektatu ESP32tik"
           }
         }
       }
     },
-    "Disconnect from OBS" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desconectar de OBS"
+    "Disconnect from OBS": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconectar de OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deskonektatu OBStik"
           }
         }
       }
     },
-    "Disconnected from ESP32" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desconectado del ESP32"
+    "Disconnected from ESP32": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconectado del ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESP32tik deskonektatuta"
           }
         }
       }
     },
-    "Disconnected from OBS" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desconectado de OBS"
+    "Disconnected from OBS": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconectado de OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBStik deskonektatuta"
           }
         }
       }
     },
-    "ESP32 Device" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dispositivo ESP32"
+    "ESP32 Device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivo ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESP32 gailua"
           }
         }
       }
     },
-    "Establishing connection to ESP32 via USB." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estableciendo conexión con el ESP32 por USB."
+    "Establishing connection to ESP32 via USB.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estableciendo conexión con el ESP32 por USB."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESP32rekin USB bidezko konexioa ezartzen."
           }
         }
       }
     },
-    "Establishing connection to OBS Studio via WebSocket." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estableciendo conexión con OBS Studio mediante WebSocket."
+    "Establishing connection to OBS Studio via WebSocket.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estableciendo conexión con OBS Studio mediante WebSocket."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS Studiorekin WebSocket bidezko konexioa ezartzen."
           }
         }
       }
     },
-    "Host" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Servidor"
+    "Host": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servidor"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ostalaria"
           }
         }
       }
     },
-    "Idle" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "En espera"
+    "Idle": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En espera"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Itxaroten"
           }
         }
       }
     },
-    "Invalid baud rate configured" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Velocidad en baudios configurada no válida"
+    "Invalid baud rate configured": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velocidad en baudios configurada no válida"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konfiguratutako baudios-abiadura baliogabea da"
           }
         }
       }
     },
-    "Invalid OBS WebSocket address" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dirección de WebSocket de OBS no válida"
+    "Invalid OBS WebSocket address": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dirección de WebSocket de OBS no válida"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBSren WebSocket helbide baliogabea"
           }
         }
       }
     },
-    "Last ESP32 Response" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Última respuesta del ESP32"
+    "Last ESP32 Response": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Última respuesta del ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ESP32ren azken erantzuna"
           }
         }
       }
     },
-    "Last seen" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Visto por última vez"
+    "Last seen": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visto por última vez"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Azken aldiz ikusia"
           }
         }
       }
     },
-    "No device" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ningún dispositivo"
+    "No device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ningún dispositivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailurik ez"
           }
         }
       }
     },
-    "No devices found. Connect your ESP32 and click Scan." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se ha encontrado ningún dispositivo. Conecta tu ESP32 y pulsa Buscar."
+    "No devices found. Connect your ESP32 and click Scan.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se ha encontrado ningún dispositivo. Conecta tu ESP32 y pulsa Buscar."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ez da gailurik aurkitu. Konektatu zure ESP32 eta sakatu Bilatu."
           }
         }
       }
     },
-    "Not Connected" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sin conexión"
+    "Not Connected": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin conexión"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konektatu gabe"
           }
         }
       }
     },
-    "Not connected to any ESP32 device" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No hay ningún dispositivo ESP32 conectado"
+    "Not connected to any ESP32 device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay ningún dispositivo ESP32 conectado"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ez zaude inongo ESP32 gailura konektatuta"
           }
         }
       }
     },
-    "OBS closed the WebSocket connection" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OBS cerró la conexión WebSocket"
+    "OBS closed the WebSocket connection": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS cerró la conexión WebSocket"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBSek WebSocket konexioa itxi du"
           }
         }
       }
     },
-    "OBS Connection" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conexión con OBS"
+    "OBS Connection": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conexión con OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS konexioa"
           }
         }
       }
     },
-    "OBS is currently recording.\nThe ESP32 LED is ON." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OBS está grabando.\nEl LED del ESP32 está encendido."
+    "OBS is currently recording.\nThe ESP32 LED is ON.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS está grabando.\nEl LED del ESP32 está encendido."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS grabatzen ari da.\nESP32ren LEDa piztuta dago."
           }
         }
       }
     },
-    "OBS recording is stopped.\nThe ESP32 LED is OFF." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La grabación de OBS está detenida.\nEl LED del ESP32 está apagado."
+    "OBS recording is stopped.\nThe ESP32 LED is OFF.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La grabación de OBS está detenida.\nEl LED del ESP32 está apagado."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBSren grabaketa geldituta dago.\nESP32ren LEDa itzalita dago."
           }
         }
       }
     },
-    "OBS rejected the authentication token" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OBS rechazó el token de autenticación"
+    "OBS rejected the authentication token": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS rechazó el token de autenticación"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBSek autentifikazio-tokena baztertu du"
           }
         }
       }
     },
-    "OBS sent an unexpected WebSocket message" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OBS envió un mensaje de WebSocket inesperado"
+    "OBS sent an unexpected WebSocket message": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS envió un mensaje de WebSocket inesperado"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBSek espero ez zen WebSocket mezua bidali du"
           }
         }
       }
     },
-    "OBS Status v1.0.0" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OBS Status v1.0.0"
+    "OBS Status v1.0.0": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS Status v1.0.0"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS Status v1.0.0"
           }
         }
       }
     },
-    "OBS WebSocket Settings" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajustes de WebSocket de OBS"
+    "OBS WebSocket Settings": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes de WebSocket de OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS WebSocket ezarpenak"
           }
         }
       }
     },
-    "ObsStatus" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ObsStatus"
+    "ObsStatus": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ObsStatus"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ObsStatus"
           }
         }
       }
     },
-    "Please configure a valid OBS host and port" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Configura un servidor y un puerto de OBS válidos"
+    "Please configure a valid OBS host and port": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configura un servidor y un puerto de OBS válidos"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konfiguratu baliozko OBS ostalaria eta ataka"
           }
         }
       }
     },
-    "Port" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Puerto"
+    "Port": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puerto"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ataka"
           }
         }
       }
     },
-    "Preferences" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preferencias"
+    "Preferences": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferencias"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hobespenak"
           }
         }
       }
     },
-    "Quit" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Salir"
+    "Quit": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salir"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Irten"
           }
         }
       }
     },
-    "Read failed with error code: %@" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Falló la lectura con el código de error: %@"
+    "Read failed with error code: %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falló la lectura con el código de error: %@"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Irakurketak huts egin du, errore-kodea: %@"
           }
         }
       }
     },
-    "Recording" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grabando"
+    "Recording": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabando"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabatzen"
           }
         }
       }
     },
-    "Recording LED Color" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Color del LED de grabación"
+    "Recording LED Color": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color del LED de grabación"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabaketa-LEDaren kolorea"
           }
         }
       }
     },
-    "Recording: OFF" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grabación desactivada"
+    "Recording: OFF": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabación desactivada"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabaketa desaktibatuta"
           }
         }
       }
     },
-    "Save Settings" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Guardar ajustes"
+    "Save Settings": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardar ajustes"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gorde ezarpenak"
           }
         }
       }
     },
-    "Scan Devices" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Buscar dispositivos"
+    "Scan Devices": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar dispositivos"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilatu gailuak"
           }
         }
       }
     },
-    "Scan for ESP32" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Buscar ESP32"
+    "Scan for ESP32": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilatu ESP32"
           }
         }
       }
     },
-    "Serial device" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dispositivo serie"
+    "Serial device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivo serie"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serie-gailua"
           }
         }
       }
     },
-    "Status" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estado"
+    "Status": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Egoera"
           }
         }
       }
     },
-    "Timed out waiting for ESP32 response" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Se agotó el tiempo de espera de la respuesta del ESP32"
+    "Timed out waiting for ESP32 response": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se agotó el tiempo de espera de la respuesta del ESP32"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Denbora agortu da ESP32ren erantzunaren zain"
           }
         }
       }
     },
-    "WebSocket Token (optional)" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Token de WebSocket (opcional)"
+    "WebSocket Token (optional)": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token de WebSocket (opcional)"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebSocket tokena (hautazkoa)"
           }
         }
       }
     },
-    "Write failed with error code: %@" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Falló la escritura con el código de error: %@"
+    "Write failed with error code: %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falló la escritura con el código de error: %@"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idazketak huts egin du, errore-kodea: %@"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
