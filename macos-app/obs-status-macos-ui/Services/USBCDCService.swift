@@ -53,10 +53,12 @@ protocol USBCDCServiceProtocol: Sendable {
 /// IOKit callbacks arrive on a dispatch queue, so access is lock-based
 /// and the type is usable from outside the actor.
 private final class DeviceEventBroadcaster: @unchecked Sendable {
-    private let lock = NSLock()
-    private var continuations: [UUID: AsyncStream<Void>.Continuation] = [:]
+    private nonisolated let lock = NSLock()
+    private nonisolated(unsafe) var continuations: [UUID: AsyncStream<Void>.Continuation] = [:]
 
-    func stream() -> AsyncStream<Void> {
+    nonisolated init() {}
+
+    nonisolated func stream() -> AsyncStream<Void> {
         AsyncStream { continuation in
             let id = UUID()
             lock.withLock { continuations[id] = continuation }
@@ -67,7 +69,7 @@ private final class DeviceEventBroadcaster: @unchecked Sendable {
         }
     }
 
-    func broadcast() {
+    nonisolated func broadcast() {
         let current = lock.withLock { Array(continuations.values) }
         for continuation in current {
             continuation.yield()
