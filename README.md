@@ -125,6 +125,17 @@ obs-status-esp32/
 - **ESP32-S3 board** (Freenove ESP32-S3-WROOM recommended)
 - **PlatformIO** (for ESP32 firmware)
 
+### Build with Make
+
+From the repository root:
+
+```bash
+make            # Build the ESP32 firmware and macOS app
+make firmware   # Build only the ESP32 firmware
+make install    # Upload the firmware to the connected ESP32
+make macos      # Build only the macOS app
+```
+
 ### 1. macOS Application (Xcode)
 
 **Build with Xcode:**
