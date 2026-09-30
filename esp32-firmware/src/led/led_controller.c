@@ -159,8 +159,8 @@ void led_blink_fast(void)
     transmit_color(0, 0, 0);
     xSemaphoreGive(s_led_mutex);
     if (s_blink_timer != NULL) {
+        // xTimerChangePeriod also starts a dormant timer
         xTimerChangePeriod(s_blink_timer, pdMS_TO_TICKS(LED_BLINK_FAST_MS), 0);
-        xTimerStart(s_blink_timer, 0);
     }
 }
 
@@ -174,8 +174,8 @@ void led_blink_slow(void)
     transmit_color(0, 0, 0);
     xSemaphoreGive(s_led_mutex);
     if (s_blink_timer != NULL) {
+        // xTimerChangePeriod also starts a dormant timer
         xTimerChangePeriod(s_blink_timer, pdMS_TO_TICKS(LED_BLINK_SLOW_MS), 0);
-        xTimerStart(s_blink_timer, 0);
     }
 }
 
