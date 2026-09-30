@@ -22,6 +22,7 @@
 # macOS
 .DS_Store
 *.xcodeproj/
+!macos-app/obs-status-macos-ui.xcodeproj/
 *.xcworkspace/
 build/
 
