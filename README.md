@@ -24,8 +24,8 @@ microcontroller.
 | macOS USB CDC   | ✅ Done | IOKit-based serial port enumeration/control |
 | ESP32 Firmware  | ✅ Done | Full implementation with all modules        |
 | Protocol Parser | ✅ Done | Text command parsing and dispatch           |
-| LED Controller  | ✅ Done | GPIO + FreeRTOS timer for blink patterns    |
-| USB CDC (ESP32) | ✅ Done | Full USB CDC-ACM device implementation      |
+| LED Controller  | ✅ Done | WS2812 RGB LED via RMT + dedicated blink task |
+| USB CDC (ESP32) | ✅ Done | USB Serial JTAG (ESP32-S3 native USB)         |
 
 ## Project Structure
 
@@ -99,7 +99,7 @@ obs-status-esp32/
 - **macOS 14.0+** (Sonoma)
 - **Xcode 15.0+** (for macOS app)
 - **OBS Studio** with the [obs-websocket](https://github.com/obsproject/obs-websocket) plugin
-- **ESP32-S3 board** (Freenove ESP32-S3-WROOM recommended)
+- **ESP32-S3 board** (default target: ESP32-S3-DevKit N8R8; Freenove ESP32-S3-WROOM and other boards can be enabled in `esp32-firmware/platformio.ini`)
 - **PlatformIO** (for ESP32 firmware)
 
 ### Build with Make
@@ -143,8 +143,8 @@ cd esp32-firmware
 # Build firmware
 pio run
 
-# Upload to ESP32
-pio run -e freenove_esp32_s3_wroom -t upload
+# Upload to ESP32 (default environment)
+pio run -t upload
 
 # Monitor serial output
 pio device monitor -b 115200
@@ -162,7 +162,7 @@ pio device monitor -b 115200
 
 ## Communication Protocol
 
-Text-based protocol over USB CDC serial (115200 baud, 8N1):
+Text-based protocol over USB CDC serial (115200 baud, 8N1 — the baud rate is configured on the macOS side only; the ESP32-S3 USB Serial JTAG ignores it):
 
 | Command                       | Description                                          |
 |-------------------------------|------------------------------------------------------|
