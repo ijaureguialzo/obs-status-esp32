@@ -7,7 +7,7 @@
 #include "driver/rmt_tx.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
-#include "freertos/timers.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
 #include <string.h>
@@ -20,6 +20,8 @@
 #define LED_BLINK_FAST_MS 100
 #define LED_BLINK_SLOW_MS 500
 #define LED_COLOR_LEVEL 32
+#define LED_BLINK_TASK_STACK_SIZE 2048
+#define LED_BLINK_TASK_PRIORITY 5
 
 static const char *TAG = "led";
 
@@ -31,7 +33,7 @@ typedef enum {
 } led_mode_t;
 
 static uint8_t s_led_pin = CONFIG_LED_GPIO_NUM;
-static TimerHandle_t s_blink_timer = NULL;
+static TaskHandle_t s_blink_task = NULL;
 static SemaphoreHandle_t s_led_mutex = NULL;
 static rmt_channel_handle_t s_led_channel = NULL;
 static rmt_encoder_handle_t s_led_encoder = NULL;
@@ -41,7 +43,8 @@ static uint8_t s_red = 0;
 static uint8_t s_green = LED_COLOR_LEVEL;
 static uint8_t s_blue = 0;
 
-static void blink_timer_callback(TimerHandle_t xTimer);
+static void blink_task(void *pv_parameters);
+static void notify_blink_task(void);
 static esp_err_t transmit_color(uint8_t red, uint8_t green, uint8_t blue);
 
 esp_err_t led_init(uint8_t pin)
@@ -105,15 +108,10 @@ esp_err_t led_init(uint8_t pin)
         return ret;
     }
 
-    s_blink_timer = xTimerCreate(
-        "led_blink",
-        pdMS_TO_TICKS(LED_BLINK_FAST_MS),
-        pdTRUE,
-        0,
-        blink_timer_callback
-    );
-
-    if (s_blink_timer == NULL) {
+    // A dedicated task owns blinking so the blocking RMT transmit never
+    // runs in the FreeRTOS timer daemon context.
+    if (xTaskCreate(blink_task, "led_blink", LED_BLINK_TASK_STACK_SIZE,
+                    NULL, LED_BLINK_TASK_PRIORITY, &s_blink_task) != pdPASS) {
         return ESP_FAIL;
     }
 
@@ -130,9 +128,7 @@ void led_on(void)
     s_led_is_on = true;
     transmit_color(s_red, s_green, s_blue);
     xSemaphoreGive(s_led_mutex);
-    if (s_blink_timer != NULL) {
-        xTimerStop(s_blink_timer, 0);
-    }
+    notify_blink_task();
 }
 
 void led_off(void)
@@ -144,9 +140,7 @@ void led_off(void)
     s_led_is_on = false;
     transmit_color(0, 0, 0);
     xSemaphoreGive(s_led_mutex);
-    if (s_blink_timer != NULL) {
-        xTimerStop(s_blink_timer, 0);
-    }
+    notify_blink_task();
 }
 
 void led_blink_fast(void)
@@ -158,10 +152,7 @@ void led_blink_fast(void)
     s_led_is_on = false;
     transmit_color(0, 0, 0);
     xSemaphoreGive(s_led_mutex);
-    if (s_blink_timer != NULL) {
-        // xTimerChangePeriod also starts a dormant timer
-        xTimerChangePeriod(s_blink_timer, pdMS_TO_TICKS(LED_BLINK_FAST_MS), 0);
-    }
+    notify_blink_task();
 }
 
 void led_blink_slow(void)
@@ -173,10 +164,7 @@ void led_blink_slow(void)
     s_led_is_on = false;
     transmit_color(0, 0, 0);
     xSemaphoreGive(s_led_mutex);
-    if (s_blink_timer != NULL) {
-        // xTimerChangePeriod also starts a dormant timer
-        xTimerChangePeriod(s_blink_timer, pdMS_TO_TICKS(LED_BLINK_SLOW_MS), 0);
-    }
+    notify_blink_task();
 }
 
 void led_set_color(uint8_t red, uint8_t green, uint8_t blue)
@@ -212,21 +200,35 @@ void led_set_pattern(const char *pattern)
     }
 }
 
-static void blink_timer_callback(TimerHandle_t xTimer)
+static void blink_task(void *pv_parameters)
 {
-    (void)xTimer;
-    if (xSemaphoreTake(s_led_mutex, portMAX_DELAY) != pdTRUE) {
-        return;
+    (void)pv_parameters;
+    while (1) {
+        TickType_t wait_ticks = portMAX_DELAY;
+        if (xSemaphoreTake(s_led_mutex, portMAX_DELAY) == pdTRUE) {
+            if (s_current_mode == LED_MODE_BLINK_FAST || s_current_mode == LED_MODE_BLINK_SLOW) {
+                s_led_is_on = !s_led_is_on;
+                transmit_color(
+                    s_led_is_on ? s_red : 0,
+                    s_led_is_on ? s_green : 0,
+                    s_led_is_on ? s_blue : 0
+                );
+                wait_ticks = pdMS_TO_TICKS(
+                    s_current_mode == LED_MODE_BLINK_FAST ? LED_BLINK_FAST_MS : LED_BLINK_SLOW_MS
+                );
+            }
+            xSemaphoreGive(s_led_mutex);
+        }
+        // Wakes early on mode changes (notify) or after the blink period.
+        ulTaskNotifyTake(pdTRUE, wait_ticks);
     }
-    if (s_current_mode == LED_MODE_BLINK_FAST || s_current_mode == LED_MODE_BLINK_SLOW) {
-        s_led_is_on = !s_led_is_on;
-        transmit_color(
-            s_led_is_on ? s_red : 0,
-            s_led_is_on ? s_green : 0,
-            s_led_is_on ? s_blue : 0
-        );
+}
+
+static void notify_blink_task(void)
+{
+    if (s_blink_task != NULL) {
+        xTaskNotifyGive(s_blink_task);
     }
-    xSemaphoreGive(s_led_mutex);
 }
 
 bool led_is_on(void)
