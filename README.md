@@ -178,7 +178,8 @@ Text-based protocol over USB CDC serial (115200 baud, 8N1):
 
 | Command     | Description                    |
 |-------------|--------------------------------|
-| `LED_ON`    | Turn LED on (recording)        |
+| `LED_ON`    | Turn LED on with the legacy green color |
+| `LED_ON:<red>,<green>,<blue>` | Turn LED on with an RGB color (each component 0–255) |
 | `LED_OFF`   | Turn LED off (not recording)   |
 | `BLINK_FAST`| Blink fast (error state)       |
 | `BLINK_SLOW`| Blink slow (idle/disconnected) |

@@ -4,7 +4,44 @@
 //  Text-based protocol sent over USB CDC serial.
 //
 
+import AppKit
 import Foundation
+import SwiftUI
+
+struct LEDColor: Codable, Equatable, Sendable {
+    let red: UInt8
+    let green: UInt8
+    let blue: UInt8
+
+    static let recordingDefault = LEDColor(red: 0, green: 255, blue: 0)
+
+    init(red: UInt8, green: UInt8, blue: UInt8) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+    }
+
+    init(color: Color) {
+        let nsColor = NSColor(color).usingColorSpace(.sRGB) ?? NSColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        nsColor.getRed(&red, green: &green, blue: &blue, alpha: nil)
+        self.init(
+            red: UInt8((red * 255).rounded()),
+            green: UInt8((green * 255).rounded()),
+            blue: UInt8((blue * 255).rounded())
+        )
+    }
+
+    var color: Color {
+        Color(
+            red: Double(red) / 255,
+            green: Double(green) / 255,
+            blue: Double(blue) / 255
+        )
+    }
+}
 
 /// Text-based commands sent from macOS app to ESP32 over USB CDC
 enum ObsCommand: String, CaseIterable {
@@ -16,6 +53,10 @@ enum ObsCommand: String, CaseIterable {
     
     var lineTerminated: String {
         "\(rawValue)\n"
+    }
+
+    static func ledOn(color: LEDColor) -> String {
+        "LED_ON:\(color.red),\(color.green),\(color.blue)\n"
     }
 }
 

@@ -23,6 +23,7 @@
 // ==========================
 
 #define PROTOCOL_TXT_LED_ON      "LED_ON"
+#define PROTOCOL_TXT_LED_ON_COLOR_PREFIX "LED_ON:"
 #define PROTOCOL_TXT_LED_OFF     "LED_OFF"
 #define PROTOCOL_TXT_BLINK_FAST  "BLINK_FAST"
 #define PROTOCOL_TXT_BLINK_SLOW  "BLINK_SLOW"

@@ -12,6 +12,7 @@ private enum Key {
     static let bundleID = Bundle.main.bundleIdentifier ?? "com.unknown.obs-status"
     static var settingsFile: String { "Preferences/\(bundleID).json" }
     static let obsConfigKey = "obsConfig"
+    static let recordingLEDColorKey = "recordingLEDColor"
     static let espDevicePathKey = "lastESPDevicePath"
     static let autoConnectKey = "autoConnect"
     static let tokenAccount = "obs-websocket-token"
@@ -24,6 +25,7 @@ class AppSettings {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "ObsStatus", category: "Settings")
     
     private var _obsConfig: OBSConfig
+    private var _recordingLEDColor: LEDColor
     private var _lastESPDevicePath: String?
     private var _autoConnect: Bool
     
@@ -36,6 +38,11 @@ class AppSettings {
         get { _lastESPDevicePath }
         set { _lastESPDevicePath = newValue; save() }
     }
+
+    var recordingLEDColor: LEDColor {
+        get { _recordingLEDColor }
+        set { _recordingLEDColor = newValue; save() }
+    }
     
     var autoConnect: Bool {
         get { _autoConnect }
@@ -47,6 +54,7 @@ class AppSettings {
         fileURL = directory.appendingPathComponent(Key.settingsFile)
         
         _obsConfig = OBSConfig()
+        _recordingLEDColor = .recordingDefault
         _lastESPDevicePath = nil
         _autoConnect = false
         
@@ -71,6 +79,19 @@ class AppSettings {
                         token: savedToken
                     )
                 }
+                if let colorDict = json[Key.recordingLEDColorKey] as? [String: Int],
+                   let red = colorDict["red"],
+                   let green = colorDict["green"],
+                   let blue = colorDict["blue"],
+                   (0...255).contains(red),
+                   (0...255).contains(green),
+                   (0...255).contains(blue) {
+                    _recordingLEDColor = LEDColor(
+                        red: UInt8(red),
+                        green: UInt8(green),
+                        blue: UInt8(blue)
+                    )
+                }
                 _lastESPDevicePath = json[Key.espDevicePathKey] as? String
                 _autoConnect = (json[Key.autoConnectKey] as? Bool) ?? false
                 if json[Key.obsConfigKey] is [String: Any],
@@ -91,6 +112,11 @@ class AppSettings {
                 Key.obsConfigKey: [
                     "host": _obsConfig.host,
                     "port": _obsConfig.port,
+                ],
+                Key.recordingLEDColorKey: [
+                    "red": Int(_recordingLEDColor.red),
+                    "green": Int(_recordingLEDColor.green),
+                    "blue": Int(_recordingLEDColor.blue),
                 ],
                 Key.autoConnectKey: _autoConnect,
             ]

@@ -63,11 +63,11 @@ struct LEDIndicatorView: View {
     // MARK: - Computed Properties
     
     private var gradient: Color {
-        viewModel.obsRecording ? Color.green : Color.gray.opacity(0.15)
+        viewModel.obsRecording ? viewModel.recordingLEDColor.color : Color.gray.opacity(0.15)
     }
     
     private var circleFill: Color {
-        viewModel.obsRecording ? Color.green : Color.gray.opacity(0.25)
+        viewModel.obsRecording ? viewModel.recordingLEDColor.color : Color.gray.opacity(0.25)
     }
     
     private var glowOpacity: Double {
@@ -79,11 +79,11 @@ struct LEDIndicatorView: View {
     }
     
     private var shadowColor: Color {
-        viewModel.obsRecording ? Color.green.opacity(0.4) : Color.clear
+        viewModel.obsRecording ? viewModel.recordingLEDColor.color.opacity(0.4) : Color.clear
     }
     
     private var borderColor: Color {
-        viewModel.obsRecording ? Color.green.opacity(0.9) : Color.gray.opacity(0.4)
+        viewModel.obsRecording ? viewModel.recordingLEDColor.color.opacity(0.9) : Color.gray.opacity(0.4)
     }
     
     private var iconName: String {
@@ -104,7 +104,7 @@ struct LEDIndicatorView: View {
     private var iconColor: Color {
         switch status {
         case .recording:
-            return .green
+            return viewModel.recordingLEDColor.color
         case .connectingOBS, .connectingESP:
             return .orange
         case .idle:

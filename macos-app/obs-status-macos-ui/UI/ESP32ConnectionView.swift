@@ -46,7 +46,7 @@ struct ESP32ConnectionView: View {
                     Spacer()
                     connectButton
                 }
-                
+
                 if let lastSeen = viewModel.espLastSeen {
                     LabeledContent("Last seen") {
                         Text(lastSeen, style: .relative)
@@ -59,6 +59,20 @@ struct ESP32ConnectionView: View {
                         .foregroundColor(.red)
                         .font(.caption)
                 }
+            }
+
+            Section("Recording LED Color") {
+                ColorPicker(
+                    "Color",
+                    selection: Binding(
+                        get: { viewModel.recordingLEDColor.color },
+                        set: { viewModel.setRecordingLEDColor(LEDColor(color: $0)) }
+                    ),
+                    supportsOpacity: false
+                )
+                Text("Applied to the ESP32 while OBS is recording.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             
             if let response = viewModel.lastESPResponse {

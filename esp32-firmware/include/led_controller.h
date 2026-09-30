@@ -19,6 +19,7 @@ void led_on(void);
 void led_off(void);
 void led_blink_fast(void);
 void led_blink_slow(void);
+void led_set_color(uint8_t red, uint8_t green, uint8_t blue);
 void led_set_pwm(uint8_t brightness);
 void led_set_pattern(const char *pattern);
 bool led_is_on(void);

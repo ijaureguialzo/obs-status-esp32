@@ -27,6 +27,7 @@ final class AppViewModel {
     var errorMessage: String?
     var lastESPResponse: String?
     var espLastSeen: Date?
+    var recordingLEDColor: LEDColor = .recordingDefault
     
     // MARK: - Services
     
@@ -37,6 +38,7 @@ final class AppViewModel {
     init(obsService: OBSWebSocketServiceProtocol? = nil, usbService: USBCDCServiceProtocol? = nil) {
         self.obsService = obsService ?? OBSWebSocketService()
         self.usbService = usbService ?? USBCDCService()
+        self.recordingLEDColor = AppSettings.shared.recordingLEDColor
         
         // Listen for OBS state changes
         observeOBSState()
@@ -152,13 +154,29 @@ final class AppViewModel {
         let command: ObsCommand
         switch state {
         case .recording:
-            command = .ledOn
+            do {
+                let response = try await usbService.sendCommand(
+                    ObsCommand.ledOn(color: recordingLEDColor),
+                    to: device
+                )
+                lastESPResponse = response
+                espLastSeen = Date()
+                if ObsProtocolUtil.isErrorResponse(response) {
+                    espError = response
+                }
+            } catch {
+                espConnected = false
+                espError = error.localizedDescription
+                errorMessage = error.localizedDescription
+                await usbService.disconnect()
+            }
+            return
         case .notRecording:
             command = .ledOff
         case .unknown:
             return
         }
-        
+
         do {
             let response = try await usbService.sendCommand(
                 command.lineTerminated,
@@ -174,6 +192,15 @@ final class AppViewModel {
             espError = error.localizedDescription
             errorMessage = error.localizedDescription
             await usbService.disconnect()
+        }
+    }
+
+    func setRecordingLEDColor(_ color: LEDColor) {
+        recordingLEDColor = color
+        AppSettings.shared.recordingLEDColor = color
+        guard obsRecording else { return }
+        Task {
+            await sendLEDCommand(.recording)
         }
     }
     

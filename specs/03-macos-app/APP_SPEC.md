@@ -34,6 +34,7 @@ The app opens with a single window with two tabs or sections:
 - **Connect/Disconnect** button for ESP32
 - **Status indicator**: Green (connected), Red (disconnected)
 - **Last seen** timestamp
+- **Recording LED color picker**: Selects any RGB color sent to the ESP32 while recording
 
 #### Visual Recording Indicator
 - Large circular LED graphic that mirrors the ESP32 LED state
@@ -148,6 +149,7 @@ Stored values:
 - OBS token in the macOS Keychain
 - Last selected ESP32 device
 - Auto-connect preferences
+- Recording LED RGB color
 
 ## 6. macOS Integration
 

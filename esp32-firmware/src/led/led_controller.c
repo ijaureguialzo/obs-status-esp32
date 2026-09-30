@@ -37,6 +37,9 @@ static rmt_channel_handle_t s_led_channel = NULL;
 static rmt_encoder_handle_t s_led_encoder = NULL;
 static led_mode_t s_current_mode = LED_MODE_OFF;
 static bool s_led_is_on = false;
+static uint8_t s_red = 0;
+static uint8_t s_green = LED_COLOR_LEVEL;
+static uint8_t s_blue = 0;
 
 static void blink_timer_callback(TimerHandle_t xTimer);
 static esp_err_t transmit_color(uint8_t red, uint8_t green, uint8_t blue);
@@ -125,7 +128,7 @@ void led_on(void)
     }
     s_current_mode = LED_MODE_ON;
     s_led_is_on = true;
-    transmit_color(0, LED_COLOR_LEVEL, 0);
+    transmit_color(s_red, s_green, s_blue);
     xSemaphoreGive(s_led_mutex);
     if (s_blink_timer != NULL) {
         xTimerStop(s_blink_timer, 0);
@@ -176,6 +179,20 @@ void led_blink_slow(void)
     }
 }
 
+void led_set_color(uint8_t red, uint8_t green, uint8_t blue)
+{
+    if (s_led_mutex == NULL || xSemaphoreTake(s_led_mutex, portMAX_DELAY) != pdTRUE) {
+        return;
+    }
+    s_red = red;
+    s_green = green;
+    s_blue = blue;
+    if (s_led_is_on) {
+        transmit_color(s_red, s_green, s_blue);
+    }
+    xSemaphoreGive(s_led_mutex);
+}
+
 void led_set_pwm(uint8_t brightness)
 {
     if (s_led_mutex == NULL || xSemaphoreTake(s_led_mutex, portMAX_DELAY) != pdTRUE) {
@@ -217,7 +234,11 @@ static void blink_timer_callback(TimerHandle_t xTimer)
     }
     if (s_current_mode == LED_MODE_BLINK_FAST || s_current_mode == LED_MODE_BLINK_SLOW) {
         s_led_is_on = !s_led_is_on;
-        transmit_color(0, s_led_is_on ? LED_COLOR_LEVEL : 0, 0);
+        transmit_color(
+            s_led_is_on ? s_red : 0,
+            s_led_is_on ? s_green : 0,
+            s_led_is_on ? s_blue : 0
+        );
     }
     xSemaphoreGive(s_led_mutex);
 }
@@ -238,11 +259,11 @@ static esp_err_t transmit_color(uint8_t red, uint8_t green, uint8_t blue)
         return ESP_ERR_INVALID_STATE;
     }
 
-    const uint8_t grb[] = { green, red, blue };
+    const uint8_t rgb[] = { red, green, blue };
     const rmt_transmit_config_t tx_config = {
         .loop_count = 0,
     };
-    esp_err_t ret = rmt_transmit(s_led_channel, s_led_encoder, grb, sizeof(grb), &tx_config);
+    esp_err_t ret = rmt_transmit(s_led_channel, s_led_encoder, rgb, sizeof(rgb), &tx_config);
     if (ret == ESP_OK) {
         ret = rmt_tx_wait_all_done(s_led_channel, 100);
     }

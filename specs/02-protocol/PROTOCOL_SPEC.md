@@ -32,6 +32,16 @@ LED_ON\n
 
 **Use case**: OBS is recording.
 
+To choose the recording color, send the RGB components as decimal values from
+0 through 255:
+
+```
+LED_ON:<red>,<green>,<blue>\n
+```
+
+For example, `LED_ON:255,0,128\n` lights the LED magenta. The legacy
+`LED_ON\n` command remains supported and uses the default green color.
+
 ### 3.2 Command: `LED_OFF`
 
 Turns the onboard LED OFF.

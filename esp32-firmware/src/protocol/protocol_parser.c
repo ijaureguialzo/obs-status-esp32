@@ -8,6 +8,7 @@
 #include "led_controller.h"
 #include "obs_protocol.h"
 #include "freertos/FreeRTOS.h"
+#include <stdio.h>
 #include <string.h>
 
 #define RESPONSE_BUFFER_SIZE 128
@@ -15,6 +16,9 @@
 static char s_response_buffer[RESPONSE_BUFFER_SIZE];
 static char s_line_buffer[PROTOCOL_MAX_LINE_LENGTH];
 static size_t s_line_length = 0;
+
+static bool parse_led_on_color(const char *command, uint8_t *red, uint8_t *green, uint8_t *blue);
+static void send_response(const char *response);
 
 esp_err_t protocol_init(void)
 {
@@ -43,26 +47,36 @@ esp_err_t protocol_process(const char *line)
 
     if (strcmp(trimmed, PROTOCOL_TXT_LED_ON) == 0) {
         led_on();
-        snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE, "%s" PROTOCOL_LINE_END, PROTOCOL_TXT_OK);
-        usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
+        send_response(PROTOCOL_TXT_OK);
+        return ESP_OK;
+
+    } else if (strncmp(trimmed, PROTOCOL_TXT_LED_ON_COLOR_PREFIX,
+                       strlen(PROTOCOL_TXT_LED_ON_COLOR_PREFIX)) == 0) {
+        uint8_t red;
+        uint8_t green;
+        uint8_t blue;
+        if (!parse_led_on_color(trimmed, &red, &green, &blue)) {
+            send_response(PROTOCOL_TXT_ERROR_FORMAT);
+            return ESP_ERR_INVALID_ARG;
+        }
+        led_set_color(red, green, blue);
+        led_on();
+        send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_LED_OFF) == 0) {
         led_off();
-        snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE, "%s" PROTOCOL_LINE_END, PROTOCOL_TXT_OK);
-        usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
+        send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_BLINK_FAST) == 0) {
         led_blink_fast();
-        snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE, "%s" PROTOCOL_LINE_END, PROTOCOL_TXT_OK);
-        usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
+        send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_BLINK_SLOW) == 0) {
         led_blink_slow();
-        snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE, "%s" PROTOCOL_LINE_END, PROTOCOL_TXT_OK);
-        usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
+        send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_STATUS) == 0) {
@@ -81,4 +95,29 @@ esp_err_t protocol_process(const char *line)
         usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
         return ESP_ERR_NOT_FOUND;
     }
+}
+
+static bool parse_led_on_color(const char *command, uint8_t *red, uint8_t *green, uint8_t *blue)
+{
+    unsigned int parsed_red;
+    unsigned int parsed_green;
+    unsigned int parsed_blue;
+    char trailing;
+    const char *arguments = command + strlen(PROTOCOL_TXT_LED_ON_COLOR_PREFIX);
+
+    if (sscanf(arguments, "%u,%u,%u%c", &parsed_red, &parsed_green, &parsed_blue, &trailing) != 3 ||
+        parsed_red > UINT8_MAX || parsed_green > UINT8_MAX || parsed_blue > UINT8_MAX) {
+        return false;
+    }
+
+    *red = (uint8_t)parsed_red;
+    *green = (uint8_t)parsed_green;
+    *blue = (uint8_t)parsed_blue;
+    return true;
+}
+
+static void send_response(const char *response)
+{
+    snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE, "%s" PROTOCOL_LINE_END, response);
+    usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
 }
