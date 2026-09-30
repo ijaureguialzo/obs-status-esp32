@@ -50,6 +50,8 @@ struct LEDIndicatorView: View {
                     .multilineTextAlignment(.center)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
         .onAppear {
             updateAnimation()
         }

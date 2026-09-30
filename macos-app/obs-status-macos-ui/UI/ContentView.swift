@@ -6,41 +6,53 @@
 
 import SwiftUI
 
+/// Sidebar destinations for the main split view. Keeping the status screen
+/// as an explicit, selectable item lets the user always navigate back to it.
+enum SidebarSection: String, CaseIterable, Identifiable {
+    case status = "Status"
+    case obsConnection = "OBS Connection"
+    case esp32Device = "ESP32 Device"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .status: return "dot.radiowaves.left.and.right"
+        case .obsConnection: return "network"
+        case .esp32Device: return "cpu"
+        }
+    }
+}
+
 struct ContentView: View {
     @Environment(AppViewModel.self) private var viewModel
-    
+    @State private var selection: SidebarSection? = .status
+
     var body: some View {
         NavigationSplitView {
-            // Sidebar with connection status
-            List {
-                NavigationLink("OBS Connection") {
-                    OBSConnectionView()
-                }
-                
-                NavigationLink("ESP32 Device") {
-                    ESP32ConnectionView()
-                }
+            List(SidebarSection.allCases, selection: $selection) { section in
+                Label(section.rawValue, systemImage: section.icon)
+                    .tag(section)
             }
             .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 240)
         } detail: {
-            // Main content: Large LED indicator showing recording status
-            LEDIndicatorView()
-                .padding()
+            detailView
+                .navigationTitle(selection?.rawValue ?? SidebarSection.status.rawValue)
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 RecordingStateBadge(state: viewModel.obsRecording ? .recording : .notRecording)
             }
-            
+
             ToolbarItemGroup(placement: .automatic) {
                 if let error = viewModel.errorMessage {
                     Text(error)
                         .foregroundColor(.red)
                         .font(.caption)
+                        .lineLimit(1)
                 }
-                
-                Spacer()
-                
+
                 Text("ObsStatus v1.0.0")
                     .font(.caption2)
                     .foregroundColor(.secondary)
@@ -50,19 +62,31 @@ struct ContentView: View {
             await viewModel.prepare()
         }
     }
+
+    @ViewBuilder
+    private var detailView: some View {
+        switch selection ?? .status {
+        case .status:
+            LEDIndicatorView()
+        case .obsConnection:
+            OBSConnectionView()
+        case .esp32Device:
+            ESP32ConnectionView()
+        }
+    }
 }
 
 // MARK: - Supporting Views
 
 private struct RecordingStateBadge: View {
     let state: RecordingState
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Circle()
                 .fill(state == .recording ? Color.red : Color.gray)
                 .frame(width: 8, height: 8)
-            
+
             Text(state == .recording ? "Recording" : "Idle")
                 .font(.caption)
         }

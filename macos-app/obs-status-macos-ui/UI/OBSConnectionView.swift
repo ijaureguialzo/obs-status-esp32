@@ -18,51 +18,42 @@ struct OBSConnectionView: View {
             Section("OBS WebSocket Settings") {
                 TextField("Host", text: $host)
                     .disabled(viewModel.obsConnected)
-                    .textFieldStyle(.roundedBorder)
                 
                 TextField("Port", text: $port)
                     .disabled(viewModel.obsConnected)
-                    .textFieldStyle(.roundedBorder)
                 
                 SecureField("WebSocket Token (optional)", text: $token)
                     .disabled(viewModel.obsConnected)
-                    .textFieldStyle(.roundedBorder)
                 
-                Button(action: {
-                    AppSettings.shared.obsConfig = OBSConfig(
-                        host: host.trimmingCharacters(in: .whitespacesAndNewlines),
-                        port: Int(port) ?? 0,
-                        token: token
-                    )
-                }) {
-                    Text("Save Settings")
+                HStack {
+                    Spacer()
+                    Button("Save Settings", action: saveSettings)
+                        .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
             
-            Section("Connection Status") {
-                connectionStatusRow
+            Section("Connection") {
+                HStack {
+                    connectionStatusRow
+                    Spacer()
+                    connectButton
+                }
+                
+                if let error = viewModel.obsError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
             }
             
-            Section("Actions") {
-                connectButton
-            }
-
-            Section("Launch") {
+            Section("Preferences") {
                 Toggle("Connect automatically on launch", isOn: Binding(
                     get: { AppSettings.shared.autoConnect },
                     set: { AppSettings.shared.autoConnect = $0 }
                 ))
             }
-            
-            if let error = viewModel.obsError {
-                Section("Error") {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                }
-            }
         }
+        .formStyle(.grouped)
         .onAppear {
             let config = AppSettings.shared.obsConfig
             host = config.host
@@ -74,7 +65,7 @@ struct OBSConnectionView: View {
     // MARK: - Computed Properties
     
     private var connectionStatusRow: some View {
-        HStack {
+        HStack(spacing: 6) {
             Image(systemName: viewModel.obsConnecting ? "arrow.triangle.2.circlepath" :
                     viewModel.obsConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundColor(viewModel.obsConnecting ? .orange : viewModel.obsConnected ? .green : .red)
@@ -84,30 +75,40 @@ struct OBSConnectionView: View {
             
             if viewModel.obsConnecting {
                 ProgressView()
+                    .controlSize(.small)
             }
         }
     }
     
     private var connectButton: some View {
-        Button(action: {
-            if viewModel.obsConnected || viewModel.obsConnecting {
-                Task { await viewModel.disconnectOBS() }
-            } else {
-                AppSettings.shared.obsConfig = OBSConfig(
-                    host: host.trimmingCharacters(in: .whitespacesAndNewlines),
-                    port: Int(port) ?? 0,
-                    token: token
-                )
-                Task { await viewModel.connectOBS() }
-            }
-        }) {
-            Text(viewModel.obsConnected || viewModel.obsConnecting ? "Disconnect" : "Connect to OBS")
-                .frame(maxWidth: .infinity)
+        Button(action: toggleConnection) {
+            Text(viewModel.obsConnected || viewModel.obsConnecting ? "Disconnect" : "Connect")
+                .frame(minWidth: 90)
         }
         .disabled((viewModel.obsConnecting && viewModel.obsConnected) || (!viewModel.obsConnected && !viewModel.obsConnecting &&
             (host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
              !(1...65535).contains(Int(port) ?? 0))))
         .buttonStyle(.borderedProminent)
+        .controlSize(.regular)
+    }
+    
+    // MARK: - Actions
+    
+    private func saveSettings() {
+        AppSettings.shared.obsConfig = OBSConfig(
+            host: host.trimmingCharacters(in: .whitespacesAndNewlines),
+            port: Int(port) ?? 0,
+            token: token
+        )
+    }
+    
+    private func toggleConnection() {
+        if viewModel.obsConnected || viewModel.obsConnecting {
+            Task { await viewModel.disconnectOBS() }
+        } else {
+            saveSettings()
+            Task { await viewModel.connectOBS() }
+        }
     }
 }
 
