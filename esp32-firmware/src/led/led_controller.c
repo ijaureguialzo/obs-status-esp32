@@ -193,20 +193,6 @@ void led_set_color(uint8_t red, uint8_t green, uint8_t blue)
     xSemaphoreGive(s_led_mutex);
 }
 
-void led_set_pwm(uint8_t brightness)
-{
-    if (s_led_mutex == NULL || xSemaphoreTake(s_led_mutex, portMAX_DELAY) != pdTRUE) {
-        return;
-    }
-    s_current_mode = brightness == 0 ? LED_MODE_OFF : LED_MODE_ON;
-    s_led_is_on = brightness != 0;
-    transmit_color(0, brightness, 0);
-    xSemaphoreGive(s_led_mutex);
-    if (s_blink_timer != NULL) {
-        xTimerStop(s_blink_timer, 0);
-    }
-}
-
 void led_set_pattern(const char *pattern)
 {
     if (pattern == NULL) {
