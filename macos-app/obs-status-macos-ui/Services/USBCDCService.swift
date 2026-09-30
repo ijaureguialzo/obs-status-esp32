@@ -66,16 +66,17 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             var devices: [USBDevice] = []
             
             // Use IOKit to find all serial devices
-            var matchingDict: io_object_t = 0
-            let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary
+            guard let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary? else {
+                return []
+            }
             
+            var matchingDict: io_object_t = 0
             let status = IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matchingDict)
             
             guard status == KERN_SUCCESS else {
                 return []
             }
             
-            // Handle io_object_t (Swift 6 makes it Optional)
             guard matchingDict != 0 else {
                 return []
             }
@@ -85,29 +86,14 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             var service = IOIteratorNext(iterator)
             
             while service != 0 {
-                // Get device info from registry
-                let name = (IORegistryEntryCreateCFProperty(service, "name" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? String) ?? "Unknown Device"
+                let name = getCFStringProperty(service, key: "name") ?? "Unknown Device"
+                let callout = getCFStringProperty(service, key: "CalloutDevices")
+                let serialPath = getCFStringProperty(service, key: "DialinDevices")
                 
-                let callout = (IORegistryEntryCreateCFProperty(service, "CalloutDevices" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? String)
-                let serialPath = (IORegistryEntryCreateCFProperty(service, "DialinDevices" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? String)
+                let usbVendorID: UInt16? = getCFProperty(service, key: kUSBVendorID as CFString)
+                let usbProductID: UInt16? = getCFProperty(service, key: kUSBProductID as CFString)
+                let usbSerialNumber: String? = getCFStringProperty(service, key: "usbSerialNumber")
                 
-                // Get USB properties
-                var usbVendorID: UInt16?
-                var usbProductID: UInt16?
-                let usbSerialNumber: String? = nil
-                
-                // Try to get USB properties directly
-                if let vendorIDData = IORegistryEntryCreateCFProperty(service, kUSBVendorID as CFString, kCFAllocatorDefault, 0)
-                    .takeRetainedValue() as? UInt16 {
-                    usbVendorID = vendorIDData
-                }
-                
-                if let productIDData = IORegistryEntryCreateCFProperty(service, kUSBProductID as CFString, kCFAllocatorDefault, 0)
-                    .takeRetainedValue() as? UInt16 {
-                    usbProductID = productIDData
-                }
-                
-                // Use callout path or dialin path
                 let devicePath = callout ?? serialPath
                 if let path = devicePath, isValidSerialPath(path) {
                     devices.append(USBDevice(
@@ -136,39 +122,31 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             throw USBCDCError.alreadyConnected
         }
         
-        // Open the serial port
         fileDescriptor = open(device.path, O_RDWR | O_NOCTTY)
         if fileDescriptor < 0 {
             throw USBCDCError.cannotOpen(path: device.path)
         }
         
-        // Configure serial port settings
         var termios = termios()
         tcgetattr(fileDescriptor, &termios)
         
-        // Set baud rate to 115200
         cfsetispeed(&termios, speed_t(B115200))
         cfsetospeed(&termios, speed_t(B115200))
         
-        // 8N1: 8 data bits, no parity, 1 stop bit
         termios.c_cflag |= UInt(CLOCAL | CREAD)
         termios.c_cflag &= ~UInt(PARENB)
         termios.c_cflag &= ~UInt(CSTOPB)
         termios.c_cflag &= ~UInt(CSIZE)
         termios.c_cflag |= UInt(CS8)
         
-        // Raw mode: no canonical processing, no echo, no signal processing
         termios.c_lflag &= ~UInt(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG | IEXTEN)
         termios.c_lflag &= ~UInt(ECHOK | ECHOCTL | ECHOKE)
         
-        // Raw output: no post-processing
         termios.c_oflag &= ~UInt(OPOST)
         
-        // No flow control
         termios.c_cflag &= ~UInt(CRTSCTS)
         termios.c_iflag &= ~UInt(IXON | IXOFF | IXANY)
         
-        // Apply settings
         if tcsetattr(fileDescriptor, TCSANOW, &termios) < 0 {
             close(fileDescriptor)
             fileDescriptor = -1
@@ -193,7 +171,6 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             throw USBCDCError.notConnected
         }
         
-        // Send command
         let data = command.data(using: .utf8)!
         let written = write(fileDescriptor, data.bytes, data.count)
         
@@ -204,7 +181,6 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             throw USBCDCError.writeFailed(error: err)
         }
         
-        // Read response with timeout
         var responseBuffer = [UInt8](repeating: 0, count: 256)
         var totalRead = 0
         var bytesRead: Int
@@ -234,13 +210,23 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
     
     // MARK: - Helpers
     
+    private func getCFStringProperty(_ service: io_object_t, key: String) -> String? {
+        let result = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)
+        defer { result?.release() }
+        return result?.takeRetainedValue() as? String
+    }
+    
+    private func getCFProperty<T>(_ service: io_object_t, key: CFString) -> T? {
+        let result = IORegistryEntryCreateCFProperty(service, key, kCFAllocatorDefault, 0)
+        defer { result?.release() }
+        return result?.takeRetainedValue() as? T
+    }
+    
     private func isValidSerialPath(_ path: String) -> Bool {
         let validPrefixes = ["/dev/cu.", "/dev/cu.serial", "/dev/cu.usb"]
         return validPrefixes.contains { path.hasPrefix($0) }
     }
 }
-
-// MARK: - Extensions for UnsafeRawPointer
 
 extension Data {
     var bytes: [UInt8] {
