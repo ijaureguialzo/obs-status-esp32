@@ -7,6 +7,7 @@
 #define LED_CONTROLLER_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <esp_err.h>
 
 #ifdef __cplusplus
@@ -20,6 +21,7 @@ void led_blink_fast(void);
 void led_blink_slow(void);
 void led_set_pwm(uint8_t brightness);
 void led_set_pattern(const char *pattern);
+bool led_is_on(void);
 
 #ifdef __cplusplus
 }

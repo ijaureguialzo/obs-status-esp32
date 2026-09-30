@@ -30,10 +30,12 @@ framework = espidf
 
 | Component     | Pin  | Notes                        |
 |---------------|------|------------------------------|
-| Onboard LED   | GPIO8 | Active-high (Freenove S3)   |
+| Onboard LED   | GPIO48 | Addressable RGB (WS2812, ESP32-S3-DevKitC-1 N8R8) |
 | USB Device    | N/A  | Native USB (USBD)           |
 
-**Note**: LED pin varies by board. Configure via `sdkconfig` or Kconfig.
+**Note**: The ESP32-S3-DevKitC-1 onboard RGB LED uses the WS2812 protocol and
+must be driven with RMT, not as a simple GPIO output. `CONFIG_LED_GPIO_NUM`
+selects the data pin for other boards with a compatible addressable RGB LED.
 
 ### 3.3 USB Configuration
 
@@ -159,7 +161,7 @@ esp_err_t protocol_process(const char *line);
 ### 6.1 Kconfig Options
 
 ```
-CONFIG_LED_GPIO_NUM=8         # LED pin number
+CONFIG_LED_GPIO_NUM=48        # WS2812 RGB data pin on ESP32-S3-DevKitC-1
 CONFIG_USB_CDC_BAUD_RATE=115200
 CONFIG_COMMAND_TIMEOUT_MS=10000  # Disconnect timeout
 ```

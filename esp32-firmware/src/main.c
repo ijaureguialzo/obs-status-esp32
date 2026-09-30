@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -58,7 +59,8 @@ static void app_task(void *pv_parameters)
     char recv_buffer[PROTOCOL_MAX_LINE_LENGTH];
     char line_buffer[PROTOCOL_MAX_LINE_LENGTH];
     size_t line_length = 0;
-    uint32_t last_command_time = 0;
+    uint32_t last_command_time = xTaskGetTickCount();
+    bool idle_mode = false;
 
     ESP_LOGI(TAG, "Entering main loop (waiting for commands)");
 
@@ -69,6 +71,7 @@ static void app_task(void *pv_parameters)
 
         if (bytes_read > 0) {
             recv_buffer[bytes_read] = '\0';
+            idle_mode = false;
 
             for (int i = 0; i < bytes_read; i++) {
                 if (recv_buffer[i] == '\n') {
@@ -92,10 +95,11 @@ static void app_task(void *pv_parameters)
         } else {
             uint32_t elapsed = xTaskGetTickCount() - last_command_time;
 
-            if (elapsed > pdMS_TO_TICKS(DISCONNECT_TIMEOUT_MS)) {
+            if (elapsed > pdMS_TO_TICKS(DISCONNECT_TIMEOUT_MS) && !idle_mode) {
                 ESP_LOGW(TAG, "No commands for %lu ms - entering idle mode",
                          (unsigned long)(elapsed * portTICK_PERIOD_MS));
                 led_blink_slow();
+                idle_mode = true;
             }
         }
     }

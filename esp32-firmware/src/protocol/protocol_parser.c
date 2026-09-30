@@ -8,7 +8,6 @@
 #include "led_controller.h"
 #include "obs_protocol.h"
 #include "freertos/FreeRTOS.h"
-#include "driver/gpio.h"
 #include <string.h>
 
 #define RESPONSE_BUFFER_SIZE 128
@@ -67,11 +66,11 @@ esp_err_t protocol_process(const char *line)
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_STATUS) == 0) {
-        const char *led_state = gpio_get_level(CONFIG_LED_GPIO_NUM) ? "ON" : "OFF";
+        const char *led_state = led_is_on() ? "ON" : "OFF";
         const char *usb_state = usb_cdc_is_connected() ? "CONNECTED" : "DISCONNECTED";
 
         snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE,
-                 PROTOCOL_STATUS_FORMAT, led_state, usb_state, 0);
+                 PROTOCOL_STATUS_FORMAT PROTOCOL_LINE_END, led_state, usb_state, 0);
 
         usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
         return ESP_OK;
