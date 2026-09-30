@@ -15,6 +15,7 @@
 #include "freertos/event_groups.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_sleep.h"
 #include "nvs_flash.h"
 
 #include "usb_cdc.h"
@@ -124,10 +125,6 @@ static void app_task(void *pv_parameters)
 
 void app_main(void)
 {
-    // Initialize ESP system
-    esp_err_t ret = esp_system_get_reset_info();
-    (void)ret;
-    
     ESP_LOGI(TAG, "ObsStatus ESP32 Firmware v1.0.0");
     ESP_LOGI(TAG, "Target: %s", CONFIG_IDF_TARGET);
     ESP_LOGI(TAG, "LED GPIO: %d", CONFIG_LED_GPIO_NUM);

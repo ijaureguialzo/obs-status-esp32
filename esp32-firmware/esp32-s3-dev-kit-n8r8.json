@@ -1,0 +1,35 @@
+{
+  "name": "ESP32-S3-DevKitC-1-N8R8",
+  "build": {
+    "core": "esp32",
+    "cpu": "esp32s3",
+    "extra_flags": [
+      "-DARDUINO_USB_CDC_ON_BOOT=1",
+      "-DARDUINO_USB_MODE=1",
+      "-DARDUINO_ARCH_ESP32",
+      "-DARDUINO_USB_CDC_ON_BOOT=1"
+    ],
+    "f_cpu": "240000000L",
+    "f_flash": "80000000L",
+    "flash_mode": "qio",
+    "mcu": "esp32s3",
+    "variant": "esp32s3"
+  },
+  "connectivity": [
+    "wifi"
+  ],
+  "frameworks": [
+    "arduino",
+    "espidf"
+  ],
+  "name": "Espressif ESP32-S3-DevKitC-1-N8R8",
+  "upload": {
+    "flash_size": "8MB",
+    "max_ram_size": 327680,
+    "max_size": 8388608,
+    "requires_bootloader": true,
+    "resetmethod": "usb"
+  },
+  "url": "https://www.espressif.com/en/products/devkits/panel/esp32-s3-devkitc-1",
+  "vendor": "Espressif"
+}

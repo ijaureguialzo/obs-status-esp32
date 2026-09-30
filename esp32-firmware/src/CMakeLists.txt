@@ -9,4 +9,5 @@ idf_component_register(
     REQUIRES
         driver
         nvs_flash
+        esp_usb
 )
