@@ -45,10 +45,10 @@ A two-part system that monitors OBS Studio recording status and provides a physi
 | macOS App (UI)  | ✅ Done | Complete SwiftUI with all panels            |
 | macOS WebSocket | ✅ Done | Custom WebSocket client using BSD sockets   |
 | macOS USB CDC   | ✅ Done | IOKit-based serial port enumeration/control |
-| ESP32 Firmware  | ✅ Done | Full structure with TODO markers            |
+| ESP32 Firmware  | ✅ Done | Full implementation with all modules        |
 | Protocol Parser | ✅ Done | Text command parsing and dispatch           |
 | LED Controller  | ✅ Done | GPIO + FreeRTOS timer for blink patterns    |
-| USB CDC (ESP32) | ⚠️ TODO | See USB_CDC notes in source code            |
+| USB CDC (ESP32) | ✅ Done | Full USB CDC-ACM device implementation      |
 
 ## Project Structure
 
@@ -70,28 +70,31 @@ obs-status-esp32/
 │   └── obs_protocol.h              # C header (ESP32)
 │
 ├── macos-app/                      # macOS SwiftUI application
-│   ├── Package.swift               # Swift Package
-│   ├── Resources/
-│   │   └── Info.plist              # App configuration
-│   └── Sources/
-│       ├── App/
-│       │   └── ObsStatusApp.swift   # @main entry point
-│       ├── UI/
-│       │   ├── ContentView.swift           # Main window layout
-│       │   ├── OBSConnectionView.swift     # OBS config panel
-│       │   ├── ESP32ConnectionView.swift   # ESP32 config panel
-│       │   └── LEDIndicatorView.swift      # Visual recording indicator
-│       ├── Services/
-│       │   ├── OBSWebSocketService.swift   # WebSocket client (custom BSD socket impl)
-│       │   └── USBCDCService.swift         # USB serial via IOKit
-│       ├── Models/
-│       │   ├── AppViewModel.swift          # Central state manager
-│       │   ├── OBSConfig.swift             # OBS config model
-│       │   ├── USBDevice.swift             # USB device model
-│       │   ├── AppSettings.swift           # Persistent settings
-│       │   └── ObsProtocol.swift           # Protocol definitions
-│       └── Extensions/
-│           └── AsyncStream+Extensions.swift
+│   ├── obs-status-macos-ui.xcodeproj/   # Xcode project
+│   ├── obs-status-macos-ui/             # Swift source files
+│   │   ├── App/
+│   │   │   ├── ObsStatusApp.swift        # @main entry point
+│   │   │   └── ObsStatusMenuBar.swift    # Menu bar integration
+│   │   ├── UI/
+│   │   │   ├── ContentView.swift           # Main window layout
+│   │   │   ├── OBSConnectionView.swift     # OBS config panel
+│   │   │   ├── ESP32ConnectionView.swift   # ESP32 config panel
+│   │   │   └── LEDIndicatorView.swift      # Visual recording indicator
+│   │   ├── Services/
+│   │   │   ├── OBSWebSocketService.swift   # WebSocket client (custom BSD socket impl)
+│   │   │   └── USBCDCService.swift         # USB serial via IOKit
+│   │   ├── Models/
+│   │   │   ├── AppViewModel.swift          # Central state manager
+│   │   │   ├── OBSConfig.swift             # OBS config model
+│   │   │   ├── USBDevice.swift             # USB device model
+│   │   │   ├── AppSettings.swift           # Persistent settings
+│   │   │   └── ObsProtocol.swift           # Protocol definitions
+│   │   ├── Extensions/
+│   │   │   └── AsyncStream+Extensions.swift
+│   │   ├── Info.plist                    # App configuration
+│   │   ├── Resources/Info.plist          # Build-time config
+│   │   ├── Package.swift                 # Swift Package description
+│   │   └── Assets.xcassets/              # App icons and assets
 │
 ├── esp32-firmware/              # ESP-IDF firmware for ESP32
 │   ├── platformio.ini           # PlatformIO configuration
@@ -124,44 +127,24 @@ obs-status-esp32/
 
 ### 1. macOS Application (Xcode)
 
-**Crear el proyecto Xcode (una sola vez):**
+**Build with Xcode:**
 
-1. Abre Xcode
-2. Ve a `File > New > Project...`
-3. Selecciona `macOS > App` y pulsa `Next`
-4. Configura:
-   - **Product Name**: `obs-status-macos-ui`
-   - **Bundle Identifier**: `com.obsstatus.app` (o tu dominio)
-   - **Interface**: `SwiftUI`
-   - **Language**: `Swift`
-5. Guarda el proyecto en la carpeta `macos-app/` (fuera de obs-status-macos-ui)
-6. En el proyecto creado:
-   - Arrastra los archivos de `obs-status-macos-ui/Sources/` al grupo `Sources`
-   - Arrastra `obs-status-macos-ui/Resources/Info.plist` al grupo `Resources`
-   - En Build Settings, establece:
-     - ` macOS Deployment Target` a `14.0`
-     - `Swift Version` a `5.9`
+1. Open `macos-app/obs-status-macos-ui.xcodeproj` in Xcode
+2. Select your target scheme (macOS 14.0+)
+3. Build and run (`Cmd+R`)
 
-**O usar XcodeGen (alternativa):**
+**Alternatively, build via command line:**
 
 ```bash
-brew install xcodegen
 cd macos-app
-xcodegen generate
+xcodebuild -scheme obs-status-macos-ui -configuration Debug build
 ```
 
-Con un archivo `codegen.yml`:
-```yaml
-name: obs-status-macos-ui
-targets:
-  obs-status-macos-ui:
-    type: application
-    platform: macOS
-    sources: [obs-status-macos-ui/Sources]
-    settings:
-      base:
-        macOSXDeploymentTarget: 14.0
-        SWIFT_VERSION: 5.9
+**Swift Package (alternative):**
+
+```bash
+cd macos-app
+swift build
 ```
 
 ### 2. ESP32 Firmware
