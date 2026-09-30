@@ -19,7 +19,7 @@
 
 static const char *TAG = "obs-status";
 
-#define APP_TASK_STACK_SIZE 2048
+#define APP_TASK_STACK_SIZE 4096
 #define APP_TASK_PRIORITY 5
 #define USB_RECV_TIMEOUT_MS 100
 #define DISCONNECT_TIMEOUT_MS 10000
