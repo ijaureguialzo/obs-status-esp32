@@ -38,6 +38,11 @@ let package = Package(
                 "Models/ObsProtocol.swift",
                 "Extensions/AsyncStream+Extensions.swift",
             ]
+        ),
+        .testTarget(
+            name: "ObsStatusTests",
+            dependencies: ["ObsStatus"],
+            path: "Tests/ObsStatusTests"
         )
     ]
 )
