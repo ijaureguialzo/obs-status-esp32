@@ -1,4 +1,4 @@
-# ObsStatus - OBS Recording Status Indicator
+# OBS Status - OBS Recording Status Indicator
 
 ## Overview
 
