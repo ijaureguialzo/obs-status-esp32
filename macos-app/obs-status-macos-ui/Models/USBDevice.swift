@@ -11,16 +11,30 @@ struct USBDevice: Identifiable, Codable, Hashable {
     let vendorID: UInt16
     let productID: UInt16
     let serialNumber: String?
+    let deviceDescription: String?
     let name: String
     let path: String
     
-    nonisolated init(vendorID: UInt16, productID: UInt16, serialNumber: String?, name: String, path: String) {
+    nonisolated init(
+        vendorID: UInt16,
+        productID: UInt16,
+        serialNumber: String?,
+        deviceDescription: String? = nil,
+        name: String,
+        path: String
+    ) {
         self.id = path
         self.vendorID = vendorID
         self.productID = productID
         self.serialNumber = serialNumber
+        self.deviceDescription = deviceDescription
         self.name = name
         self.path = path
+    }
+
+    var pickerTitle: String {
+        let label = deviceDescription ?? (name == "Unknown Device" ? "Serial device" : name)
+        return "\(label) — \(path)"
     }
 }
 

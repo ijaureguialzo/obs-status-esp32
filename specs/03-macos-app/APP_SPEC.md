@@ -30,7 +30,7 @@ The app opens with a single window with two tabs or sections:
 - **Recording indicator**: Large visual indicator showing current OBS recording state
 
 #### Section B: ESP32 Connection
-- **Device Selector**: Dropdown showing available serial devices
+- **Device Selector**: Dropdown showing each USB product description and `/dev/cu.*` port
 - **Connect/Disconnect** button for ESP32
 - **Status indicator**: Green (connected), Red (disconnected)
 - **Last seen** timestamp

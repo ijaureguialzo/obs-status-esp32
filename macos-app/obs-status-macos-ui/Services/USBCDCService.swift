@@ -70,6 +70,7 @@ actor USBCDCService: USBCDCServiceProtocol {
                         vendorID: 0x303A, // Espressif
                         productID: 0x0001,
                         serialNumber: nil,
+                        deviceDescription: "USB JTAG/serial debug unit",
                         name: "ESP32-S3 USB Serial JTAG",
                         path: jtagPath
                     ))
@@ -98,13 +99,14 @@ actor USBCDCService: USBCDCServiceProtocol {
             var service = IOIteratorNext(iterator)
             
             while service != 0 {
-                let name = getCFStringProperty(service, key: "name") ?? "Unknown Device"
+                let name = getCFStringProperty(service, key: "name") ?? "Serial device"
                 let callout = getCFStringProperty(service, key: "IOCalloutDevice")
                 let serialPath = getCFStringProperty(service, key: "IODialinDevice")
                 
                 let usbVendorID: UInt16? = getCFProperty(service, key: kUSBVendorID as CFString)
                 let usbProductID: UInt16? = getCFProperty(service, key: kUSBProductID as CFString)
-                let usbSerialNumber: String? = getCFStringProperty(service, key: "usbSerialNumber")
+                let usbDescription: String? = getCFProperty(service, key: kUSBProductString as CFString)
+                let usbSerialNumber: String? = getCFProperty(service, key: kUSBSerialNumberString as CFString)
                 
                 let devicePath = callout ?? serialPath
                 if let path = devicePath, isValidSerialPath(path) {
@@ -115,6 +117,7 @@ actor USBCDCService: USBCDCServiceProtocol {
                             vendorID: usbVendorID ?? 0,
                             productID: usbProductID ?? 0,
                             serialNumber: usbSerialNumber,
+                            deviceDescription: usbDescription,
                             name: name,
                             path: path
                         ))

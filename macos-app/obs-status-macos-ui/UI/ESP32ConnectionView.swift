@@ -28,7 +28,7 @@ struct ESP32ConnectionView: View {
                         Text("No device")
                             .tag(Optional<USBDevice>(nil))
                         ForEach(viewModel.availableDevices) { device in
-                            Text(device.name)
+                            Text(device.pickerTitle)
                                 .tag(device as USBDevice?)
                         }
                     }
