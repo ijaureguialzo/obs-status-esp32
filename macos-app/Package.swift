@@ -20,9 +20,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ObsStatus",
-            path: "Sources",
+            path: "obs-status-macos-ui",
             sources: [
                 "App/ObsStatusApp.swift",
+                "App/ObsStatusMenuBar.swift",
                 "UI/ContentView.swift",
                 "UI/OBSConnectionView.swift",
                 "UI/ESP32ConnectionView.swift",

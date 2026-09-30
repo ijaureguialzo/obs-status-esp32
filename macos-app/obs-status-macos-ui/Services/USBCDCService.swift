@@ -1,7 +1,8 @@
 //
 //  USBCDCService.swift
-//  USB CDC (Virtual Serial Port) service for ESP32 communication
-//  Uses IOKit to enumerate and communicate with USB serial devices.
+//  USB serial service for ESP32 communication
+//  Handles both CDC-ACM devices (standard USB serial) and
+//  USB Serial JTAG devices (ESP32-S3 native USB).
 //
 
 import Foundation
@@ -65,20 +66,38 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
         await Task {
             var devices: [USBDevice] = []
             
-            // Use IOKit to find all serial devices
+            // Check for USB Serial JTAG (ESP32-S3 native)
+            // Appears as /dev/cu.debug-console
+            let jtagPath = "/dev/cu.debug-console"
+            if FileManager.default.fileExists(atPath: jtagPath) {
+                // Avoid adding if already found via IOKit enumeration
+                let alreadyExists = devices.contains { $0.path == jtagPath }
+                if !alreadyExists {
+                    devices.append(USBDevice(
+                        vendorID: 0x303A, // Espressif
+                        productID: 0x0001,
+                        serialNumber: nil,
+                        name: "ESP32-S3 USB Serial JTAG",
+                        path: jtagPath
+                    ))
+                }
+            }
+            
+            // Also enumerate CDC-ACM devices (CP210x, CH340, FTDI, etc.)
+            // This handles other boards that enumerate as standard USB serial
             guard let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary? else {
-                return []
+                return devices
             }
             
             var matchingDict: io_object_t = 0
             let status = IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matchingDict)
             
             guard status == KERN_SUCCESS else {
-                return []
+                return devices
             }
             
             guard matchingDict != 0 else {
-                return []
+                return devices
             }
             
             let iterator = matchingDict
@@ -96,13 +115,17 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
                 
                 let devicePath = callout ?? serialPath
                 if let path = devicePath, isValidSerialPath(path) {
-                    devices.append(USBDevice(
-                        vendorID: usbVendorID ?? 0,
-                        productID: usbProductID ?? 0,
-                        serialNumber: usbSerialNumber,
-                        name: name,
-                        path: path
-                    ))
+                    // Avoid duplicates
+                    let exists = devices.contains { $0.path == path }
+                    if !exists {
+                        devices.append(USBDevice(
+                            vendorID: usbVendorID ?? 0,
+                            productID: usbProductID ?? 0,
+                            serialNumber: usbSerialNumber,
+                            name: name,
+                            path: path
+                        ))
+                    }
                 }
                 
                 IOObjectRelease(service)

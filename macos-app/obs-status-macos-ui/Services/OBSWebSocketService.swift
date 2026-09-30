@@ -5,6 +5,7 @@
 
 import Foundation
 import CryptoKit
+import Darwin
 
 enum OBSWebSocketError: LocalizedError {
     case connectionFailed(String)
@@ -192,9 +193,51 @@ class OBSWebSocketService: @unchecked Sendable, OBSWebSocketServiceProtocol {
     private func closeSocket() { if socketFD >= 0 { close(socketFD); socketFD = -1 } }
     
     private func createSocket(host: String, port: Int) throws -> Int32 {
-        // Stub: low-level socket creation not yet implemented for Swift 6
-        // TODO: Implement socket creation when Swift 6 Darwin bindings are stable
-        throw OBSWebSocketError.connectionFailed("Socket creation not yet implemented for Swift 6")
+        var hints = addrinfo()
+        hints.ai_family = AF_INET
+        hints.ai_socktype = SOCK_STREAM
+        hints.ai_protocol = IPPROTO_TCP
+        
+        var addrPtr: UnsafeMutablePointer<addrinfo>?
+        let portStr = String(port)
+        guard getaddrinfo(host, portStr, &hints, &addrPtr) == 0 else {
+            throw OBSWebSocketError.connectionFailed("Failed to resolve host: \(host)")
+        }
+        defer { freeaddrinfo(addrPtr) }
+        
+        guard addrPtr != nil else {
+            throw OBSWebSocketError.connectionFailed("No addresses found for host: \(host)")
+        }
+        
+        let socketFD = socket(AF_INET, SOCK_STREAM, 0)
+        guard socketFD >= 0 else {
+            throw OBSWebSocketError.connectionFailed("Failed to create socket")
+        }
+        
+        do {
+            guard Darwin.connect(socketFD, addrPtr!.pointee.ai_addr, socklen_t(addrPtr!.pointee.ai_addrlen)) == 0 else {
+                let socketError = errno
+                close(socketFD)
+                throw OBSWebSocketError.connectionFailed("Failed to connect: \(socketErrorString(socketError))")
+            }
+        } catch {
+            close(socketFD)
+            throw error
+        }
+        
+        return socketFD
+    }
+    
+    private func socketErrorString(_ error: Int32) -> String {
+        switch error {
+        case EHOSTUNREACH: return "Host unreachable"
+        case ETIMEDOUT: return "Connection timed out"
+        case ECONNREFUSED: return "Connection refused"
+        case ENETUNREACH: return "Network unreachable"
+        case EAFNOSUPPORT: return "Address family not supported"
+        case EADDRNOTAVAIL: return "Address not available"
+        default: return "Error code \(error)"
+        }
     }
     
     private func readData(_ buffer: inout [UInt8], count: Int) -> Int {

@@ -11,14 +11,14 @@ struct ObsStatusMenuBar: Scene {
     
     var body: some Scene {
         MenuBarExtra {
-            MenuBarControls(viewModel: viewModel)
+            MenuBarControls()
         } label: {
             MenuBarIcon(viewModel: viewModel)
         }
     }
 }
 
-private struct MenuBarIcon: View {
+struct MenuBarIcon: View {
     let viewModel: AppViewModel
     
     var body: some View {
@@ -36,8 +36,8 @@ private struct MenuBarIcon: View {
     }
 }
 
-private struct MenuBarControls: View {
-    @State private var viewModel: AppViewModel
+struct MenuBarControls: View {
+    @Environment(AppViewModel.self) private var viewModel
     
     var body: some View {
         Group {
