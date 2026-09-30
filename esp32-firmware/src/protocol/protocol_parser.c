@@ -14,16 +14,12 @@
 #define RESPONSE_BUFFER_SIZE 128
 
 static char s_response_buffer[RESPONSE_BUFFER_SIZE];
-static char s_line_buffer[PROTOCOL_MAX_LINE_LENGTH];
-static size_t s_line_length = 0;
 
 static bool parse_led_on_color(const char *command, uint8_t *red, uint8_t *green, uint8_t *blue);
 static void send_response(const char *response);
 
 esp_err_t protocol_init(void)
 {
-    s_line_length = 0;
-    memset(s_line_buffer, 0, sizeof(s_line_buffer));
     memset(s_response_buffer, 0, sizeof(s_response_buffer));
 
     return ESP_OK;
