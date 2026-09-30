@@ -13,7 +13,7 @@
 #include <string.h>
 
 #ifndef CONFIG_LED_GPIO_NUM
-#define CONFIG_LED_GPIO_NUM 48
+#define CONFIG_LED_GPIO_NUM 38
 #endif
 
 #define LED_RMT_RESOLUTION_HZ 10000000
