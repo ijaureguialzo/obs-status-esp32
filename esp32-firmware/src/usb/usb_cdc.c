@@ -43,8 +43,17 @@ esp_err_t usb_cdc_send(const uint8_t *data, size_t len)
         return ESP_ERR_INVALID_ARG;
     }
 
-    int written = usb_serial_jtag_write_bytes(data, len, pdMS_TO_TICKS(1000));
-    return (written >= 0) ? ESP_OK : ESP_FAIL;
+    size_t total_written = 0;
+    while (total_written < len) {
+        int written = usb_serial_jtag_write_bytes(data + total_written,
+                                                  len - total_written,
+                                                  pdMS_TO_TICKS(1000));
+        if (written <= 0) {
+            return ESP_FAIL;
+        }
+        total_written += (size_t)written;
+    }
+    return ESP_OK;
 }
 
 int usb_cdc_recv(uint8_t *buffer, size_t len, TickType_t timeout)
