@@ -70,7 +70,7 @@ class AppSettings {
     
     private func save() {
         do {
-            var dict: [String: Any] = [
+            let dict: [String: Any] = [
                 Key.obsConfigKey: [
                     "host": _obsConfig.host,
                     "port": _obsConfig.port,

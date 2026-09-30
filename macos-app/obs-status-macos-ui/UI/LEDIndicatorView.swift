@@ -53,7 +53,7 @@ struct LEDIndicatorView: View {
         .onAppear {
             updateAnimation()
         }
-        .onChange(of: viewModel.obsRecording) { newValue in
+        .onChange(of: viewModel.obsRecording) {
             updateAnimation()
         }
     }

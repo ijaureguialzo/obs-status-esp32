@@ -73,14 +73,14 @@ class AppViewModel: ObservableObject {
     func disconnectOBS() async {
         obsConnected = false
         obsRecording = false
-        await obsService.disconnect()
+        obsService.disconnect()
     }
     
     func updateRecordingState(_ state: RecordingState) {
         obsRecording = (state == .recording)
         
         // Send command to ESP32 if connected
-        Task {
+        _ = Task {
             await sendLEDCommand(state)
         }
     }
@@ -117,7 +117,7 @@ class AppViewModel: ObservableObject {
         espConnected = false
         stopStatusPolling()
         Task {
-            await usbService.disconnect()
+            usbService.disconnect()
         }
     }
     
@@ -169,7 +169,7 @@ class AppViewModel: ObservableObject {
     private func observeOBSState() {
         Task {
             for await state in obsService.recordingStateStream {
-                await updateRecordingState(state)
+                updateRecordingState(state)
             }
         }
     }

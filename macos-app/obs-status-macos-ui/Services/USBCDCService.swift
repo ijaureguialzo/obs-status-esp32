@@ -69,7 +69,7 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             var matchingDict: io_object_t = 0
             let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary
             
-            let status = IOServiceGetMatchingServices(kIOMasterPortDefault, matching, &matchingDict)
+            let status = IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matchingDict)
             
             guard status == KERN_SUCCESS else {
                 return []
@@ -94,7 +94,7 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
                 // Get USB properties
                 var usbVendorID: UInt16?
                 var usbProductID: UInt16?
-                var usbSerialNumber: String?
+                let usbSerialNumber: String? = nil
                 
                 // Try to get USB properties directly
                 if let vendorIDData = IORegistryEntryCreateCFProperty(service, kUSBVendorID as CFString, kCFAllocatorDefault, 0)

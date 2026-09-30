@@ -23,7 +23,7 @@ struct OBSConnectionView: View {
                 TextField("Port", text: $port)
                     .disabled(viewModel.obsConnected)
                     .textFieldStyle(.roundedBorder)
-                    .onChange(of: port) { newValue in
+                    .onChange(of: port) { oldValue, newValue in
                         // Validate port number
                         if let num = Int(newValue), num > 65535 || num < 1 {
                             // Trim invalid port numbers

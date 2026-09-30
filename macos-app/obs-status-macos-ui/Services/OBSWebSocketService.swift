@@ -130,7 +130,7 @@ class OBSWebSocketService: @unchecked Sendable, OBSWebSocketServiceProtocol {
                 catch {
                     if self.isConnectedFlag {
                         self.isConnectedFlag = false
-                        await self.continuation?.yield(.unknown)
+                        self.continuation?.yield(.unknown)
                         break
                     }
                 }
