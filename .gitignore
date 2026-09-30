@@ -45,3 +45,5 @@ sdkconfig.old
 # Generated files
 *.pyc
 __pycache__/
+
+esp32-firmware/sdkconfig.esp32-s3-dev-kit-n8r8
