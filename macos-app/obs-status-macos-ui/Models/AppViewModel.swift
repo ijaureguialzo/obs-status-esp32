@@ -125,6 +125,7 @@ final class AppViewModel {
             try await usbService.connect(device)
             espConnected = true
             espError = nil
+            errorMessage = nil
             AppSettings.shared.lastESPDevicePath = device.path
             await sendLEDCommand(obsService.recordingState)
             
@@ -162,6 +163,7 @@ final class AppViewModel {
                 )
                 lastESPResponse = response
                 espLastSeen = Date()
+                errorMessage = nil
                 if ObsProtocolUtil.isErrorResponse(response) {
                     espError = response
                 }
@@ -185,6 +187,7 @@ final class AppViewModel {
             )
             lastESPResponse = response
             espLastSeen = Date()
+            errorMessage = nil
             if ObsProtocolUtil.isErrorResponse(response) {
                 espError = response
             }
@@ -215,6 +218,7 @@ final class AppViewModel {
             )
             lastESPResponse = response
             espLastSeen = Date()
+            errorMessage = nil
             if ObsProtocolUtil.isErrorResponse(response) {
                 espError = response
             }
@@ -255,6 +259,8 @@ final class AppViewModel {
                         }
                         espConnected = true
                         espConnecting = false
+                        espError = nil
+                        errorMessage = nil
                         await sendLEDCommand(obsService.recordingState)
                     } catch {
                         espConnecting = false
