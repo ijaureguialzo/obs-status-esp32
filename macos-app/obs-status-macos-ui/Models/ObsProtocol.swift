@@ -60,36 +60,6 @@ enum ObsCommand: String, CaseIterable {
     }
 }
 
-/// Parsed status response from ESP32.
-/// Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>"
-struct ObsStatusResponse: Codable {
-    let led: String
-    let usb: String
-    let errorCode: Int
-    
-    init?(from rawResponse: String) {
-        // Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>"
-        guard rawResponse.hasPrefix("STATUS:") else { return nil }
-        
-        let content = String(rawResponse.dropFirst(7)) // Remove "STATUS:"
-        let parts = content.split(separator: "|")
-        
-        guard parts.count == 3 else { return nil }
-        
-        // Parse LED state
-        guard parts[0].hasPrefix("LED=") else { return nil }
-        led = String(parts[0].dropFirst(4))
-        
-        // Parse USB state
-        guard parts[1].hasPrefix("USB=") else { return nil }
-        usb = String(parts[1].dropFirst(4))
-        
-        // Parse error code
-        guard parts[2].hasPrefix("ERROR=") else { return nil }
-        errorCode = Int(String(parts[2].dropFirst(6))) ?? 0
-    }
-}
-
 /// Utility functions for protocol handling
 enum ObsProtocolUtil {
     /// Check if a response indicates an error
