@@ -244,7 +244,7 @@ static esp_err_t transmit_color(uint8_t red, uint8_t green, uint8_t blue)
     };
     esp_err_t ret = rmt_transmit(s_led_channel, s_led_encoder, grb, sizeof(grb), &tx_config);
     if (ret == ESP_OK) {
-        ret = rmt_tx_wait_all_done(s_led_channel, pdMS_TO_TICKS(10));
+        ret = rmt_tx_wait_all_done(s_led_channel, 100);
     }
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to update RGB LED: %s", esp_err_to_name(ret));

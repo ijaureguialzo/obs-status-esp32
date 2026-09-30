@@ -160,6 +160,14 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                     try await sendJSON(["op": 4, "d": message["d"] ?? [:]], to: webSocket)
                     continue
                 }
+                if message["op"] as? Int == 7,
+                   let data = message["d"] as? [String: Any],
+                   data["requestType"] as? String == "GetRecordStatus",
+                   let responseData = data["responseData"] as? [String: Any],
+                   let active = responseData["outputActive"] as? Bool {
+                    setRecordingState(active ? .recording : .notRecording)
+                    continue
+                }
                 guard message["op"] as? Int == 5,
                       let data = message["d"] as? [String: Any],
                       let eventType = data["eventType"] as? String,
