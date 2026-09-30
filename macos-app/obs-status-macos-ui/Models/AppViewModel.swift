@@ -42,6 +42,7 @@ final class AppViewModel {
         
         // Listen for OBS state changes
         observeOBSState()
+        observeDeviceEvents()
     }
     
     // MARK: - OBS Connection
@@ -219,6 +220,16 @@ final class AppViewModel {
             }
             obsConnected = obsService.isConnected
             obsConnecting = obsService.isReconnecting
+        }
+    }
+    
+    /// Re-scan the device list whenever a serial device is plugged in or removed.
+    private func observeDeviceEvents() {
+        Task { [weak self] in
+            guard let self else { return }
+            for await _ in usbService.deviceEvents {
+                await scanDevices()
+            }
         }
     }
     

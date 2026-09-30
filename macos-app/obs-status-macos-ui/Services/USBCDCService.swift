@@ -39,10 +39,38 @@ enum USBCDCError: LocalizedError {
 }
 
 protocol USBCDCServiceProtocol: Sendable {
+    /// Yields whenever a serial device is plugged in or removed.
+    nonisolated var deviceEvents: AsyncStream<Void> { get }
     func enumerateDevices() async -> [USBDevice]
     func connect(_ device: USBDevice) async throws
     func disconnect() async
     func sendCommand(_ command: String, to device: USBDevice) async throws -> String
+}
+
+/// Broadcasts device change events to any number of stream subscribers.
+/// IOKit callbacks arrive on a dispatch queue, so access is lock-based
+/// and the type is usable from outside the actor.
+private final class DeviceEventBroadcaster: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuations: [UUID: AsyncStream<Void>.Continuation] = [:]
+
+    func stream() -> AsyncStream<Void> {
+        AsyncStream { continuation in
+            let id = UUID()
+            lock.withLock { continuations[id] = continuation }
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                self.lock.withLock { self.continuations[id] = nil }
+            }
+        }
+    }
+
+    func broadcast() {
+        let current = lock.withLock { Array(continuations.values) }
+        for continuation in current {
+            continuation.yield()
+        }
+    }
 }
 
 actor USBCDCService: USBCDCServiceProtocol {
@@ -51,12 +79,24 @@ actor USBCDCService: USBCDCServiceProtocol {
     private var fileDescriptor: Int32 = -1
     private var connectedDevice: USBDevice?
     private var isConnectedFlag: Bool = false
+    private let broadcaster = DeviceEventBroadcaster()
+    private var notificationsStarted = false
+#if canImport(Darwin)
+    private var notificationPort: IONotificationPortRef?
+    private var addedIterator: io_iterator_t = 0
+    private var removedIterator: io_iterator_t = 0
+#endif
+
+    nonisolated var deviceEvents: AsyncStream<Void> {
+        broadcaster.stream()
+    }
     
     // MARK: - Public API
     
     func enumerateDevices() async -> [USBDevice] {
+        startMonitoring()
 #if canImport(Darwin)
-        await Task {
+        return await Task {
             var devices: [USBDevice] = []
             
             // Check for USB Serial JTAG (ESP32-S3 native)
@@ -239,7 +279,59 @@ actor USBCDCService: USBCDCServiceProtocol {
         if fileDescriptor >= 0 {
             close(fileDescriptor)
         }
+#if canImport(Darwin)
+        if addedIterator != 0 { IOObjectRelease(addedIterator) }
+        if removedIterator != 0 { IOObjectRelease(removedIterator) }
+        if let notificationPort { IONotificationPortDestroy(notificationPort) }
+#endif
     }
+    
+    // MARK: - Device monitoring
+    
+    private func startMonitoring() {
+#if canImport(Darwin)
+        guard !notificationsStarted else { return }
+        notificationsStarted = true
+        
+        guard let port = IONotificationPortCreate(kIOMainPortDefault) else { return }
+        notificationPort = port
+        IONotificationPortSetDispatchQueue(port, .global(qos: .utility))
+        
+        let refcon = Unmanaged.passUnretained(broadcaster).toOpaque()
+        for notification in [kIOFirstPublishNotification, kIOTerminatedNotification] {
+            guard let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) else { continue }
+            var iterator: io_iterator_t = 0
+            let status = IOServiceAddMatchingNotification(
+                port, notification, matching,
+                Self.deviceChangeCallback, refcon, &iterator
+            )
+            guard status == KERN_SUCCESS else { continue }
+            // Drain the initial batch; the iterator stays armed for future changes.
+            Self.drain(iterator)
+            if notification == kIOFirstPublishNotification {
+                addedIterator = iterator
+            } else {
+                removedIterator = iterator
+            }
+        }
+#endif
+    }
+    
+#if canImport(Darwin)
+    private nonisolated static let deviceChangeCallback: IOServiceMatchingCallback = { refcon, iterator in
+        USBCDCService.drain(iterator)
+        guard let refcon else { return }
+        Unmanaged<DeviceEventBroadcaster>.fromOpaque(refcon)
+            .takeUnretainedValue()
+            .broadcast()
+    }
+    
+    private nonisolated static func drain(_ iterator: io_iterator_t) {
+        while case let service = IOIteratorNext(iterator), service != 0 {
+            IOObjectRelease(service)
+        }
+    }
+#endif
     
     // MARK: - Helpers
     
