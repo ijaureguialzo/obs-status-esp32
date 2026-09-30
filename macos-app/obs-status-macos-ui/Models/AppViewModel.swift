@@ -53,7 +53,7 @@ final class AppViewModel {
         // Validate configuration
         let config = AppSettings.shared.obsConfig
         guard !config.host.isEmpty, (1...65535).contains(config.port) else {
-            obsError = "Please configure a valid OBS host and port"
+            obsError = String(localized: "Please configure a valid OBS host and port")
             return
         }
         

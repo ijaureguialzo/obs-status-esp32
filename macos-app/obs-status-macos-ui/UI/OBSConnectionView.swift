@@ -70,8 +70,8 @@ struct OBSConnectionView: View {
                     viewModel.obsConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundColor(viewModel.obsConnecting ? .orange : viewModel.obsConnected ? .green : .red)
             
-            Text(viewModel.obsConnecting ? "Connecting to OBS" :
-                    viewModel.obsConnected ? "Connected to OBS" : "Disconnected from OBS")
+            Text(viewModel.obsConnecting ? LocalizedStringKey("Connecting to OBS") :
+                    viewModel.obsConnected ? LocalizedStringKey("Connected to OBS") : LocalizedStringKey("Disconnected from OBS"))
             
             if viewModel.obsConnecting {
                 ProgressView()
@@ -82,7 +82,7 @@ struct OBSConnectionView: View {
     
     private var connectButton: some View {
         Button(action: toggleConnection) {
-            Text(viewModel.obsConnected || viewModel.obsConnecting ? "Disconnect" : "Connect")
+            Text(viewModel.obsConnected || viewModel.obsConnecting ? LocalizedStringKey("Disconnect") : LocalizedStringKey("Connect"))
                 .frame(minWidth: 90)
         }
         .disabled((viewModel.obsConnecting && viewModel.obsConnected) || (!viewModel.obsConnected && !viewModel.obsConnecting &&

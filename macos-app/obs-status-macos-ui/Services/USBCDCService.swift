@@ -23,17 +23,19 @@ enum USBCDCError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .alreadyConnected:
-            return "Already connected to an ESP32 device"
+            return String(localized: "Already connected to an ESP32 device")
         case .notConnected:
-            return "Not connected to any ESP32 device"
+            return String(localized: "Not connected to any ESP32 device")
         case .cannotOpen(let path):
-            return "Cannot open serial port: \(path)"
+            return String(localized: "Cannot open serial port: \(path)")
         case .writeFailed(let err):
-            return "Write failed with error code: \(err)"
+            return String(localized: "Write failed with error code: \(String(err))")
         case .readFailed(let err):
-            return err == 0 ? "Timed out waiting for ESP32 response" : "Read failed with error code: \(err)"
+            return err == 0
+                ? String(localized: "Timed out waiting for ESP32 response")
+                : String(localized: "Read failed with error code: \(String(err))")
         case .invalidBaudRate:
-            return "Invalid baud rate configured"
+            return String(localized: "Invalid baud rate configured")
         }
     }
 }

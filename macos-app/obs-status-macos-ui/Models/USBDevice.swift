@@ -33,7 +33,7 @@ struct USBDevice: Identifiable, Codable, Hashable {
     }
 
     var pickerTitle: String {
-        let label = deviceDescription ?? (name == "Unknown Device" ? "Serial device" : name)
+        let label = deviceDescription ?? (name == "Unknown Device" ? String(localized: "Serial device") : name)
         return "\(label) — \(path)"
     }
 }

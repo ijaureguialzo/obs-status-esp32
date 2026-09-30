@@ -1,0 +1,606 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "● RECORDING" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "● GRABANDO"
+          }
+        }
+      }
+    },
+    "Already connected to an ESP32 device" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya hay un dispositivo ESP32 conectado"
+          }
+        }
+      }
+    },
+    "Applied to the ESP32 while OBS is recording." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se aplica al ESP32 mientras OBS está grabando."
+          }
+        }
+      }
+    },
+    "Cannot open serial port: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede abrir el puerto serie: %@"
+          }
+        }
+      }
+    },
+    "Color" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color"
+          }
+        }
+      }
+    },
+    "Connect" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar"
+          }
+        }
+      }
+    },
+    "Connect automatically on launch" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar automáticamente al iniciar"
+          }
+        }
+      }
+    },
+    "Connect to ESP32" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar con el ESP32"
+          }
+        }
+      }
+    },
+    "Connect to OBS" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectar con OBS"
+          }
+        }
+      }
+    },
+    "Connect to OBS Studio first." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conéctate primero a OBS Studio."
+          }
+        }
+      }
+    },
+    "Connect to your ESP32 device." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conéctate a tu dispositivo ESP32."
+          }
+        }
+      }
+    },
+    "Connected to ESP32" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectado al ESP32"
+          }
+        }
+      }
+    },
+    "Connected to OBS" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectado a OBS"
+          }
+        }
+      }
+    },
+    "Connecting to ESP32" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectando con el ESP32"
+          }
+        }
+      }
+    },
+    "Connecting to OBS" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conectando con OBS"
+          }
+        }
+      }
+    },
+    "Connection" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexión"
+          }
+        }
+      }
+    },
+    "Device Selection" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selección de dispositivo"
+          }
+        }
+      }
+    },
+    "Disconnect" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectar"
+          }
+        }
+      }
+    },
+    "Disconnect from ESP32" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectar del ESP32"
+          }
+        }
+      }
+    },
+    "Disconnect from OBS" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectar de OBS"
+          }
+        }
+      }
+    },
+    "Disconnected from ESP32" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectado del ESP32"
+          }
+        }
+      }
+    },
+    "Disconnected from OBS" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectado de OBS"
+          }
+        }
+      }
+    },
+    "ESP32 Device" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo ESP32"
+          }
+        }
+      }
+    },
+    "Establishing connection to ESP32 via USB." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estableciendo conexión con el ESP32 por USB."
+          }
+        }
+      }
+    },
+    "Establishing connection to OBS Studio via WebSocket." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estableciendo conexión con OBS Studio mediante WebSocket."
+          }
+        }
+      }
+    },
+    "Host" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servidor"
+          }
+        }
+      }
+    },
+    "Idle" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En espera"
+          }
+        }
+      }
+    },
+    "Invalid baud rate configured" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velocidad en baudios configurada no válida"
+          }
+        }
+      }
+    },
+    "Invalid OBS WebSocket address" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección de WebSocket de OBS no válida"
+          }
+        }
+      }
+    },
+    "Last ESP32 Response" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Última respuesta del ESP32"
+          }
+        }
+      }
+    },
+    "Last seen" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visto por última vez"
+          }
+        }
+      }
+    },
+    "No device" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ningún dispositivo"
+          }
+        }
+      }
+    },
+    "No devices found. Connect your ESP32 and click Scan." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha encontrado ningún dispositivo. Conecta tu ESP32 y pulsa Buscar."
+          }
+        }
+      }
+    },
+    "Not Connected" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin conexión"
+          }
+        }
+      }
+    },
+    "Not connected to any ESP32 device" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay ningún dispositivo ESP32 conectado"
+          }
+        }
+      }
+    },
+    "OBS closed the WebSocket connection" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OBS cerró la conexión WebSocket"
+          }
+        }
+      }
+    },
+    "OBS Connection" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conexión con OBS"
+          }
+        }
+      }
+    },
+    "OBS is currently recording.\nThe ESP32 LED is ON." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OBS está grabando.\nEl LED del ESP32 está encendido."
+          }
+        }
+      }
+    },
+    "OBS recording is stopped.\nThe ESP32 LED is OFF." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La grabación de OBS está detenida.\nEl LED del ESP32 está apagado."
+          }
+        }
+      }
+    },
+    "OBS rejected the authentication token" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OBS rechazó el token de autenticación"
+          }
+        }
+      }
+    },
+    "OBS sent an unexpected WebSocket message" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OBS envió un mensaje de WebSocket inesperado"
+          }
+        }
+      }
+    },
+    "OBS Status v1.0.0" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OBS Status v1.0.0"
+          }
+        }
+      }
+    },
+    "OBS WebSocket Settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes de WebSocket de OBS"
+          }
+        }
+      }
+    },
+    "ObsStatus" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ObsStatus"
+          }
+        }
+      }
+    },
+    "Please configure a valid OBS host and port" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura un servidor y un puerto de OBS válidos"
+          }
+        }
+      }
+    },
+    "Port" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puerto"
+          }
+        }
+      }
+    },
+    "Preferences" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferencias"
+          }
+        }
+      }
+    },
+    "Quit" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salir"
+          }
+        }
+      }
+    },
+    "Read failed with error code: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falló la lectura con el código de error: %@"
+          }
+        }
+      }
+    },
+    "Recording" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabando"
+          }
+        }
+      }
+    },
+    "Recording LED Color" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color del LED de grabación"
+          }
+        }
+      }
+    },
+    "Recording: OFF" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabación desactivada"
+          }
+        }
+      }
+    },
+    "Save Settings" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar ajustes"
+          }
+        }
+      }
+    },
+    "Scan Devices" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar dispositivos"
+          }
+        }
+      }
+    },
+    "Scan for ESP32" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar ESP32"
+          }
+        }
+      }
+    },
+    "Serial device" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo serie"
+          }
+        }
+      }
+    },
+    "Status" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estado"
+          }
+        }
+      }
+    },
+    "Timed out waiting for ESP32 response" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se agotó el tiempo de espera de la respuesta del ESP32"
+          }
+        }
+      }
+    },
+    "WebSocket Token (optional)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token de WebSocket (opcional)"
+          }
+        }
+      }
+    },
+    "Write failed with error code: %@" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falló la escritura con el código de error: %@"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -15,11 +15,11 @@ enum OBSWebSocketError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid OBS WebSocket address"
+            return String(localized: "Invalid OBS WebSocket address")
         case .unexpectedMessage:
-            return "OBS sent an unexpected WebSocket message"
+            return String(localized: "OBS sent an unexpected WebSocket message")
         case .authenticationFailed:
-            return "OBS rejected the authentication token"
+            return String(localized: "OBS rejected the authentication token")
         case .requestFailed(let message):
             return message
         }
@@ -224,7 +224,7 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
             throw OBSWebSocketError.unexpectedMessage
         }
         if json["op"] as? Int == 9 {
-            throw OBSWebSocketError.requestFailed("OBS closed the WebSocket connection")
+            throw OBSWebSocketError.requestFailed(String(localized: "OBS closed the WebSocket connection"))
         }
         if json["op"] as? Int == 7,
            let response = json["d"] as? [String: Any],

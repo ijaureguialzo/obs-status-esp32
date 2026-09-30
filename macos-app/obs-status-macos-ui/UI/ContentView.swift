@@ -15,6 +15,14 @@ enum SidebarSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var title: LocalizedStringKey {
+        switch self {
+        case .status: return "Status"
+        case .obsConnection: return "OBS Connection"
+        case .esp32Device: return "ESP32 Device"
+        }
+    }
+
     var icon: String {
         switch self {
         case .status: return "dot.radiowaves.left.and.right"
@@ -31,7 +39,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(SidebarSection.allCases, selection: $selection) { section in
-                Label(section.rawValue, systemImage: section.icon)
+                Label(section.title, systemImage: section.icon)
                     .tag(section)
             }
             .listStyle(.sidebar)
@@ -45,7 +53,7 @@ struct ContentView: View {
             }
         } detail: {
             detailView
-                .navigationTitle(selection?.rawValue ?? SidebarSection.status.rawValue)
+                .navigationTitle(selection?.title ?? SidebarSection.status.title)
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
@@ -93,7 +101,7 @@ private struct RecordingStateBadge: View {
                 .fill(state == .recording ? Color.red : Color.gray)
                 .frame(width: 8, height: 8)
 
-            Text(state == .recording ? "Recording" : "Idle")
+            Text(state == .recording ? LocalizedStringKey("Recording") : LocalizedStringKey("Idle"))
                 .font(.caption)
                 .fixedSize()
         }

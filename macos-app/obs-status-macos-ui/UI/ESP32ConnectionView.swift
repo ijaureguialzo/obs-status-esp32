@@ -99,8 +99,8 @@ struct ESP32ConnectionView: View {
                     viewModel.espConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundColor(viewModel.espConnecting ? .orange : viewModel.espConnected ? .green : .red)
             
-            Text(viewModel.espConnecting ? "Connecting to ESP32" :
-                    viewModel.espConnected ? "Connected to ESP32" : "Disconnected from ESP32")
+            Text(viewModel.espConnecting ? LocalizedStringKey("Connecting to ESP32") :
+                    viewModel.espConnected ? LocalizedStringKey("Connected to ESP32") : LocalizedStringKey("Disconnected from ESP32"))
             
             if viewModel.espConnecting {
                 ProgressView()
@@ -111,7 +111,7 @@ struct ESP32ConnectionView: View {
     
     private var connectButton: some View {
         Button(action: toggleConnection) {
-            Text(viewModel.espConnected ? "Disconnect" : "Connect")
+            Text(viewModel.espConnected ? LocalizedStringKey("Disconnect") : LocalizedStringKey("Connect"))
                 .frame(minWidth: 90)
         }
         .disabled(viewModel.espConnecting || (!viewModel.espConnected && viewModel.selectedDevice == nil))

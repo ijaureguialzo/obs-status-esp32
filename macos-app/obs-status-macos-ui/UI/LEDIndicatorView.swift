@@ -114,7 +114,7 @@ struct LEDIndicatorView: View {
         }
     }
     
-    private var statusText: String {
+    private var statusText: LocalizedStringKey {
         switch status {
         case .recording:
             return "● RECORDING"
@@ -128,8 +128,8 @@ struct LEDIndicatorView: View {
             return "Not Connected"
         }
     }
-    
-    private var statusDescription: String {
+
+    private var statusDescription: LocalizedStringKey {
         switch status {
         case .recording:
             return "OBS is currently recording.\nThe ESP32 LED is ON."
