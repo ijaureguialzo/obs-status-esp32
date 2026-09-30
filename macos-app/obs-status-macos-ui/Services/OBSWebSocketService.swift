@@ -41,7 +41,7 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
     private var session: URLSession?
     private var webSocket: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
-    private var continuation: AsyncStream<RecordingState>.Continuation?
+    private var continuations: [UUID: AsyncStream<RecordingState>.Continuation] = [:]
     private var connectionHost: String?
     private var connectionPort: Int?
     private var connectionToken = ""
@@ -51,8 +51,14 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
 
     var recordingStateStream: AsyncStream<RecordingState> {
         AsyncStream { continuation in
-            self.continuation = continuation
+            let id = UUID()
+            continuations[id] = continuation
             continuation.yield(recordingState)
+            continuation.onTermination = { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.continuations[id] = nil
+                }
+            }
         }
     }
 
@@ -244,7 +250,9 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
 
     private func setRecordingState(_ state: RecordingState) {
         recordingState = state
-        continuation?.yield(state)
+        for continuation in continuations.values {
+            continuation.yield(state)
+        }
     }
 
     private static func authentication(password: String, salt: String, challenge: String) -> String {
