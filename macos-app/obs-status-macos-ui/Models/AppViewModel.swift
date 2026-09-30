@@ -5,10 +5,11 @@
 //
 
 import Foundation
-import Combine
+import Observation
 
+@MainActor
 @Observable
-class AppViewModel: ObservableObject {
+final class AppViewModel {
     // MARK: - State
     
     var obsConnected: Bool = false
@@ -25,12 +26,13 @@ class AppViewModel: ObservableObject {
     
     var errorMessage: String?
     var lastESPResponse: String?
+    var espLastSeen: Date?
     
     // MARK: - Services
     
-    private let obsService: OBSWebSocketServiceProtocol
-    private let usbService: USBCDCServiceProtocol
-    private var statusTask: Task<String?, Never>?
+    @ObservationIgnored private let obsService: OBSWebSocketServiceProtocol
+    @ObservationIgnored private let usbService: USBCDCServiceProtocol
+    @ObservationIgnored private var statusTask: Task<Void, Never>?
     
     init(obsService: OBSWebSocketServiceProtocol? = nil, usbService: USBCDCServiceProtocol? = nil) {
         self.obsService = obsService ?? OBSWebSocketService()
@@ -43,12 +45,12 @@ class AppViewModel: ObservableObject {
     // MARK: - OBS Connection
     
     func connectOBS() async {
-        guard !obsConnected else { return }
+        guard !obsConnected, !obsConnecting else { return }
         
         // Validate configuration
         let config = AppSettings.shared.obsConfig
-        guard !config.host.isEmpty, config.port > 0 else {
-            obsError = "Please configure OBS host and port"
+        guard !config.host.isEmpty, (1...65535).contains(config.port) else {
+            obsError = "Please configure a valid OBS host and port"
             return
         }
         
@@ -71,12 +73,14 @@ class AppViewModel: ObservableObject {
     }
     
     func disconnectOBS() async {
+        obsConnecting = false
         obsConnected = false
         obsRecording = false
         obsService.disconnect()
     }
     
     func updateRecordingState(_ state: RecordingState) {
+        obsConnected = obsService.isConnected
         obsRecording = (state == .recording)
         
         // Send command to ESP32 if connected
@@ -89,11 +93,27 @@ class AppViewModel: ObservableObject {
     
     func scanDevices() async {
         availableDevices = await usbService.enumerateDevices()
+        if let selectedDevice,
+           !availableDevices.contains(where: { $0.path == selectedDevice.path }) {
+            self.selectedDevice = nil
+        }
+        if selectedDevice == nil, let lastPath = AppSettings.shared.lastESPDevicePath {
+            selectedDevice = availableDevices.first { $0.path == lastPath }
+        }
+    }
+
+    func prepare() async {
+        await scanDevices()
+        guard AppSettings.shared.autoConnect else { return }
+        await connectOBS()
+        if selectedDevice != nil {
+            await connectESP()
+        }
     }
     
     func connectESP() async {
         guard let device = selectedDevice else { return }
-        guard !espConnected else { return }
+        guard !espConnected, !espConnecting else { return }
         
         espConnecting = true
         espError = nil
@@ -102,23 +122,25 @@ class AppViewModel: ObservableObject {
             try await usbService.connect(device)
             espConnected = true
             espError = nil
+            AppSettings.shared.lastESPDevicePath = device.path
+            await sendLEDCommand(obsService.recordingState)
             
             // Start periodic status polling
             startStatusPolling()
             
         } catch {
             espError = error.localizedDescription
+            startStatusPolling()
         }
         
         espConnecting = false
     }
     
-    func disconnectESP() {
+    func disconnectESP() async {
         espConnected = false
+        espConnecting = false
         stopStatusPolling()
-        Task {
-            usbService.disconnect()
-        }
+        await usbService.disconnect()
     }
     
     // MARK: - LED Control
@@ -143,12 +165,15 @@ class AppViewModel: ObservableObject {
                 to: device
             )
             lastESPResponse = response
-        } catch {
-            // Mark ESP as disconnected on error
-            await MainActor.run {
-                espConnected = false
-                self.errorMessage = error.localizedDescription
+            espLastSeen = Date()
+            if ObsProtocolUtil.isErrorResponse(response) {
+                espError = response
             }
+        } catch {
+            espConnected = false
+            espError = error.localizedDescription
+            errorMessage = error.localizedDescription
+            await usbService.disconnect()
         }
     }
     
@@ -161,24 +186,57 @@ class AppViewModel: ObservableObject {
                 to: device
             )
             lastESPResponse = response
-        } catch {}
+            espLastSeen = Date()
+            if ObsProtocolUtil.isErrorResponse(response) {
+                espError = response
+            }
+        } catch {
+            espConnected = false
+            espError = error.localizedDescription
+            await usbService.disconnect()
+        }
     }
     
     // MARK: - Private
     
     private func observeOBSState() {
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             for await state in obsService.recordingStateStream {
                 updateRecordingState(state)
             }
+            obsConnected = obsService.isConnected
+            obsConnecting = obsService.isReconnecting
         }
     }
     
     private func startStatusPolling() {
-        _ = Task<Void, Never> {
-            while espConnected {
-                do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch {}  // 2 seconds
+        stopStatusPolling()
+        statusTask = Task {
+            var retryDelay = 2
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(retryDelay)) } catch { return }
+                guard let device = selectedDevice else { continue }
+                if !espConnected {
+                    espConnecting = true
+                    do {
+                        try await usbService.connect(device)
+                        guard !Task.isCancelled else {
+                            await usbService.disconnect()
+                            return
+                        }
+                        espConnected = true
+                        espConnecting = false
+                        await sendLEDCommand(obsService.recordingState)
+                    } catch {
+                        espConnecting = false
+                        espError = error.localizedDescription
+                        retryDelay = min(retryDelay * 2, 30)
+                        continue
+                    }
+                }
                 await queryESPStatus()
+                retryDelay = espConnected ? 2 : min(retryDelay * 2, 30)
             }
         }
     }

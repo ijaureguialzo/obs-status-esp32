@@ -10,7 +10,7 @@ struct OBSConnectionView: View {
     @Environment(AppViewModel.self) private var viewModel
     
     @State private var host: String = "localhost"
-    @State private var port: String = "4444"
+    @State private var port: String = "4455"
     @State private var token: String = ""
     
     var body: some View {
@@ -23,22 +23,15 @@ struct OBSConnectionView: View {
                 TextField("Port", text: $port)
                     .disabled(viewModel.obsConnected)
                     .textFieldStyle(.roundedBorder)
-                    .onChange(of: port) { oldValue, newValue in
-                        // Validate port number
-                        if let num = Int(newValue), num > 65535 || num < 1 {
-                            // Trim invalid port numbers
-                        }
-                    }
                 
                 SecureField("WebSocket Token (optional)", text: $token)
                     .disabled(viewModel.obsConnected)
                     .textFieldStyle(.roundedBorder)
                 
                 Button(action: {
-                    // Save config
                     AppSettings.shared.obsConfig = OBSConfig(
-                        host: host,
-                        port: Int(port) ?? 4444,
+                        host: host.trimmingCharacters(in: .whitespacesAndNewlines),
+                        port: Int(port) ?? 0,
                         token: token
                     )
                 }) {
@@ -53,6 +46,13 @@ struct OBSConnectionView: View {
             
             Section("Actions") {
                 connectButton
+            }
+
+            Section("Launch") {
+                Toggle("Connect automatically on launch", isOn: Binding(
+                    get: { AppSettings.shared.autoConnect },
+                    set: { AppSettings.shared.autoConnect = $0 }
+                ))
             }
             
             if let error = viewModel.obsError {
@@ -75,10 +75,12 @@ struct OBSConnectionView: View {
     
     private var connectionStatusRow: some View {
         HStack {
-            Image(systemName: viewModel.obsConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundColor(viewModel.obsConnected ? .green : .red)
+            Image(systemName: viewModel.obsConnecting ? "arrow.triangle.2.circlepath" :
+                    viewModel.obsConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundColor(viewModel.obsConnecting ? .orange : viewModel.obsConnected ? .green : .red)
             
-            Text(viewModel.obsConnected ? "Connected to OBS" : "Disconnected from OBS")
+            Text(viewModel.obsConnecting ? "Connecting to OBS" :
+                    viewModel.obsConnected ? "Connected to OBS" : "Disconnected from OBS")
             
             if viewModel.obsConnecting {
                 ProgressView()
@@ -88,12 +90,23 @@ struct OBSConnectionView: View {
     
     private var connectButton: some View {
         Button(action: {
-            Task { await viewModel.connectOBS() }
+            if viewModel.obsConnected || viewModel.obsConnecting {
+                Task { await viewModel.disconnectOBS() }
+            } else {
+                AppSettings.shared.obsConfig = OBSConfig(
+                    host: host.trimmingCharacters(in: .whitespacesAndNewlines),
+                    port: Int(port) ?? 0,
+                    token: token
+                )
+                Task { await viewModel.connectOBS() }
+            }
         }) {
-            Text(viewModel.obsConnected ? "Disconnect" : "Connect to OBS")
+            Text(viewModel.obsConnected || viewModel.obsConnecting ? "Disconnect" : "Connect to OBS")
                 .frame(maxWidth: .infinity)
         }
-        .disabled(viewModel.obsConnecting)
+        .disabled((viewModel.obsConnecting && viewModel.obsConnected) || (!viewModel.obsConnected && !viewModel.obsConnecting &&
+            (host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+             !(1...65535).contains(Int(port) ?? 0))))
         .buttonStyle(.borderedProminent)
     }
 }

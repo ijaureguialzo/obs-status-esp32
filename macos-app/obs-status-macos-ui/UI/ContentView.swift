@@ -47,7 +47,7 @@ struct ContentView: View {
             }
         }
         .task {
-            await viewModel.scanDevices()
+            await viewModel.prepare()
         }
     }
 }

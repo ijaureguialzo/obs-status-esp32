@@ -14,7 +14,7 @@ struct USBDevice: Identifiable, Codable, Hashable {
     let name: String
     let path: String
     
-    init(vendorID: UInt16, productID: UInt16, serialNumber: String?, name: String, path: String) {
+    nonisolated init(vendorID: UInt16, productID: UInt16, serialNumber: String?, name: String, path: String) {
         self.id = path
         self.vendorID = vendorID
         self.productID = productID

@@ -149,10 +149,12 @@ struct LEDIndicatorView: View {
         switch (viewModel.obsConnected, viewModel.espConnected) {
         case (true, true):
             return viewModel.obsRecording ? .recording : .idle
-        case (true, false):
+        case (true, false) where viewModel.espConnecting:
             return .connectingESP
-        case (false, _):
+        case (false, _) where viewModel.obsConnecting:
             return .connectingOBS
+        case (true, false), (false, _):
+            return .disconnected
         }
     }
     

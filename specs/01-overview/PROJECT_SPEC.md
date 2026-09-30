@@ -16,7 +16,7 @@ A two-part system:
 ┌─────────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
 │  OBS Studio         │         │  macOS Application    │         │  ESP32 Board     │
 │  (WebSocket API)    │◄───────►│  (SwiftUI App)       │◄───────►│  (ESP-IDF)       │
-│                     │  ws:4444│                      │  USB    │                 │
+│                     │  ws:4455│                      │  USB    │                 │
 │ Recording State     │         │  • Connect to OBS    │  CDC    │ LED Control     │
 │ (via WebSocket)     │         │  • Connect to ESP32  │◄───────►│  (onboard LED)  │
 └─────────────────────┘         └──────────────────────┘         └─────────────────┘
@@ -28,8 +28,8 @@ A two-part system:
 - **Technology**: Swift + SwiftUI (macOS 14+)
 - **Features**:
   - OBS Connection UI: Configure host, port, and authentication token
-  - WebSocket client to connect to OBS Studio WebSocket API (default port 4444)
-  - Subscribe to `GetCurrentRecordingStatus` events from OBS
+  - WebSocket v5 client to connect to OBS Studio (default port 4455)
+  - Request `GetRecordStatus` and subscribe to `RecordStateChanged`
   - ESP32 Connection UI: Scan and select USB serial device
   - Send LED control commands via USB CDC (Virtual Serial Port)
   - Background operation (menu bar or windowed mode)

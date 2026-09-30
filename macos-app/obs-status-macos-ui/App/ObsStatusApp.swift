@@ -25,7 +25,7 @@ struct ObsStatusApp: App {
                 Button("Disconnect from OBS") {
                     Task { await viewModel.disconnectOBS() }
                 }
-                .disabled(!viewModel.obsConnected)
+                .disabled(!viewModel.obsConnected && !viewModel.obsConnecting)
                 
                 Divider()
                 
@@ -39,7 +39,7 @@ struct ObsStatusApp: App {
                 .disabled(viewModel.espConnected || viewModel.espConnecting || viewModel.selectedDevice == nil)
                 
                 Button("Disconnect from ESP32") {
-                    viewModel.disconnectESP()
+                    Task { await viewModel.disconnectESP() }
                 }
                 .disabled(!viewModel.espConnected)
             }

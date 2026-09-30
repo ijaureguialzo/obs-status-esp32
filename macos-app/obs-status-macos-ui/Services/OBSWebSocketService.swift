@@ -1,297 +1,246 @@
 //
 //  OBSWebSocketService.swift
-//  WebSocket client for OBS Studio obs-websocket API
+//  OBS Studio obs-websocket v5 client.
 //
 
-import Foundation
 import CryptoKit
-import Darwin
+import Foundation
 
 enum OBSWebSocketError: LocalizedError {
-    case connectionFailed(String)
-    case handshakeFailed(String)
-    case messageParseFailed(String)
-    case connectionLost
-    case writeFailed
-    case readFailed
-    case tokenDenied
-    
+    case invalidURL
+    case unexpectedMessage
+    case authenticationFailed
+    case requestFailed(String)
+
     var errorDescription: String? {
         switch self {
-        case .connectionFailed(let msg):
-            return "Connection failed: \(msg)"
-        case .handshakeFailed(let msg):
-            return "WebSocket handshake failed: \(msg)"
-        case .messageParseFailed(let msg):
-            return "Failed to parse message: \(msg)"
-        case .connectionLost:
-            return "WebSocket connection was lost"
-        case .writeFailed:
-            return "Failed to send data over WebSocket"
-        case .readFailed:
-            return "Failed to receive data from WebSocket"
-        case .tokenDenied:
-            return "OBS rejected authentication token"
+        case .invalidURL:
+            return "Invalid OBS WebSocket address"
+        case .unexpectedMessage:
+            return "OBS sent an unexpected WebSocket message"
+        case .authenticationFailed:
+            return "OBS rejected the authentication token"
+        case .requestFailed(let message):
+            return message
         }
     }
 }
 
-protocol OBSWebSocketServiceProtocol: Sendable {
+@MainActor
+protocol OBSWebSocketServiceProtocol: AnyObject {
     var isConnected: Bool { get }
+    var isReconnecting: Bool { get }
     var recordingState: RecordingState { get }
     var recordingStateStream: AsyncStream<RecordingState> { get }
     func connect(host: String, port: Int, token: String) async throws
     func disconnect()
 }
 
-class OBSWebSocketService: @unchecked Sendable, OBSWebSocketServiceProtocol {
-    private var socketFD: Int32 = -1
-    private var isConnectedFlag: Bool = false
-    private var currentRecordingState: RecordingState = .unknown
+@MainActor
+final class OBSWebSocketService: OBSWebSocketServiceProtocol {
+    private var session: URLSession?
+    private var webSocket: URLSessionWebSocketTask?
+    private var receiveTask: Task<Void, Never>?
     private var continuation: AsyncStream<RecordingState>.Continuation?
-    private var host: String?
-    private var port: Int?
-    private var token: String?
-    
-    var isConnected: Bool { isConnectedFlag }
-    var recordingState: RecordingState { currentRecordingState }
-    
+    private var connectionHost: String?
+    private var connectionPort: Int?
+    private var connectionToken = ""
+    private(set) var isConnected = false
+    private(set) var isReconnecting = false
+    private(set) var recordingState: RecordingState = .unknown
+
     var recordingStateStream: AsyncStream<RecordingState> {
         AsyncStream { continuation in
             self.continuation = continuation
+            continuation.yield(recordingState)
         }
     }
-    
+
     func connect(host: String, port: Int, token: String) async throws {
         guard !isConnected else { return }
-        self.host = host
-        self.port = port
-        self.token = token
+        connectionHost = host
+        connectionPort = port
+        connectionToken = token
+        isReconnecting = false
         do {
-            try await performHandshake(host: host, port: port)
-            isConnectedFlag = true
-            startReceivingEvents()
+            try await establishConnection()
+            receiveTask = Task { [weak self] in
+                await self?.receiveMessages()
+            }
         } catch {
-            closeSocket()
+            closeTransport()
+            connectionHost = nil
+            connectionPort = nil
             throw error
         }
     }
-    
+
     func disconnect() {
-        host = nil; port = nil; token = nil
-        isConnectedFlag = false
-        closeSocket()
-        currentRecordingState = .unknown
-        continuation?.finish()
-        continuation = nil
+        receiveTask?.cancel()
+        receiveTask = nil
+        connectionHost = nil
+        connectionPort = nil
+        connectionToken = ""
+        isReconnecting = false
+        closeTransport()
+        setRecordingState(.unknown)
     }
-    
-    func sendAuthRequest() async throws {
-        guard let token = token, !token.isEmpty else { return }
-        let authMessage = "{\"eventID\":1,\"data\":{\"requestType\":\"Authenticate\",\"requestData\":{\"auth\":\"\(token)\"}}}"
-        let frame = WebSocketUtils.createTextFrame(data: Data(authMessage.utf8))
-        let written = writeData(frame)
-        if written < 0 { closeSocket(); throw OBSWebSocketError.writeFailed }
-    }
-    
-    func sendRecordingRequest() async throws -> Bool {
-        let request = "{\"eventID\":1,\"data\":{\"requestType\":\"GetCurrentRecordingStatus\"}}"
-        let frame = WebSocketUtils.createTextFrame(data: Data(request.utf8))
-        guard writeData(frame) > 0 else { throw OBSWebSocketError.writeFailed }
-        return currentRecordingState == .recording
-    }
-    
-    private func performHandshake(host: String, port: Int) async throws {
-        let socket = try createSocket(host: host, port: port)
-        socketFD = socket
-        var keyBytes = [UInt8](repeating: 0, count: 16)
-        guard SecRandomCopyBytes(kSecRandomDefault, keyBytes.count, &keyBytes) == errSecSuccess else {
-            closeSocket(); throw OBSWebSocketError.connectionFailed("Failed to generate random key")
+
+    private func establishConnection() async throws {
+        var components = URLComponents()
+        components.scheme = "ws"
+        components.host = connectionHost
+        components.port = connectionPort
+        guard let url = components.url else {
+            throw OBSWebSocketError.invalidURL
         }
-        let key = Data(keyBytes).base64EncodedString()
-        let request = "GET / HTTP/1.1\r\nHost: \(host):\(port)\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: \(key)\r\nSec-WebSocket-Version: 13\r\n\r\n"
-        guard writeData(Array(request.utf8)) > 0 else { closeSocket(); throw OBSWebSocketError.connectionFailed("Failed to send HTTP request") }
-        var responseBuffer = [UInt8](repeating: 0, count: 4096)
-        let bytesRead = readData(&responseBuffer, count: responseBuffer.count)
-        guard bytesRead > 0 else { closeSocket(); throw OBSWebSocketError.connectionFailed("No response from server") }
-        responseBuffer[bytesRead] = 0
-        let responseString = String(bytes: responseBuffer[0..<bytesRead], encoding: .utf8) ?? ""
-        guard responseString.contains("101") else { closeSocket(); throw OBSWebSocketError.handshakeFailed("Server did not upgrade connection") }
-        let acceptHeader = extractHeader(responseString, name: "sec-websocket-accept")
-        let expectedAccept = WebSocketUtils.computeAcceptKey(key: key)
-        guard acceptHeader?.lowercased() == expectedAccept else { closeSocket(); throw OBSWebSocketError.handshakeFailed("Invalid accept key") }
-        if let token = token, !token.isEmpty { try await sendAuthRequest() }
+
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 10
+        let newSession = URLSession(configuration: configuration)
+        let newWebSocket = newSession.webSocketTask(with: url)
+        session = newSession
+        webSocket = newWebSocket
+        newWebSocket.resume()
+
+        do {
+            let greeting = try await receiveJSON(from: newWebSocket)
+            guard greeting["op"] as? Int == 0,
+                  let data = greeting["d"] as? [String: Any],
+                  let rpcVersion = data["rpcVersion"] as? Int else {
+                throw OBSWebSocketError.unexpectedMessage
+            }
+
+            var identifyData: [String: Any] = [
+                "rpcVersion": rpcVersion,
+                "eventSubscriptions": 0x3FF,
+            ]
+            if let authentication = data["authentication"] as? [String: Any],
+               let salt = authentication["salt"] as? String,
+               let challenge = authentication["challenge"] as? String {
+                guard !connectionToken.isEmpty else {
+                    throw OBSWebSocketError.authenticationFailed
+                }
+                identifyData["authentication"] = Self.authentication(
+                    password: connectionToken,
+                    salt: salt,
+                    challenge: challenge
+                )
+            }
+            try await sendJSON(["op": 1, "d": identifyData], to: newWebSocket)
+
+            let identified = try await receiveJSON(from: newWebSocket)
+            guard identified["op"] as? Int == 2 else {
+                throw OBSWebSocketError.authenticationFailed
+            }
+
+            isConnected = true
+            isReconnecting = false
+            setRecordingState(.unknown)
+            try await sendJSON([
+                "op": 6,
+                "d": [
+                    "requestType": "GetRecordStatus",
+                    "requestId": UUID().uuidString,
+                ],
+            ], to: newWebSocket)
+        } catch {
+            closeTransport()
+            throw error
+        }
     }
-    
-    private func startReceivingEvents() {
-        _ = Task<Void, Never> { [weak self] in
-            guard let self = self else { return }
-            while self.isConnectedFlag {
-                do { try await self.receiveMessage() }
-                catch {
-                    if self.isConnectedFlag {
-                        self.isConnectedFlag = false
-                        self.continuation?.yield(.unknown)
+
+    private func receiveMessages() async {
+        var retryDelay = 1
+        while !Task.isCancelled {
+            do {
+                guard let webSocket else { throw OBSWebSocketError.unexpectedMessage }
+                let message = try await receiveJSON(from: webSocket)
+                if message["op"] as? Int == 3 {
+                    try await sendJSON(["op": 4, "d": message["d"] ?? [:]], to: webSocket)
+                    continue
+                }
+                guard message["op"] as? Int == 5,
+                      let data = message["d"] as? [String: Any],
+                      let eventType = data["eventType"] as? String,
+                      let eventData = data["eventData"] as? [String: Any] else {
+                    continue
+                }
+                if eventType == "RecordStateChanged" {
+                    setRecordingState((eventData["outputActive"] as? Bool ?? false) ? .recording : .notRecording)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                isConnected = false
+                isReconnecting = true
+                setRecordingState(.unknown)
+                closeTransport()
+
+                while !Task.isCancelled {
+                    do {
+                        try await Task.sleep(for: .seconds(retryDelay))
+                        guard connectionHost != nil else { return }
+                        try await establishConnection()
+                        retryDelay = 1
                         break
+                    } catch {
+                        guard !Task.isCancelled else { return }
+                        retryDelay = min(retryDelay * 2, 30)
                     }
                 }
             }
         }
     }
-    
-    private func receiveMessage() async throws {
-        var headerBuffer = [UInt8](repeating: 0, count: 14)
-        let headerBytes = readData(&headerBuffer, count: 14)
-        guard headerBytes >= 2 else { throw OBSWebSocketError.readFailed }
-        let opcode = headerBuffer[0] & 0x0F
-        let masked = headerBuffer[1] & 0x80
-        var payloadLength = UInt64(headerBuffer[1] & 0x7F)
-        let extraOffset: Int
-        if payloadLength == 126 {
-            guard headerBytes >= 4 else { throw OBSWebSocketError.readFailed }
-            payloadLength = UInt64(headerBuffer[2]) << 8 | UInt64(headerBuffer[3])
-            extraOffset = 4
-        } else if payloadLength == 127 {
-            guard headerBytes >= 10 else { throw OBSWebSocketError.readFailed }
-            payloadLength = headerBuffer[2...9].withUnsafeBytes { $0.load(as: UInt64.self).bigEndian }
-            extraOffset = 10
-        } else {
-            extraOffset = 2
-        }
-        var dataOffset = extraOffset
-        var maskingKey: [UInt8] = [0, 0, 0, 0]
-        if masked != 0 {
-            maskingKey = Array(headerBuffer[dataOffset..<dataOffset + 4])
-            dataOffset += 4
-        }
-        let actualPayloadSize = min(Int(payloadLength), 10_000_000)
-        var payloadBuffer = [UInt8](repeating: 0, count: actualPayloadSize)
-        let payloadBytes = readData(&payloadBuffer, count: actualPayloadSize)
-        if !maskingKey.isEmpty && payloadBytes > 0 {
-            for i in 0..<payloadBytes { payloadBuffer[i] ^= maskingKey[i % 4] }
-        }
-        switch opcode {
-        case 0x01: if let text = String(bytes: payloadBuffer[0..<payloadBytes], encoding: .utf8) { await handleMessage(text) }
-        case 0x08: closeSocket(); throw OBSWebSocketError.connectionLost
-        case 0x09: _ = writeData(WebSocketUtils.createBinaryFrame(data: Data()))
-        default: break
-        }
-    }
-    
-    private func handleMessage(_ message: String) async {
-        do {
-            guard let json = try JSONSerialization.jsonObject(with: message.data(using: .utf8)!) as? [String: Any] else { return }
-            switch json["op"] as? Int {
-            case 3: let hb = "{\"op\":4,\"data\":{\"interval\":1000}}"; _ = writeData(WebSocketUtils.createTextFrame(data: Data(hb.utf8)))
-            case 4: break
-            case 5: break
-            default: break
-            }
-        } catch {}
-    }
-    
-    private func closeSocket() { if socketFD >= 0 { close(socketFD); socketFD = -1 } }
-    
-    private func createSocket(host: String, port: Int) throws -> Int32 {
-        var hints = addrinfo()
-        hints.ai_family = AF_INET
-        hints.ai_socktype = SOCK_STREAM
-        hints.ai_protocol = IPPROTO_TCP
-        
-        var addrPtr: UnsafeMutablePointer<addrinfo>?
-        let portStr = String(port)
-        guard getaddrinfo(host, portStr, &hints, &addrPtr) == 0 else {
-            throw OBSWebSocketError.connectionFailed("Failed to resolve host: \(host)")
-        }
-        defer { freeaddrinfo(addrPtr) }
-        
-        guard addrPtr != nil else {
-            throw OBSWebSocketError.connectionFailed("No addresses found for host: \(host)")
-        }
-        
-        let socketFD = socket(AF_INET, SOCK_STREAM, 0)
-        guard socketFD >= 0 else {
-            throw OBSWebSocketError.connectionFailed("Failed to create socket")
-        }
-        
-        do {
-            guard Darwin.connect(socketFD, addrPtr!.pointee.ai_addr, socklen_t(addrPtr!.pointee.ai_addrlen)) == 0 else {
-                let socketError = errno
-                close(socketFD)
-                throw OBSWebSocketError.connectionFailed("Failed to connect: \(socketErrorString(socketError))")
-            }
-        } catch {
-            close(socketFD)
-            throw error
-        }
-        
-        return socketFD
-    }
-    
-    private func socketErrorString(_ error: Int32) -> String {
-        switch error {
-        case EHOSTUNREACH: return "Host unreachable"
-        case ETIMEDOUT: return "Connection timed out"
-        case ECONNREFUSED: return "Connection refused"
-        case ENETUNREACH: return "Network unreachable"
-        case EAFNOSUPPORT: return "Address family not supported"
-        case EADDRNOTAVAIL: return "Address not available"
-        default: return "Error code \(error)"
-        }
-    }
-    
-    private func readData(_ buffer: inout [UInt8], count: Int) -> Int {
-        var readBytes = 0
-        while readBytes < count {
-            let n = read(socketFD, &buffer[readBytes], count - readBytes)
-            if n < 0 { if errno == EAGAIN || errno == EWOULDBLOCK { continue }; return readBytes > 0 ? readBytes : -1 }
-            if n == 0 { return readBytes > 0 ? readBytes : -1 }
-            readBytes += n
-        }
-        return readBytes
-    }
-    
-    private func writeData(_ data: [UInt8]) -> Int {
-        var written = 0
-        while written < data.count {
-            var mutableData = data
-            let n = write(socketFD, &mutableData[written], data.count - written)
-            if n <= 0 { return written > 0 ? written : -1 }
-            written += n
-        }
-        return written
-    }
-    
-    private func extractHeader(_ response: String, name: String) -> String? {
-        for line in response.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if let colonIndex = trimmed.lowercased().firstIndex(of: ":") {
-                let headerName = trimmed[..<colonIndex].trimmingCharacters(in: .whitespaces)
-                if headerName == name { return String(trimmed[trimmed.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces) }
-            }
-        }
-        return nil
-    }
-}
 
-private enum WebSocketUtils {
-    static func computeAcceptKey(key: String) -> String {
-        let combined = key + "258EAFA5-E914-47DA-95CA5CAB11496D43"
-        let digest = Insecure.SHA1.hash(data: combined.data(using: .utf8)!)
-        return Data(Array(digest)).base64EncodedString()
+    private func receiveJSON(from webSocket: URLSessionWebSocketTask) async throws -> [String: Any] {
+        let message = try await webSocket.receive()
+        let data: Data
+        switch message {
+        case .string(let text):
+            data = Data(text.utf8)
+        case .data(let bytes):
+            data = bytes
+        @unknown default:
+            throw OBSWebSocketError.unexpectedMessage
+        }
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw OBSWebSocketError.unexpectedMessage
+        }
+        if json["op"] as? Int == 9 {
+            throw OBSWebSocketError.requestFailed("OBS closed the WebSocket connection")
+        }
+        if json["op"] as? Int == 7,
+           let response = json["d"] as? [String: Any],
+           let responseData = response["responseData"] as? [String: Any],
+           let outputActive = responseData["outputActive"] as? Bool {
+            setRecordingState(outputActive ? .recording : .notRecording)
+        }
+        return json
     }
-    static func createTextFrame(data: Data) -> [UInt8] {
-        var frame = [UInt8](); frame.append(0x81)
-        if data.count < 126 { frame.append(0x80 | UInt8(data.count)) }
-        else if data.count < 65536 { frame.append(0x80 | 126); let len = UInt16(data.count).bigEndian; frame.append(UInt8(len >> 8)); frame.append(UInt8(len & 0xFF)) }
-        else { frame.append(0x80 | 127); let len = UInt64(data.count).bigEndian; for i in (0..<8).reversed() { frame.append(UInt8((len >> (i * 8)) & 0xFF)) } }
-        frame.append(contentsOf: data); return frame
+
+    private func sendJSON(_ json: [String: Any], to webSocket: URLSessionWebSocketTask) async throws {
+        let data = try JSONSerialization.data(withJSONObject: json)
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw OBSWebSocketError.unexpectedMessage
+        }
+        try await webSocket.send(.string(text))
     }
-    static func createBinaryFrame(data: Data) -> [UInt8] {
-        var frame = [UInt8](); frame.append(0x82)
-        if data.count < 126 { frame.append(0x80 | UInt8(data.count)) }
-        else if data.count < 65536 { frame.append(0x80 | 126); let len = UInt16(data.count).bigEndian; frame.append(UInt8(len >> 8)); frame.append(UInt8(len & 0xFF)) }
-        else { frame.append(0x80 | 127); let len = UInt64(data.count).bigEndian; for i in (0..<8).reversed() { frame.append(UInt8((len >> (i * 8)) & 0xFF)) } }
-        frame.append(contentsOf: data); return frame
+
+    private func closeTransport() {
+        isConnected = false
+        webSocket?.cancel(with: .normalClosure, reason: nil)
+        webSocket = nil
+        session?.invalidateAndCancel()
+        session = nil
+    }
+
+    private func setRecordingState(_ state: RecordingState) {
+        recordingState = state
+        continuation?.yield(state)
+    }
+
+    private static func authentication(password: String, salt: String, challenge: String) -> String {
+        let secret = Data(SHA256.hash(data: Data((password + salt).utf8))).base64EncodedString()
+        return Data(SHA256.hash(data: Data((secret + challenge).utf8))).base64EncodedString()
     }
 }

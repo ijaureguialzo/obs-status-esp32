@@ -31,7 +31,7 @@ enum USBCDCError: LocalizedError {
         case .writeFailed(let err):
             return "Write failed with error code: \(err)"
         case .readFailed(let err):
-            return "Read failed with error code: \(err)"
+            return err == 0 ? "Timed out waiting for ESP32 response" : "Read failed with error code: \(err)"
         case .invalidBaudRate:
             return "Invalid baud rate configured"
         }
@@ -39,25 +39,18 @@ enum USBCDCError: LocalizedError {
 }
 
 protocol USBCDCServiceProtocol: Sendable {
-    var connectedDevice: USBDevice? { get }
-    var isConnected: Bool { get }
-    
     func enumerateDevices() async -> [USBDevice]
     func connect(_ device: USBDevice) async throws
-    func disconnect()
+    func disconnect() async
     func sendCommand(_ command: String, to device: USBDevice) async throws -> String
 }
 
-class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
+actor USBCDCService: USBCDCServiceProtocol {
     // MARK: - Properties
     
     private var fileDescriptor: Int32 = -1
-    open var connectedDevice: USBDevice?
+    private var connectedDevice: USBDevice?
     private var isConnectedFlag: Bool = false
-    
-    var isConnected: Bool {
-        isConnectedFlag
-    }
     
     // MARK: - Public API
     
@@ -106,8 +99,8 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             
             while service != 0 {
                 let name = getCFStringProperty(service, key: "name") ?? "Unknown Device"
-                let callout = getCFStringProperty(service, key: "CalloutDevices")
-                let serialPath = getCFStringProperty(service, key: "DialinDevices")
+                let callout = getCFStringProperty(service, key: "IOCalloutDevice")
+                let serialPath = getCFStringProperty(service, key: "IODialinDevice")
                 
                 let usbVendorID: UInt16? = getCFProperty(service, key: kUSBVendorID as CFString)
                 let usbProductID: UInt16? = getCFProperty(service, key: kUSBProductID as CFString)
@@ -150,27 +143,33 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
             throw USBCDCError.cannotOpen(path: device.path)
         }
         
-        var termios = termios()
-        tcgetattr(fileDescriptor, &termios)
+        var settings = termios()
+        guard tcgetattr(fileDescriptor, &settings) == 0 else {
+            close(fileDescriptor)
+            fileDescriptor = -1
+            throw USBCDCError.cannotOpen(path: device.path)
+        }
         
-        cfsetispeed(&termios, speed_t(B115200))
-        cfsetospeed(&termios, speed_t(B115200))
+        cfsetispeed(&settings, speed_t(B115200))
+        cfsetospeed(&settings, speed_t(B115200))
         
-        termios.c_cflag |= UInt(CLOCAL | CREAD)
-        termios.c_cflag &= ~UInt(PARENB)
-        termios.c_cflag &= ~UInt(CSTOPB)
-        termios.c_cflag &= ~UInt(CSIZE)
-        termios.c_cflag |= UInt(CS8)
+        settings.c_cflag |= UInt(CLOCAL | CREAD)
+        settings.c_cflag &= ~UInt(PARENB)
+        settings.c_cflag &= ~UInt(CSTOPB)
+        settings.c_cflag &= ~UInt(CSIZE)
+        settings.c_cflag |= UInt(CS8)
         
-        termios.c_lflag &= ~UInt(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG | IEXTEN)
-        termios.c_lflag &= ~UInt(ECHOK | ECHOCTL | ECHOKE)
+        settings.c_lflag &= ~UInt(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG | IEXTEN)
+        settings.c_lflag &= ~UInt(ECHOK | ECHOCTL | ECHOKE)
         
-        termios.c_oflag &= ~UInt(OPOST)
+        settings.c_oflag &= ~UInt(OPOST)
         
-        termios.c_cflag &= ~UInt(CRTSCTS)
-        termios.c_iflag &= ~UInt(IXON | IXOFF | IXANY)
+        settings.c_cflag &= ~UInt(CRTSCTS)
+        settings.c_iflag &= ~UInt(IXON | IXOFF | IXANY)
+        settings.c_cc.16 = 0
+        settings.c_cc.17 = 1
         
-        if tcsetattr(fileDescriptor, TCSANOW, &termios) < 0 {
+        if tcsetattr(fileDescriptor, TCSANOW, &settings) < 0 {
             close(fileDescriptor)
             fileDescriptor = -1
             throw USBCDCError.cannotOpen(path: device.path)
@@ -180,7 +179,7 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
         isConnectedFlag = true
     }
     
-    func disconnect() {
+    func disconnect() async {
         if fileDescriptor >= 0 {
             close(fileDescriptor)
             fileDescriptor = -1
@@ -190,45 +189,53 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
     }
     
     func sendCommand(_ command: String, to device: USBDevice) async throws -> String {
-        guard fileDescriptor >= 0 else {
+        guard fileDescriptor >= 0, connectedDevice?.path == device.path else {
             throw USBCDCError.notConnected
         }
         
-        let data = command.data(using: .utf8)!
-        let written = write(fileDescriptor, data.bytes, data.count)
-        
-        if written < 0 {
-            let err = errno
-            close(fileDescriptor)
-            fileDescriptor = -1
-            throw USBCDCError.writeFailed(error: err)
-        }
-        
-        var responseBuffer = [UInt8](repeating: 0, count: 256)
-        var totalRead = 0
-        var bytesRead: Int
-        
-        repeat {
-            bytesRead = read(fileDescriptor, &responseBuffer[totalRead], responseBuffer.count - totalRead)
-            if bytesRead > 0 {
-                totalRead += bytesRead
+        let data = Data(command.utf8)
+        let writeResult = data.withUnsafeBytes { buffer in
+            var offset = 0
+            while offset < data.count {
+                guard let baseAddress = buffer.baseAddress else { return false }
+                let written = write(fileDescriptor, baseAddress.advanced(by: offset), data.count - offset)
+                if written < 0 {
+                    if errno == EINTR { continue }
+                    return false
+                }
+                guard written > 0 else { return false }
+                offset += written
             }
-        } while bytesRead > 0 && totalRead < responseBuffer.count
-        
-        if totalRead > 0 {
-            let response = String(bytes: responseBuffer[0..<totalRead], encoding: .utf8)
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
-            
-            if !response.isEmpty {
-                return response
-            }
+            return true
         }
+        guard writeResult else { throw USBCDCError.writeFailed(error: errno) }
         
-        return ""
+        var response: [UInt8] = []
+        response.reserveCapacity(128)
+        let deadline = DispatchTime.now().uptimeNanoseconds + 2_000_000_000
+        while response.count < 256 {
+            var byte: UInt8 = 0
+            let bytesRead = read(fileDescriptor, &byte, 1)
+            if bytesRead < 0, errno == EINTR {
+                continue
+            }
+            if bytesRead == 0, DispatchTime.now().uptimeNanoseconds < deadline {
+                continue
+            }
+            guard bytesRead > 0 else { throw USBCDCError.readFailed(error: errno) }
+            if byte == 0x0A {
+                return String(decoding: response, as: UTF8.self)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            response.append(byte)
+        }
+        throw USBCDCError.readFailed(error: EMSGSIZE)
     }
     
     deinit {
-        disconnect()
+        if fileDescriptor >= 0 {
+            close(fileDescriptor)
+        }
     }
     
     // MARK: - Helpers
@@ -240,21 +247,18 @@ class USBCDCService: @unchecked Sendable, USBCDCServiceProtocol {
     }
     
     private func getCFProperty<T>(_ service: io_object_t, key: CFString) -> T? {
-        let result = IORegistryEntryCreateCFProperty(service, key, kCFAllocatorDefault, 0)
-        defer { result?.release() }
-        return result?.takeRetainedValue() as? T
+        let result = IORegistryEntrySearchCFProperty(
+            service,
+            kIOServicePlane,
+            key,
+            kCFAllocatorDefault,
+            IOOptionBits(kIORegistryIterateParents | kIORegistryIterateRecursively)
+        )
+        return result as? T
     }
     
     private func isValidSerialPath(_ path: String) -> Bool {
         let validPrefixes = ["/dev/cu.", "/dev/cu.serial", "/dev/cu.usb"]
         return validPrefixes.contains { path.hasPrefix($0) }
-    }
-}
-
-extension Data {
-    var bytes: [UInt8] {
-        var buffer = [UInt8](repeating: 0, count: count)
-        copyBytes(to: &buffer, count: count * MemoryLayout<UInt8>.size)
-        return buffer
     }
 }

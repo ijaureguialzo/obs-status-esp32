@@ -32,7 +32,7 @@ A two-part system that monitors OBS Studio recording status and provides a physi
 ┌─────────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
 │  OBS Studio         │         │  macOS Application    │         │  ESP32 Board     │
 │  (WebSocket API)    │◄───────►│  (SwiftUI App)       │◄───────►│  (ESP-IDF)       │
-│                     │  ws:4444│                      │  USB    │                 │
+│                     │  ws:4455│                      │  USB    │                 │
 │ Recording State     │         │  • Connect to OBS    │  CDC    │ LED Control     │
 │ (via WebSocket)     │         │  • Connect to ESP32  │◄───────►│  (onboard LED)  │
 └─────────────────────┘         └──────────────────────┘         └─────────────────┘
@@ -43,7 +43,7 @@ A two-part system that monitors OBS Studio recording status and provides a physi
 | Component       | Status  | Notes                                     |
 |-----------------|---------|---------------------------------------------|
 | macOS App (UI)  | ✅ Done | Complete SwiftUI with all panels            |
-| macOS WebSocket | ✅ Done | Custom WebSocket client using BSD sockets   |
+| macOS WebSocket | ✅ Done | OBS WebSocket v5 client using URLSession     |
 | macOS USB CDC   | ✅ Done | IOKit-based serial port enumeration/control |
 | ESP32 Firmware  | ✅ Done | Full implementation with all modules        |
 | Protocol Parser | ✅ Done | Text command parsing and dispatch           |
@@ -81,7 +81,7 @@ obs-status-esp32/
 │   │   │   ├── ESP32ConnectionView.swift   # ESP32 config panel
 │   │   │   └── LEDIndicatorView.swift      # Visual recording indicator
 │   │   ├── Services/
-│   │   │   ├── OBSWebSocketService.swift   # WebSocket client (custom BSD socket impl)
+│   │   │   ├── OBSWebSocketService.swift   # OBS WebSocket v5 client
 │   │   │   └── USBCDCService.swift         # USB serial via IOKit
 │   │   ├── Models/
 │   │   │   ├── AppViewModel.swift          # Central state manager

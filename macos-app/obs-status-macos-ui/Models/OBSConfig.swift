@@ -10,14 +10,14 @@ struct OBSConfig: Codable {
     var port: Int
     var token: String
     
-    init(host: String = "localhost", port: Int = 4444, token: String = "") {
+    init(host: String = "localhost", port: Int = 4455, token: String = "") {
         self.host = host
         self.port = port
         self.token = token
     }
 }
 
-enum RecordingState {
+enum RecordingState: Equatable, Sendable {
     case recording
     case notRecording
     case unknown

@@ -8,14 +8,6 @@ import SwiftUI
 
 struct ESP32ConnectionView: View {
     @Environment(AppViewModel.self) private var viewModel
-    @State private var localSelectedDevice: USBDevice? = nil
-    
-    private var selectedDeviceBinding: Binding<USBDevice?> {
-        Binding(
-            get: { localSelectedDevice },
-            set: { localSelectedDevice = $0; viewModel.selectedDevice = $0 }
-        )
-    }
     
     var body: some View {
         Form {
@@ -29,7 +21,10 @@ struct ESP32ConnectionView: View {
                     }
                     .padding(.vertical, 8)
                 } else {
-                    Picker("ESP32 Device", selection: selectedDeviceBinding) {
+                    Picker("ESP32 Device", selection: Binding(
+                        get: { viewModel.selectedDevice },
+                        set: { viewModel.selectedDevice = $0 }
+                    )) {
                         Text("No device")
                             .tag(Optional<USBDevice>(nil))
                         ForEach(viewModel.availableDevices) { device in
@@ -38,18 +33,27 @@ struct ESP32ConnectionView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    
-                    Button(action: {
-                        Task { await viewModel.scanDevices() }
-                    }) {
-                        Label("Scan Devices", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(.bordered)
+                    .disabled(viewModel.espConnected || viewModel.espConnecting)
                 }
+
+                Button(action: {
+                    Task { await viewModel.scanDevices() }
+                }) {
+                    Label("Scan Devices", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.espConnected || viewModel.espConnecting)
             }
             
             Section("Connection Status") {
                 connectionStatusRow
+            }
+
+            if let lastSeen = viewModel.espLastSeen {
+                Section("Last seen") {
+                    Text(lastSeen, style: .relative)
+                        .foregroundStyle(.secondary)
+                }
             }
             
             if let response = viewModel.lastESPResponse {
@@ -82,10 +86,12 @@ struct ESP32ConnectionView: View {
     
     private var connectionStatusRow: some View {
         HStack {
-            Image(systemName: viewModel.espConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundColor(viewModel.espConnected ? .green : .red)
+            Image(systemName: viewModel.espConnecting ? "arrow.triangle.2.circlepath" :
+                    viewModel.espConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundColor(viewModel.espConnecting ? .orange : viewModel.espConnected ? .green : .red)
             
-            Text(viewModel.espConnected ? "Connected to ESP32" : "Disconnected from ESP32")
+            Text(viewModel.espConnecting ? "Connecting to ESP32" :
+                    viewModel.espConnected ? "Connected to ESP32" : "Disconnected from ESP32")
             
             if viewModel.espConnecting {
                 ProgressView()
@@ -95,12 +101,16 @@ struct ESP32ConnectionView: View {
     
     private var connectButton: some View {
         Button(action: {
-            Task { await viewModel.connectESP() }
+            if viewModel.espConnected {
+                Task { await viewModel.disconnectESP() }
+            } else {
+                Task { await viewModel.connectESP() }
+            }
         }) {
             Text(viewModel.espConnected ? "Disconnect" : "Connect to ESP32")
                 .frame(maxWidth: .infinity)
         }
-        .disabled(viewModel.espConnected || viewModel.selectedDevice == nil || viewModel.espConnecting)
+        .disabled(viewModel.espConnecting || (!viewModel.espConnected && viewModel.selectedDevice == nil))
         .buttonStyle(.borderedProminent)
     }
 }

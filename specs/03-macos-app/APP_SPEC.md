@@ -11,7 +11,7 @@ The macOS application serves as the bridge between OBS Studio and the ESP32 hard
 | Language        | Swift 5.9+             |
 | UI Framework    | SwiftUI                |
 | Target macOS    | 14.0 (Sonoma) +        |
-| OBS WebSocket   | obs-websocket-swift (custom) |
+| OBS WebSocket   | OBS WebSocket v5 via URLSessionWebSocketTask |
 | USB Serial      | libusb / IOKit         |
 | Build System    | Xcode / Swift Package  |
 
@@ -23,7 +23,7 @@ The app opens with a single window with two tabs or sections:
 
 #### Section A: OBS Connection
 - **Host** field: OBS WebSocket host (default: `localhost`)
-- **Port** field: OBS WebSocket port (default: `4444`)
+- **Port** field: OBS WebSocket v5 port (default: `4455`)
 - **Password/Token** field: WebSocket authentication token (password field with visibility toggle)
 - **Connect/Disconnect** button
 - **Status indicator**: Green dot (connected), Red dot (disconnected), Yellow (connecting)
@@ -52,7 +52,8 @@ The app opens with a single window with two tabs or sections:
 
 **Responsibilities**:
 - Connect/disconnect to OBS Studio via WebSocket
-- Subscribe to `GetCurrentRecordingStatus` and `GetRecordingStatus` events
+- Authenticate using the OBS WebSocket v5 challenge/response handshake
+- Request the initial status with `GetRecordStatus` and subscribe to `RecordStateChanged`
 - Handle reconnection with exponential backoff (1s → 30s max)
 - Emit `RecordingStateChange` events to the app state
 
@@ -78,17 +79,16 @@ enum RecordingState {
 - Enumerate available USB CDC devices on macOS
 - Connect to selected ESP32 device
 - Send commands (text-based, `\n` terminated)
-- Receive responses (async stream)
+- Read newline-terminated responses with a two-second timeout
 - Handle disconnection and reconnection
 
 **API**:
 ```swift
 class USBCDCService {
     func enumerateDevices() async -> [USBDevice]
-    func connect(device: USBDevice) async throws
-    func disconnect()
-    func sendCommand(_ command: String) async throws -> String
-    var isConnected: Bool { get }
+    func connect(_ device: USBDevice) async throws
+    func disconnect() async
+    func sendCommand(_ command: String, to device: USBDevice) async throws -> String
 }
 
 struct USBDevice {
@@ -100,21 +100,21 @@ struct USBDevice {
 }
 ```
 
-### 4.3 LED Controller Service
+### 4.3 LED Command Dispatch
+
+LED command dispatch is implemented by `AppViewModel`; it is not a separate
+service object. After a USB failure, the selected device is reconnected and
+the current OBS recording state is sent again.
 
 **Responsibilities**:
 - Translate OBS recording state to ESP32 commands
 - Maintain connection state awareness
-- Retry failed commands
+- Retry after failures by reconnecting to the selected device
 - Manage LED state locally for UI consistency
 
-**API**:
-```swift
-class LEDController {
-    func setRecordingState(_ state: RecordingState) async
-    var lastError: String? { get }
-}
-```
+LED-on and LED-off commands are acknowledged by a newline-terminated response.
+The service uses a two-second response timeout and serializes access to the
+selected USB device.
 
 ## 5. App State Management
 
@@ -141,10 +141,11 @@ class AppViewModel {
 ### 5.2 Persistence
 
 Settings saved to:
-`~/Library/Preferences/<bundle-id>.plist` or JSON file.
+`~/Library/Preferences/<bundle-id>.json`.
 
 Stored values:
-- OBS host, port, token (token encrypted with Keychain)
+- OBS host and port in the preferences JSON file
+- OBS token in the macOS Keychain
 - Last selected ESP32 device
 - Auto-connect preferences
 
@@ -170,7 +171,8 @@ Stored values:
 
 ```
 macos-app/
-├── Sources/
+├── Package.swift
+├── obs-status-macos-ui/
 │   ├── App/
 │   │   ├── ObsStatusApp.swift          # @main app entry
 │   │   └── ObsStatusMenuBar.swift      # Optional menu bar integration
@@ -179,19 +181,17 @@ macos-app/
 │   │   ├── OBSConnectionView.swift     # OBS config panel
 │   │   ├── ESP32ConnectionView.swift   # ESP32 config panel
 │   │   ├── LEDIndicatorView.swift      # Visual recording indicator
-│   │   └── SettingsView.swift          # Settings panel
 │   ├── Services/
-│   │   ├── OBSWebSocketService.swift   # WebSocket client
+│   │   ├── OBSWebSocketService.swift   # OBS WebSocket v5 client
 │   │   ├── USBCDCService.swift         # USB serial communication
-│   │   └── LEDController.swift         # Command dispatcher
 │   ├── Models/
 │   │   ├── OBSConfig.swift             # OBS connection config
 │   │   ├── USBDevice.swift             # USB device model
 │   │   └── AppSettings.swift           # Persistent settings
-│   └── Extensions/
-│       ├── AsyncStream+Extensions.swift
-│       └── String+Formatting.swift
-└── Resources/
-    ├── Assets.xcassets/
-    └── Info.plist
+│   ├── Extensions/
+│   │   └── AsyncStream+Extensions.swift
+│   ├── Assets.xcassets/
+│   └── Resources/
+│       └── Info.plist
+└── obs-status-macos-ui.xcodeproj/
 ```

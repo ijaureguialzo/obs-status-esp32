@@ -89,7 +89,7 @@ esptool.py --chip esp32s3 --port /dev/cu.usbserial-* \
 1. Install obs-websocket plugin for OBS Studio
    - Download from: https://github.com/obsproject/obs-websocket
    - Follow installation instructions for your OS
-2. Note the WebSocket port (default: 4444)
+2. Note the WebSocket port (default: 4455 for OBS WebSocket v5)
 3. Set an authentication token (recommended)
 
 ### 3.3 macOS App Installation

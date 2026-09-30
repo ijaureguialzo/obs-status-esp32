@@ -21,6 +21,7 @@ let package = Package(
         .executableTarget(
             name: "ObsStatus",
             path: "obs-status-macos-ui",
+            exclude: ["Resources/Info.plist"],
             sources: [
                 "App/ObsStatusApp.swift",
                 "App/ObsStatusMenuBar.swift",
