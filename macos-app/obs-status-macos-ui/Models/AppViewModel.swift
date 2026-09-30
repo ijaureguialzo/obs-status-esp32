@@ -153,38 +153,18 @@ final class AppViewModel {
         guard espConnected else { return }
         guard let device = selectedDevice else { return }
         
-        let command: ObsCommand
+        let commandLine: String
         switch state {
         case .recording:
-            do {
-                let response = try await usbService.sendCommand(
-                    ObsCommand.ledOn(color: recordingLEDColor),
-                    to: device
-                )
-                lastESPResponse = response
-                espLastSeen = Date()
-                errorMessage = nil
-                if ObsProtocolUtil.isErrorResponse(response) {
-                    espError = response
-                }
-            } catch {
-                espConnected = false
-                espError = error.localizedDescription
-                errorMessage = error.localizedDescription
-                await usbService.disconnect()
-            }
-            return
+            commandLine = ObsCommand.ledOn(color: recordingLEDColor)
         case .notRecording:
-            command = .ledOff
+            commandLine = ObsCommand.ledOff.lineTerminated
         case .unknown:
             return
         }
 
         do {
-            let response = try await usbService.sendCommand(
-                command.lineTerminated,
-                to: device
-            )
+            let response = try await usbService.sendCommand(commandLine, to: device)
             lastESPResponse = response
             espLastSeen = Date()
             errorMessage = nil
