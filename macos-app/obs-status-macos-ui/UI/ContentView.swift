@@ -59,6 +59,8 @@ struct ContentView: View {
                         .foregroundColor(.red)
                         .font(.caption)
                         .lineLimit(1)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 2)
                 }
             }
         }
@@ -95,7 +97,7 @@ private struct RecordingStateBadge: View {
                 .font(.caption)
                 .fixedSize()
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 12)
         .padding(.vertical, 2)
     }
 }
