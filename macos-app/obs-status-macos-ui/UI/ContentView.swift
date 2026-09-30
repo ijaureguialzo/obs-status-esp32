@@ -36,26 +36,30 @@ struct ContentView: View {
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 240)
+            .safeAreaInset(edge: .bottom) {
+                Text("ObsStatus v1.0.0")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 10)
+            }
         } detail: {
             detailView
                 .navigationTitle(selection?.rawValue ?? SidebarSection.status.rawValue)
         }
         .toolbar {
-            ToolbarItem(placement: .navigation) {
+            ToolbarItemGroup(placement: .navigation) {
                 RecordingStateBadge(state: viewModel.obsRecording ? .recording : .notRecording)
+                    .padding(.leading, 4)
             }
 
-            ToolbarItemGroup(placement: .automatic) {
-                if let error = viewModel.errorMessage {
+            if let error = viewModel.errorMessage {
+                ToolbarItem(placement: .automatic) {
                     Text(error)
                         .foregroundColor(.red)
                         .font(.caption)
                         .lineLimit(1)
                 }
-
-                Text("ObsStatus v1.0.0")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
             }
         }
         .task {
@@ -82,14 +86,17 @@ private struct RecordingStateBadge: View {
     let state: RecordingState
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Circle()
                 .fill(state == .recording ? Color.red : Color.gray)
                 .frame(width: 8, height: 8)
 
             Text(state == .recording ? "Recording" : "Idle")
                 .font(.caption)
+                .fixedSize()
         }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
     }
 }
 
