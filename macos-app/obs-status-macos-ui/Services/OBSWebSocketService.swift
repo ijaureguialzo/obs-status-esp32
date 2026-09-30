@@ -119,7 +119,9 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
 
             var identifyData: [String: Any] = [
                 "rpcVersion": rpcVersion,
-                "eventSubscriptions": 0x3FF,
+                // obs-websocket v5 event subscription bitmask: Outputs (1 << 6),
+                // which carries RecordStateChanged — the only event we use.
+                "eventSubscriptions": 1 << 6,
             ]
             if let authentication = data["authentication"] as? [String: Any],
                let salt = authentication["salt"] as? String,
