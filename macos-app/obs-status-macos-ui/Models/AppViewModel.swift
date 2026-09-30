@@ -83,6 +83,7 @@ final class AppViewModel {
     
     func updateRecordingState(_ state: RecordingState) {
         obsConnected = obsService.isConnected
+        obsConnecting = obsService.isReconnecting
         obsRecording = (state == .recording)
         
         // Send command to ESP32 if connected
