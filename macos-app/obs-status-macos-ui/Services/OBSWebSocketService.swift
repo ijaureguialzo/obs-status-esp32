@@ -171,7 +171,8 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                    data["requestType"] as? String == "GetRecordStatus",
                    let responseData = data["responseData"] as? [String: Any],
                    let active = responseData["outputActive"] as? Bool {
-                    setRecordingState(active ? .recording : .notRecording)
+                    let paused = responseData["outputPaused"] as? Bool ?? false
+                    setRecordingState(active && !paused ? .recording : .notRecording)
                     continue
                 }
                 guard message["op"] as? Int == 5,
@@ -181,7 +182,7 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                     continue
                 }
                 if eventType == "RecordStateChanged" {
-                    setRecordingState((eventData["outputActive"] as? Bool ?? false) ? .recording : .notRecording)
+                    setRecordingState(Self.recordingState(from: eventData))
                 }
             } catch {
                 guard !Task.isCancelled else { return }
@@ -227,9 +228,26 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
            let response = json["d"] as? [String: Any],
            let responseData = response["responseData"] as? [String: Any],
            let outputActive = responseData["outputActive"] as? Bool {
-            setRecordingState(outputActive ? .recording : .notRecording)
+            let outputPaused = responseData["outputPaused"] as? Bool ?? false
+            setRecordingState(outputActive && !outputPaused ? .recording : .notRecording)
         }
         return json
+    }
+
+    /// Maps a RecordStateChanged event payload to a recording state.
+    /// `outputActive` stays true while paused, so `outputState` is authoritative.
+    private static func recordingState(from eventData: [String: Any]) -> RecordingState {
+        guard let outputState = eventData["outputState"] as? String else {
+            return (eventData["outputActive"] as? Bool ?? false) ? .recording : .notRecording
+        }
+        switch outputState {
+        case "OBS_WEBSOCKET_OUTPUT_STARTED", "OBS_WEBSOCKET_OUTPUT_RESUMED":
+            return .recording
+        case "OBS_WEBSOCKET_OUTPUT_STOPPED", "OBS_WEBSOCKET_OUTPUT_PAUSED":
+            return .notRecording
+        default:
+            return .unknown
+        }
     }
 
     private func sendJSON(_ json: [String: Any], to webSocket: URLSessionWebSocketTask) async throws {
