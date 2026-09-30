@@ -1,37 +1,14 @@
 # ObsStatus - OBS Recording Status Indicator
 
-```
- _________________________________________
-/ Wings of OS/400: The airline has bought \
-| ancient DC-3s, arguably the best and    |
-| safest planes that ever flew, and       |
-| painted "747" on their tails to make    |
-| them look as if they are fast. The      |
-| flight attendants, of course, attend to |
-| your every need, though the drinks cost |
-| $15 a pop. Stupid questions cost $230   |
-| per hour, unless you have SupportLine,  |
-| which requires a first class ticket and |
-| membership in the frequent flyer club.  |
-| Then they cost $500, but your           |
-| accounting department can call it       |
-\ overhead.                               /
- -----------------------------------------
-         \   ^__^
-          \  (oo)\_______
-             (__)\       )\/\
-                 ||----w |
-                 ||     ||
-```
-
 ## Overview
 
-A two-part system that monitors OBS Studio recording status and provides a physical LED indicator via an ESP32 microcontroller.
+A two-part system that monitors OBS Studio recording status and provides a physical LED indicator via an ESP32
+microcontroller.
 
 ```
 ┌─────────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
-│  OBS Studio         │         │  macOS Application    │         │  ESP32 Board     │
-│  (WebSocket API)    │◄───────►│  (SwiftUI App)       │◄───────►│  (ESP-IDF)       │
+│  OBS Studio         │         │  macOS Application   │         │  ESP32 Board    │
+│  (WebSocket API)    │◄───────►│  (SwiftUI App)       │◄───────►│  (ESP-IDF)      │
 │                     │  ws:4455│                      │  USB    │                 │
 │ Recording State     │         │  • Connect to OBS    │  CDC    │ LED Control     │
 │ (via WebSocket)     │         │  • Connect to ESP32  │◄───────►│  (onboard LED)  │
@@ -40,10 +17,10 @@ A two-part system that monitors OBS Studio recording status and provides a physi
 
 ## Implementation Status
 
-| Component       | Status  | Notes                                     |
+| Component       | Status  | Notes                                       |
 |-----------------|---------|---------------------------------------------|
 | macOS App (UI)  | ✅ Done | Complete SwiftUI with all panels            |
-| macOS WebSocket | ✅ Done | OBS WebSocket v5 client using URLSession     |
+| macOS WebSocket | ✅ Done | OBS WebSocket v5 client using URLSession    |
 | macOS USB CDC   | ✅ Done | IOKit-based serial port enumeration/control |
 | ESP32 Firmware  | ✅ Done | Full implementation with all modules        |
 | Protocol Parser | ✅ Done | Text command parsing and dispatch           |
@@ -187,14 +164,14 @@ pio device monitor -b 115200
 
 Text-based protocol over USB CDC serial (115200 baud, 8N1):
 
-| Command     | Description                    |
-|-------------|--------------------------------|
-| `LED_ON`    | Turn LED on with the legacy green color |
+| Command                       | Description                                          |
+|-------------------------------|------------------------------------------------------|
+| `LED_ON`                      | Turn LED on with the legacy green color              |
 | `LED_ON:<red>,<green>,<blue>` | Turn LED on with an RGB color (each component 0–255) |
-| `LED_OFF`   | Turn LED off (not recording)   |
-| `BLINK_FAST`| Blink fast (error state)       |
-| `BLINK_SLOW`| Blink slow (idle/disconnected) |
-| `STATUS`    | Query current state            |
+| `LED_OFF`                     | Turn LED off (not recording)                         |
+| `BLINK_FAST`                  | Blink fast (error state)                             |
+| `BLINK_SLOW`                  | Blink slow (idle/disconnected)                       |
+| `STATUS`                      | Query current state                                  |
 
 Responses: `OK` or `ERROR: <description>`
 
@@ -212,4 +189,4 @@ Full project specifications organized by component:
 
 ## License
 
-GPL-3.0 - See [LICENSE](LICENSE) for details.
+Apache 2.0 - See [LICENSE](LICENSE) for details.
