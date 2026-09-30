@@ -46,5 +46,8 @@ struct ObsStatusApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)
+
+        ObsStatusMenuBar()
+            .environment(viewModel)
     }
 }

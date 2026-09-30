@@ -1,14 +1,13 @@
 //
 //  ObsStatusMenuBar.swift
-//  Optional menu bar integration for running as a background app.
-//  Activate by setting LSUIElement to YES in Info.plist.
+//  Menu bar integration sharing the app's AppViewModel instance.
 //
 
 import SwiftUI
 
 struct ObsStatusMenuBar: Scene {
-    @State private var viewModel = AppViewModel()
-    
+    @Environment(AppViewModel.self) private var viewModel
+
     var body: some Scene {
         MenuBarExtra {
             MenuBarControls()
