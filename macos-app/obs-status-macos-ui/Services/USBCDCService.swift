@@ -242,7 +242,6 @@ actor USBCDCService: USBCDCServiceProtocol {
     
     private func getCFStringProperty(_ service: io_object_t, key: String) -> String? {
         let result = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)
-        defer { result?.release() }
         return result?.takeRetainedValue() as? String
     }
     
