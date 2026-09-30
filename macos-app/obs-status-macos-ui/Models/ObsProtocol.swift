@@ -61,14 +61,14 @@ enum ObsCommand: String, CaseIterable {
 }
 
 /// Parsed status response from ESP32.
-/// Format: "STATUS:LED=<state>|OBS=<state>|ERROR=<code>"
+/// Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>"
 struct ObsStatusResponse: Codable {
     let led: String
-    let obs: String
+    let usb: String
     let errorCode: Int
     
     init?(from rawResponse: String) {
-        // Format: "STATUS:LED=<state>|OBS=<state>|ERROR=<code>"
+        // Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>"
         guard rawResponse.hasPrefix("STATUS:") else { return nil }
         
         let content = String(rawResponse.dropFirst(7)) // Remove "STATUS:"
@@ -80,9 +80,9 @@ struct ObsStatusResponse: Codable {
         guard parts[0].hasPrefix("LED=") else { return nil }
         led = String(parts[0].dropFirst(4))
         
-        // Parse OBS state
-        guard parts[1].hasPrefix("OBS=") else { return nil }
-        obs = String(parts[1].dropFirst(4))
+        // Parse USB state
+        guard parts[1].hasPrefix("USB=") else { return nil }
+        usb = String(parts[1].dropFirst(4))
         
         // Parse error code
         guard parts[2].hasPrefix("ERROR=") else { return nil }

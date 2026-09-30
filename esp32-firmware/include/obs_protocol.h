@@ -50,7 +50,7 @@
 // Status Response Format
 // ==========================
 
-// Format: "STATUS:LED=<state>|OBS=<state>|ERROR=<code>"
-#define PROTOCOL_STATUS_FORMAT "STATUS:LED=%s|OBS=%s|ERROR=%d"
+// Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>"
+#define PROTOCOL_STATUS_FORMAT "STATUS:LED=%s|USB=%s|ERROR=%d"
 
 #endif // OBS_PROTOCOL_H

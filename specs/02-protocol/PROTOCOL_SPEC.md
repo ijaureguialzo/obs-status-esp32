@@ -86,14 +86,14 @@ Requests the current status from the ESP32.
 STATUS\n
 ```
 
-**Response**: `STATUS:LED=<state>|OBS=<obsState>|ERROR=<errorCode>\n`
+**Response**: `STATUS:LED=<state>|USB=<usbState>|ERROR=<errorCode>\n`
 
 Where:
 - `LED`: `ON` / `OFF`
-- `OBS`: `CONNECTED` / `DISCONNECTED`
+- `USB`: `CONNECTED` / `DISCONNECTED` (USB host connection state; the ESP32 has no knowledge of OBS)
 - `errorCode`: `0` (none) or error code integer
 
-**Example**: `STATUS:LED=ON|OBS=CONNECTED|ERROR=0\n`
+**Example**: `STATUS:LED=ON|USB=CONNECTED|ERROR=0\n`
 
 ## 4. Error Responses
 
