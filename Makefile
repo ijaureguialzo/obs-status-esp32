@@ -30,6 +30,9 @@ install-s3:
 install-c6:
 	$(PIO) run -d esp32-firmware -e esp32-c6-touch-lcd-1_47 -t upload
 
+monitor:
+	$(PIO) device monitor
+
 macos:
 	$(SWIFT) build --package-path macos-app
 
@@ -40,6 +43,7 @@ help:
 		'  make firmware    Build the firmware for BOARD (default: esp32-s3-dev-kit-n8r8).' \
 		'  make install     Upload the firmware for BOARD to the connected board.' \
 		'  make macos       Build the macOS app.' \
+		'  make monitor     Show serial console.' \
 		'' \
 		'Board shortcuts:' \
 		'  make firmware-s3 / install-s3  ESP32-S3-DevKit N8R8 (LED only).' \
