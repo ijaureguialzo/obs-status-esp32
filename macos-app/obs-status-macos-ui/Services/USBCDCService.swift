@@ -118,6 +118,12 @@ private final class LineRouter: @unchecked Sendable {
             }
             return
         }
+        // Only well-formed responses complete a command. The firmware's log
+        // output shares the USB Serial JTAG link, so stray lines (boot logs,
+        // "Tap detected", ...) are dropped instead of being misdelivered.
+        guard line == "OK" || line.hasPrefix("ERROR:") || line.hasPrefix("STATUS:") else {
+            return
+        }
         let pending = lock.withLock { () -> CheckedContinuation<String, Error>? in
             let continuation = pendingContinuation
             pendingContinuation = nil
