@@ -16,5 +16,5 @@ dependencies:
 direct_dependencies:
 - espressif/esp_lcd_touch
 manifest_hash: 3e9063a72831b5f74ea7a94f10fe0d09c3db0b08de84e629da2ab2333d56cd14
-target: esp32s3
+target: esp32c6
 version: 3.0.0

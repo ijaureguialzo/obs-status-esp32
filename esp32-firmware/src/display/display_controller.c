@@ -2,9 +2,11 @@
  * @file display_controller.c
  * @brief LCD display control for the Waveshare ESP32-C6-Touch-LCD-1.47
  *
- * Panel: 172x320 JD9853 (ST7789 command compatible) over SPI.
+ * Panel: JD9853 (ST7789 command compatible) over SPI, driven in landscape
+ * (320x172, USB connector on the right) via MADCTL MV+MY. The visible
+ * window starts at GRAM column 34, hence the Y gap after swapping axes.
  * Backlight: LEDC PWM on GPIO23 (active high).
- * Text: public domain 8x8 VGA bitmap font, rendered at 2x scale.
+ * Text: public domain 8x8 VGA bitmap font, rendered at 2x scale, centered.
  *
  * The whole implementation is compiled out unless CONFIG_BOARD_HAS_DISPLAY
  * is defined; the stubs at the bottom keep the API callable on LED-only
@@ -43,8 +45,14 @@ static const char *TAG = "display";
 
 #define LCD_SPI_HOST       SPI2_HOST
 #define LCD_PIXEL_CLOCK_HZ (80 * 1000 * 1000)
-#define LCD_H_RES          172
-#define LCD_V_RES          320
+/* Logical (landscape) resolution after swapping axes */
+#define LCD_H_RES          320
+#define LCD_V_RES          172
+/* The JD9853 GRAM is 240 px wide but only columns 34..205 are visible; after
+ * swap_xy the column addresses are driven by the Y window, so the gap moves
+ * to the Y axis. */
+#define LCD_GAP_X          0
+#define LCD_GAP_Y          34
 
 #define BL_LEDC_TIMER      LEDC_TIMER_0
 #define BL_LEDC_CHANNEL    LEDC_CHANNEL_0
@@ -223,7 +231,12 @@ esp_err_t display_init(void)
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(s_panel), TAG, "Panel reset failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(s_panel), TAG, "Panel init sequence failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_invert_color(s_panel, true), TAG, "Color invert failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, false, false), TAG, "Mirror failed");
+    /* Landscape with the USB connector on the right: swap axes (MV) and
+     * mirror the row counter (MY) so logical Y walks the visible GRAM
+     * columns from 205 down to 34. */
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(s_panel, true), TAG, "Swap XY failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, false, true), TAG, "Mirror failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_set_gap(s_panel, LCD_GAP_X, LCD_GAP_Y), TAG, "Gap failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(s_panel, true), TAG, "Display on failed");
 
     ESP_RETURN_ON_ERROR(backlight_init(), TAG, "Backlight init failed");
