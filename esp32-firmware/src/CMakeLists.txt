@@ -5,6 +5,8 @@ idf_component_register(
         led/led_controller.c
         display/display_controller.c
         touch/touch_controller.c
+        board/board_i2c.c
+        imu/imu_qmi8658.c
         protocol/protocol_parser.c
     INCLUDE_DIRS
         ../include

@@ -23,7 +23,7 @@ microcontroller: an RGB LED on classic ESP32-S3 boards, or a touch LCD on the Wa
 | Board | PlatformIO environment | Indicator | Extras |
 |-------|------------------------|-----------|--------|
 | ESP32-S3-DevKit N8R8 (default) | `esp32-s3-dev-kit-n8r8` | Onboard WS2812 RGB LED | — |
-| Waveshare ESP32-C6-Touch-LCD-1.47 | `esp32-c6-touch-lcd-1_47` | 172x320 touch LCD | Screen background shows the recording color, the active OBS scene name is displayed, and tapping the screen pauses/resumes the recording |
+| Waveshare ESP32-C6-Touch-LCD-1.47 | `esp32-c6-touch-lcd-1_47` | 172x320 touch LCD | Screen background shows the recording color, the active OBS scene name is displayed (accent-aware, word-wrapped, centered), tapping the screen pauses/resumes the recording, and the screen auto-rotates between landscape USB-right and USB-left using the IMU |
 
 Both boards use their native USB Serial JTAG peripheral, so a single USB-C cable is used for flashing, monitoring and communication with the app.
 

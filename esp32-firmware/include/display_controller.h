@@ -37,8 +37,10 @@ void display_set_background(uint8_t red, uint8_t green, uint8_t blue);
 /**
  * @brief Set the OBS scene name shown on screen
  *
- * Pass an empty string or NULL to clear the label. Non-ASCII bytes are
- * rendered as '?'.
+ * Pass an empty string or NULL to clear the label. Text is UTF-8; basic
+ * Latin and the Latin-1 supplement (accents, ñ, ü...) are rendered,
+ * anything else falls back to '?'. Lines wrap on word boundaries and are
+ * centered.
  */
 void display_set_scene(const char *name);
 

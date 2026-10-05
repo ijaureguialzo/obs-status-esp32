@@ -46,10 +46,11 @@ framework = espidf
 
 | Component          | Pin    | Notes                                  |
 |--------------------|--------|----------------------------------------|
-| LCD (JD9853, SPI2) | SCLK=GPIO1, MOSI=GPIO2, MISO=GPIO3 | 172x320 native, ST7789-compatible; driven in landscape (320x172, USB on the right) via MADCTL MV+MY with Y gap 34 |
+| LCD (JD9853, SPI2) | SCLK=GPIO1, MOSI=GPIO2, MISO=GPIO3 | 172x320 native, ST7789-compatible; driven in landscape (320x172) via MADCTL MV+MY/MV+MX with Y gap 34 |
 | LCD control        | CS=GPIO14, DC=GPIO15, RST=GPIO22   |                        |
 | LCD backlight      | GPIO23 | LEDC PWM, 5 kHz, active-high           |
 | Touch (AXS5106L)   | I2C SDA=GPIO18, SCL=GPIO19, RST=GPIO20, INT=GPIO21 | I2C addr 0x63, shared bus with the IMU |
+| IMU (QMI8658A)     | I2C (shared) | I2C addr 0x6B; used to auto-rotate the landscape screen (USB right/left) |
 | Onboard LED        | none   | The screen background mirrors the LED color |
 | USB Device         | GPIO12/13 | USB Serial JTAG (native USB)        |
 
@@ -156,8 +157,12 @@ void protocol_notify_toggle_pause(void);
 #### `display_controller.c/h` – Display Control Layer (display boards only)
 - Initialize the JD9853 LCD panel (SPI) and LEDC backlight
 - Fill the background with the current LED/recording color
-- Render the active OBS scene name (8x8 bitmap font, 2x scale, centered,
-  automatic contrast color)
+- Render the active OBS scene name: UTF-8 decoded (basic Latin + Latin-1
+  supplement, so accents render correctly), wrapped on word boundaries,
+  each line centered, automatic contrast color
+- Auto-rotate between the two landscape orientations (USB right / USB
+  left) by polling the QMI8658A accelerometer; portrait or flat readings
+  keep the current orientation
 - Compiled to no-op stubs when `CONFIG_BOARD_HAS_DISPLAY` is not defined
 
 **API**:
@@ -165,6 +170,20 @@ void protocol_notify_toggle_pause(void);
 esp_err_t display_init(void);
 void display_set_background(uint8_t red, uint8_t green, uint8_t blue);
 void display_set_scene(const char *name);
+```
+
+#### `board_i2c.c/h` – Shared I2C Bus (display boards only)
+- Lazily created I2C master bus on GPIO18/GPIO19 shared by the touch
+  controller and the IMU
+
+#### `imu_qmi8658.c/h` – IMU Driver (display boards only)
+- Minimal QMI8658A accelerometer driver (WHO_AM_I check, vendor init
+  sequence, ±4 g readings) used for screen auto-rotation
+
+**API**:
+```c
+esp_err_t imu_init(void);
+bool imu_read_accel(float *ax_g, float *ay_g, float *az_g);
 ```
 
 #### `touch_controller.c/h` – Touch Input Layer (display boards only)

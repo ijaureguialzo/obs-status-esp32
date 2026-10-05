@@ -21,6 +21,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 #include "esp_log.h"
 #include "esp_check.h"
@@ -31,6 +32,8 @@
 #include "esp_lcd_jd9853.h"
 
 #include "font8x8_basic.h"
+#include "font8x8_ext_latin.h"
+#include "imu_qmi8658.h"
 
 static const char *TAG = "display";
 
@@ -60,7 +63,7 @@ static const char *TAG = "display";
 #define BL_LEDC_FREQ_HZ    5000
 #define BL_BRIGHTNESS_PCT  100
 
-/* Text layout: 8x8 glyphs at 2x scale -> 16x16 cells, 10 columns */
+/* Text layout: 8x8 glyphs at 2x scale -> 16x16 cells */
 #define FONT_SCALE   2
 #define GLYPH_SIZE   8
 #define CELL_SIZE    (GLYPH_SIZE * FONT_SCALE)
@@ -72,6 +75,17 @@ static const char *TAG = "display";
 
 #define SCENE_MAX_LEN 96
 
+/* Auto-rotation (QMI8658A): only the two landscape orientations are
+ * supported; portrait or flat readings keep the current orientation. */
+#define ORIENTATION_POLL_MS        150
+#define ORIENTATION_STABLE_SAMPLES 4
+#define ORIENTATION_MIN_G          0.65f
+/* IMU axis that points down when the board is in landscape, and the sign
+ * that corresponds to the USB connector being on the right. If a board
+ * revision mounts the QMI8658 differently, adjust these two defines. */
+#define IMU_VERTICAL_AXIS_Y        1
+#define IMU_USB_RIGHT_WHEN_NEGATIVE 1
+
 static esp_lcd_panel_handle_t s_panel = NULL;
 static SemaphoreHandle_t s_mutex = NULL;
 
@@ -79,6 +93,7 @@ static uint8_t s_bg_red;
 static uint8_t s_bg_green;
 static uint8_t s_bg_blue;
 static char s_scene[SCENE_MAX_LEN];
+static bool s_usb_right = true;
 
 /* 1-bit offscreen text mask; set bits are drawn in the text color */
 static uint8_t s_text_mask[LCD_H_RES * LCD_V_RES / 8];
@@ -103,46 +118,139 @@ static bool mask_get_pixel(int x, int y)
     return (s_text_mask[(y * LCD_H_RES + x) / 8] >> ((y * LCD_H_RES + x) % 8)) & 1u;
 }
 
-/* Rebuild s_text_mask from s_scene with word wrapping and centering */
+/* Look up the 8x8 glyph for a Unicode code point: basic Latin from
+ * font8x8_basic, Latin-1 supplement (U+00A0-U+00FF) from font8x8_ext_latin,
+ * anything else falls back to '?'. */
+static const char *glyph_for(uint32_t cp)
+{
+    if (cp < 0x80) {
+        return font8x8_basic[cp];
+    }
+    if (cp >= 0xA0 && cp <= 0xFF) {
+        return font8x8_ext_latin[cp - 0xA0];
+    }
+    return font8x8_basic['?'];
+}
+
+/* Decode UTF-8 into code points; invalid bytes become '?'. */
+static size_t utf8_decode(const char *text, uint32_t *out, size_t max_out)
+{
+    size_t count = 0;
+    for (size_t i = 0; text[i] != '\0' && count < max_out; ) {
+        uint8_t b0 = (uint8_t)text[i];
+        if (b0 < 0x80) {
+            out[count++] = b0;
+            i += 1;
+        } else if ((b0 & 0xE0) == 0xC0 && (uint8_t)text[i + 1] != 0) {
+            out[count++] = ((uint32_t)(b0 & 0x1F) << 6) | ((uint8_t)text[i + 1] & 0x3F);
+            i += 2;
+        } else if ((b0 & 0xF0) == 0xE0 && (uint8_t)text[i + 1] != 0 && (uint8_t)text[i + 2] != 0) {
+            out[count++] = ((uint32_t)(b0 & 0x0F) << 12) |
+                           (((uint8_t)text[i + 1] & 0x3F) << 6) |
+                           ((uint8_t)text[i + 2] & 0x3F);
+            i += 3;
+        } else {
+            out[count++] = '?';
+            i += 1;
+        }
+    }
+    return count;
+}
+
+static void draw_glyph(uint32_t cp, int cell_x, int cell_y)
+{
+    const char *glyph = glyph_for(cp);
+    for (int gy = 0; gy < GLYPH_SIZE; gy++) {
+        for (int gx = 0; gx < GLYPH_SIZE; gx++) {
+            if ((glyph[gy] >> gx) & 1u) {
+                for (int sy = 0; sy < FONT_SCALE; sy++) {
+                    for (int sx = 0; sx < FONT_SCALE; sx++) {
+                        mask_set_pixel(cell_x + gx * FONT_SCALE + sx,
+                                       cell_y + gy * FONT_SCALE + sy);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* Rebuild s_text_mask from s_scene: wrap on word boundaries (long words are
+ * hard-split), center each line horizontally and the block vertically. */
 static void layout_text(void)
 {
     memset(s_text_mask, 0, sizeof(s_text_mask));
 
-    size_t len = strlen(s_scene);
+    static uint32_t cps[SCENE_MAX_LEN];
+    size_t len = utf8_decode(s_scene, cps, SCENE_MAX_LEN);
     if (len == 0) {
         return;
     }
 
-    int line_count = (int)((len + TEXT_COLS - 1) / TEXT_COLS);
-    if (line_count > TEXT_MAX_LINES) {
-        line_count = TEXT_MAX_LINES;
-        len = (size_t)line_count * TEXT_COLS;
-    }
-    int origin_y = (LCD_V_RES - line_count * CELL_SIZE) / 2;
+    /* Wrapped lines: start offset and length in code points */
+    size_t line_start[TEXT_MAX_LINES];
+    size_t line_len[TEXT_MAX_LINES];
+    int line_count = 0;
 
-    for (size_t i = 0; i < len; i++) {
-        unsigned char c = (unsigned char)s_scene[i];
-        if (c >= 128) {
-            c = '?';
+    size_t i = 0;
+    size_t cur_start = 0;
+    size_t cur_len = 0;
+    while (i < len && line_count < TEXT_MAX_LINES) {
+        /* Extract next word */
+        size_t word_start = i;
+        while (i < len && cps[i] != ' ') {
+            i++;
         }
-        const char *glyph = font8x8_basic[c];
+        size_t word_len = i - word_start;
+        while (i < len && cps[i] == ' ') {
+            i++;
+        }
 
-        int line = (int)(i / TEXT_COLS);
-        int col = (int)(i % TEXT_COLS);
-        int cell_x = col * CELL_SIZE;
-        int cell_y = origin_y + line * CELL_SIZE;
-
-        for (int gy = 0; gy < GLYPH_SIZE; gy++) {
-            for (int gx = 0; gx < GLYPH_SIZE; gx++) {
-                if ((glyph[gy] >> gx) & 1u) {
-                    for (int sy = 0; sy < FONT_SCALE; sy++) {
-                        for (int sx = 0; sx < FONT_SCALE; sx++) {
-                            mask_set_pixel(cell_x + gx * FONT_SCALE + sx,
-                                           cell_y + gy * FONT_SCALE + sy);
-                        }
-                    }
-                }
+        if (word_len > TEXT_COLS) {
+            /* Hard-split words longer than a full line */
+            if (cur_len > 0) {
+                line_start[line_count] = cur_start;
+                line_len[line_count] = cur_len;
+                line_count++;
+                cur_len = 0;
             }
+            while (word_len > TEXT_COLS && line_count < TEXT_MAX_LINES) {
+                line_start[line_count] = word_start;
+                line_len[line_count] = TEXT_COLS;
+                line_count++;
+                word_start += TEXT_COLS;
+                word_len -= TEXT_COLS;
+            }
+            cur_start = word_start;
+            cur_len = word_len;
+        } else if (cur_len == 0) {
+            cur_start = word_start;
+            cur_len = word_len;
+        } else if (cur_len + 1 + word_len <= TEXT_COLS) {
+            cur_len += 1 + word_len;
+        } else {
+            line_start[line_count] = cur_start;
+            line_len[line_count] = cur_len;
+            line_count++;
+            cur_start = word_start;
+            cur_len = word_len;
+        }
+    }
+    if (cur_len > 0 && line_count < TEXT_MAX_LINES) {
+        line_start[line_count] = cur_start;
+        line_len[line_count] = cur_len;
+        line_count++;
+    }
+
+    if (line_count == 0) {
+        return;
+    }
+
+    int origin_y = (LCD_V_RES - line_count * CELL_SIZE) / 2;
+    for (int line = 0; line < line_count; line++) {
+        int cell_x = (LCD_H_RES - (int)line_len[line] * CELL_SIZE) / 2;
+        int cell_y = origin_y + line * CELL_SIZE;
+        for (size_t j = 0; j < line_len[line]; j++) {
+            draw_glyph(cps[line_start[line] + j], cell_x + (int)j * CELL_SIZE, cell_y);
         }
     }
 }
@@ -170,6 +278,76 @@ static void redraw_locked(void)
             }
         }
         esp_lcd_panel_draw_bitmap(s_panel, 0, y0, LCD_H_RES, y0 + lines, s_band);
+    }
+}
+
+/* Apply the landscape orientation: USB on the right swaps axes (MV) and
+ * mirrors the row counter (MY) so logical Y walks the visible GRAM columns
+ * from 205 down to 34; USB on the left is the same rotated 180 degrees
+ * (MX instead of MY). The GRAM gap stays on the Y window in both cases. */
+static esp_err_t apply_rotation(bool usb_right)
+{
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(s_panel, true), TAG, "Swap XY failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, !usb_right, usb_right), TAG, "Mirror failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_set_gap(s_panel, LCD_GAP_X, LCD_GAP_Y), TAG, "Gap failed");
+    return ESP_OK;
+}
+
+static float absf_local(float v)
+{
+    return v < 0.0f ? -v : v;
+}
+
+/* Polls the IMU and flips the screen between the two landscape orientations.
+ * The vertical axis must dominate clearly; portrait or flat (normal-axis)
+ * readings are ambiguous and keep the current orientation. */
+static void orientation_task(void *pv_parameters)
+{
+    (void)pv_parameters;
+    int stable_count = 0;
+    bool desired = s_usb_right;
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(ORIENTATION_POLL_MS));
+
+        float ax, ay, az;
+        if (!imu_read_accel(&ax, &ay, &az)) {
+            continue;
+        }
+
+#if IMU_VERTICAL_AXIS_Y
+        const float vertical = ay;
+        const float in_plane_other = ax;
+#else
+        const float vertical = ax;
+        const float in_plane_other = ay;
+#endif
+
+        const float abs_v = absf_local(vertical);
+        if (abs_v < ORIENTATION_MIN_G ||
+            abs_v < absf_local(in_plane_other) ||
+            abs_v < absf_local(az)) {
+            /* Portrait, lying flat, or ambiguous: keep current orientation */
+            stable_count = 0;
+            continue;
+        }
+
+        const bool new_desired = (vertical < 0.0f) == (IMU_USB_RIGHT_WHEN_NEGATIVE != 0);
+        if (new_desired != desired) {
+            desired = new_desired;
+            stable_count = 1;
+        } else if (desired != s_usb_right && ++stable_count >= ORIENTATION_STABLE_SAMPLES) {
+            stable_count = 0;
+            if (xSemaphoreTake(s_mutex, portMAX_DELAY) == pdTRUE) {
+                s_usb_right = desired;
+                ESP_LOGI(TAG, "Orientation changed: USB %s (ax=%.2f ay=%.2f az=%.2f)",
+                         s_usb_right ? "right" : "left", ax, ay, az);
+                if (apply_rotation(s_usb_right) == ESP_OK) {
+                    redraw_locked();
+                }
+                xSemaphoreGive(s_mutex);
+            }
+        }
     }
 }
 
@@ -231,15 +409,21 @@ esp_err_t display_init(void)
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(s_panel), TAG, "Panel reset failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(s_panel), TAG, "Panel init sequence failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_invert_color(s_panel, true), TAG, "Color invert failed");
-    /* Landscape with the USB connector on the right: swap axes (MV) and
-     * mirror the row counter (MY) so logical Y walks the visible GRAM
-     * columns from 205 down to 34. */
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(s_panel, true), TAG, "Swap XY failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, false, true), TAG, "Mirror failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_set_gap(s_panel, LCD_GAP_X, LCD_GAP_Y), TAG, "Gap failed");
+    ESP_RETURN_ON_ERROR(apply_rotation(s_usb_right), TAG, "Rotation failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(s_panel, true), TAG, "Display on failed");
 
     ESP_RETURN_ON_ERROR(backlight_init(), TAG, "Backlight init failed");
+
+    /* Auto-rotate between the two landscape orientations using the IMU;
+     * if the chip does not answer, the screen stays in the default
+     * (USB on the right) orientation. */
+    if (imu_init() == ESP_OK) {
+        if (xTaskCreate(orientation_task, "display_orient", 3072, NULL, 4, NULL) != pdPASS) {
+            ESP_LOGW(TAG, "Could not start orientation task");
+        }
+    } else {
+        ESP_LOGW(TAG, "IMU not available - auto-rotation disabled");
+    }
 
     ESP_LOGI(TAG, "Display initialized (%dx%d)", LCD_H_RES, LCD_V_RES);
     display_set_background(0, 0, 0);

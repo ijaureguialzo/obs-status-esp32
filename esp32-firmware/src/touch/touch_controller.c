@@ -22,17 +22,16 @@
 #include "esp_lcd_touch.h"
 #include "esp_lcd_touch_axs5106.h"
 
+#include "board_i2c.h"
 #include "protocol_parser.h"
 
 static const char *TAG = "touch";
 
-/* Waveshare ESP32-C6-Touch-LCD-1.47 pinout (see vendor BSP) */
-#define TOUCH_PIN_I2C_SDA 18
-#define TOUCH_PIN_I2C_SCL 19
+/* Waveshare ESP32-C6-Touch-LCD-1.47 pinout (see vendor BSP);
+ * SDA/SCL come from the shared board bus (board_i2c). */
 #define TOUCH_PIN_RST     20
 #define TOUCH_PIN_INT     21
 
-#define TOUCH_I2C_PORT       0
 #define TOUCH_I2C_CLOCK_HZ   400000
 #define TOUCH_X_MAX          172
 #define TOUCH_Y_MAX          320
@@ -64,17 +63,10 @@ static void touch_task(void *pv_parameters)
 
 esp_err_t touch_init(void)
 {
-    i2c_master_bus_handle_t bus_handle = NULL;
-    const i2c_master_bus_config_t bus_config = {
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .i2c_port = TOUCH_I2C_PORT,
-        .scl_io_num = TOUCH_PIN_I2C_SCL,
-        .sda_io_num = TOUCH_PIN_I2C_SDA,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = 1,
-    };
-    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_config, &bus_handle),
-                        TAG, "I2C bus init failed");
+    i2c_master_bus_handle_t bus_handle = board_i2c_bus();
+    if (bus_handle == NULL) {
+        return ESP_FAIL;
+    }
 
     i2c_master_dev_handle_t dev_handle = NULL;
     const i2c_device_config_t dev_config = {
