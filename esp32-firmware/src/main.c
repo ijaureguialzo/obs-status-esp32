@@ -131,6 +131,10 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "ObsStatus ESP32 Firmware v1.0.0");
 
+    // Pin to the second core when available; unicore chips (ESP32-C6)
+    // must use core 0 or xTaskCreatePinnedToCore asserts.
+    const BaseType_t app_core = (CONFIG_FREERTOS_NUMBER_OF_CORES > 1) ? 1 : 0;
+
     xTaskCreatePinnedToCore(
         app_task,
         "app_task",
@@ -138,6 +142,6 @@ void app_main(void)
         NULL,
         APP_TASK_PRIORITY,
         NULL,
-        1
+        app_core
     );
 }
