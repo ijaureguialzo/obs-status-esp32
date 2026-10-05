@@ -95,6 +95,44 @@ Where:
 
 **Example**: `STATUS:LED=ON|USB=CONNECTED|ERROR=0\n`
 
+### 3.6 Command: `SCENE:<name>`
+
+Sets the name of the active OBS program scene, so boards with a display
+(e.g. ESP32-C6-Touch-LCD-1.47) can show it on screen.
+
+```
+SCENE:<name>\n
+```
+
+- `<name>` is free text (UTF-8). Newlines and carriage returns are not allowed
+  and must be stripped by the sender. Names longer than the remaining line
+  budget (`PROTOCOL_MAX_LINE_LENGTH`) are truncated by the firmware.
+- An empty name (`SCENE:\n`) clears the displayed scene.
+
+**Response**: `OK\n` on success. On boards without a display the command is
+accepted (and ignored) so that a single macOS build works with every board.
+
+**Use case**: the macOS app sends this command whenever OBS reports a
+`CurrentProgramSceneChanged` event or when the ESP32 (re)connects.
+
+## 3.7 Events (ESP32 → macOS)
+
+Events are unsolicited lines sent by the ESP32 at any time, interleaved with
+command responses. Every event line starts with the `EVENT:` prefix so the
+host can tell it apart from a command response.
+
+### Event: `EVENT:TOGGLE_PAUSE`
+
+```
+EVENT:TOGGLE_PAUSE\n
+```
+
+Sent when the user taps the touch screen of a board with a display. The macOS
+app reacts by invoking the OBS `ToggleRecordPause` request, which pauses or
+resumes the active recording.
+
+Boards without a touch screen never emit events.
+
 ## 4. Error Responses
 
 Format: `ERROR: <description>\n`

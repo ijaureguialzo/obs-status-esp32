@@ -17,6 +17,7 @@
 #define PROTOCOL_CMD_BLINK_FAST 0x03
 #define PROTOCOL_CMD_BLINK_SLOW 0x04
 #define PROTOCOL_CMD_STATUS     0x05
+#define PROTOCOL_CMD_SCENE      0x06
 
 // ==========================
 // Text Protocol Strings
@@ -28,6 +29,13 @@
 #define PROTOCOL_TXT_BLINK_FAST  "BLINK_FAST"
 #define PROTOCOL_TXT_BLINK_SLOW  "BLINK_SLOW"
 #define PROTOCOL_TXT_STATUS      "STATUS"
+#define PROTOCOL_TXT_SCENE_PREFIX "SCENE:"
+
+// ==========================
+// Event Strings (ESP32 -> macOS, unsolicited)
+// ==========================
+
+#define PROTOCOL_TXT_EVENT_TOGGLE_PAUSE "EVENT:TOGGLE_PAUSE"
 
 // ==========================
 // Response Strings
