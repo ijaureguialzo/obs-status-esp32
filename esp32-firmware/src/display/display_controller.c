@@ -80,10 +80,11 @@ static const char *TAG = "display";
 #define ORIENTATION_POLL_MS        150
 #define ORIENTATION_STABLE_SAMPLES 4
 #define ORIENTATION_MIN_G          0.65f
-/* IMU axis that points down when the board is in landscape, and the sign
- * that corresponds to the USB connector being on the right. If a board
- * revision mounts the QMI8658 differently, adjust these two defines. */
-#define IMU_VERTICAL_AXIS_Y        1
+#define ORIENTATION_LOG_EVERY      13  /* ~2 s at the poll period */
+/* The IMU Z axis is normal to the board, so a dominant Z means the board is
+ * lying flat (ambiguous) and is ignored. The in-plane axis (X or Y) with the
+ * strongest reading is the vertical one; its sign tells right from left.
+ * If a board revision mounts the QMI8658 differently, flip this define. */
 #define IMU_USB_RIGHT_WHEN_NEGATIVE 1
 
 static esp_lcd_panel_handle_t s_panel = NULL;
@@ -299,12 +300,14 @@ static float absf_local(float v)
 }
 
 /* Polls the IMU and flips the screen between the two landscape orientations.
- * The vertical axis must dominate clearly; portrait or flat (normal-axis)
- * readings are ambiguous and keep the current orientation. */
+ * The vertical in-plane axis must dominate clearly; a dominant Z (board
+ * lying flat) or weak readings are ambiguous and keep the current
+ * orientation. */
 static void orientation_task(void *pv_parameters)
 {
     (void)pv_parameters;
     int stable_count = 0;
+    int log_countdown = 0;
     bool desired = s_usb_right;
 
     while (1) {
@@ -315,19 +318,24 @@ static void orientation_task(void *pv_parameters)
             continue;
         }
 
-#if IMU_VERTICAL_AXIS_Y
-        const float vertical = ay;
-        const float in_plane_other = ax;
-#else
-        const float vertical = ax;
-        const float in_plane_other = ay;
-#endif
+        if (log_countdown-- <= 0) {
+            log_countdown = ORIENTATION_LOG_EVERY;
+            ESP_LOGI(TAG, "accel ax=%.2f ay=%.2f az=%.2f", ax, ay, az);
+        }
 
-        const float abs_v = absf_local(vertical);
-        if (abs_v < ORIENTATION_MIN_G ||
-            abs_v < absf_local(in_plane_other) ||
-            abs_v < absf_local(az)) {
-            /* Portrait, lying flat, or ambiguous: keep current orientation */
+        const float abs_x = absf_local(ax);
+        const float abs_y = absf_local(ay);
+        const float abs_z = absf_local(az);
+
+        if (abs_z >= abs_x && abs_z >= abs_y) {
+            /* Lying flat on the desk: no reliable left/right reading */
+            stable_count = 0;
+            continue;
+        }
+
+        /* The dominant in-plane axis is the vertical one */
+        const float vertical = (abs_x > abs_y) ? ax : ay;
+        if (absf_local(vertical) < ORIENTATION_MIN_G) {
             stable_count = 0;
             continue;
         }
