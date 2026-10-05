@@ -21,7 +21,9 @@ static const char *TAG = "imu";
 #define QMI8658_WHO_AM_I    0x00
 #define QMI8658_CTRL1       0x02 /* 0x40: register address auto-increment */
 #define QMI8658_CTRL2       0x03 /* 0x95: accel +/-4 g, 250 Hz */
-#define QMI8658_CTRL7       0x08 /* 0x01: enable accelerometer */
+#define QMI8658_CTRL3       0x04 /* 0xD5: gyro +/-512 dps, 250 Hz */
+#define QMI8658_CTRL7       0x08 /* 0x03: enable accelerometer + gyroscope */
+#define QMI8658_STATUS0     0x2E /* bit 0: accel sample ready */
 #define QMI8658_AX_L        0x35 /* AX_L..AZ_H: three little-endian int16 */
 #define QMI8658_RESET       0x60
 
@@ -33,6 +35,8 @@ static const char *TAG = "imu";
 #define QMI8658_I2C_TIMEOUT_MS 1000
 
 static i2c_master_dev_handle_t s_dev = NULL;
+static uint8_t s_last_status = 0;
+static bool s_last_error = false;
 
 static esp_err_t reg_read(uint8_t reg, uint8_t *data, size_t len)
 {
@@ -72,14 +76,18 @@ esp_err_t imu_init(void)
         return ESP_ERR_NOT_FOUND;
     }
 
-    /* Vendor init sequence (reset, auto-increment, accel-only, +/-4 g) */
+    /* Vendor init sequence, verbatim: soft reset, address auto-increment,
+     * accel+gyro enabled, accel +/-4 g @ 250 Hz, gyro +/-512 dps @ 250 Hz.
+     * (Enabling the accel alone, CTRL7=0x01, leaves this chip reporting
+     * zeros, so the full vendor sequence is kept.) */
     if (reg_write(QMI8658_RESET, 0xB0) != ESP_OK) {
         return ESP_FAIL;
     }
     vTaskDelay(pdMS_TO_TICKS(10));
     if (reg_write(QMI8658_CTRL1, 0x40) != ESP_OK ||
-        reg_write(QMI8658_CTRL7, 0x01) != ESP_OK ||
-        reg_write(QMI8658_CTRL2, 0x95) != ESP_OK) {
+        reg_write(QMI8658_CTRL7, 0x03) != ESP_OK ||
+        reg_write(QMI8658_CTRL2, 0x95) != ESP_OK ||
+        reg_write(QMI8658_CTRL3, 0xD5) != ESP_OK) {
         ESP_LOGE(TAG, "IMU configuration failed");
         return ESP_FAIL;
     }
@@ -93,8 +101,20 @@ bool imu_read_accel(float *ax_g, float *ay_g, float *az_g)
     if (s_dev == NULL) {
         return false;
     }
+    uint8_t status = 0;
+    if (reg_read(QMI8658_STATUS0, &status, 1) != ESP_OK) {
+        s_last_error = true;
+        return false;
+    }
+    s_last_error = false;
+    s_last_status = status;
+    if ((status & 0x01) == 0) {
+        /* No fresh accelerometer sample yet */
+        return false;
+    }
     uint8_t raw[6];
     if (reg_read(QMI8658_AX_L, raw, sizeof(raw)) != ESP_OK) {
+        s_last_error = true;
         return false;
     }
     const int16_t ax = (int16_t)((uint16_t)raw[0] | ((uint16_t)raw[1] << 8));
@@ -104,4 +124,14 @@ bool imu_read_accel(float *ax_g, float *ay_g, float *az_g)
     *ay_g = (float)ay * ACCEL_G_PER_LSB;
     *az_g = (float)az * ACCEL_G_PER_LSB;
     return true;
+}
+
+void imu_get_diag(uint8_t *status0, bool *bus_error)
+{
+    if (status0 != NULL) {
+        *status0 = s_last_status;
+    }
+    if (bus_error != NULL) {
+        *bus_error = s_last_error;
+    }
 }

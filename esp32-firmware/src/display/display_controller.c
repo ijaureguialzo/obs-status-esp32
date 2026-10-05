@@ -315,6 +315,14 @@ static void orientation_task(void *pv_parameters)
 
         float ax, ay, az;
         if (!imu_read_accel(&ax, &ay, &az)) {
+            if (log_countdown-- <= 0) {
+                log_countdown = ORIENTATION_LOG_EVERY;
+                uint8_t status0;
+                bool bus_error;
+                imu_get_diag(&status0, &bus_error);
+                ESP_LOGW(TAG, "accel read failed (STATUS0=0x%02x bus_error=%d)",
+                         status0, bus_error);
+            }
             continue;
         }
 

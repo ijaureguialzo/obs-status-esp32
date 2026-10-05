@@ -25,9 +25,15 @@ esp_err_t imu_init(void);
 /**
  * @brief Read one accelerometer sample
  * @param ax_g, ay_g, az_g acceleration in g (chip axes)
- * @return true on success
+ * @return true on success (false when there is no fresh sample yet)
  */
 bool imu_read_accel(float *ax_g, float *ay_g, float *az_g);
+
+/**
+ * @brief Diagnostic info: last STATUS0 register value and whether the last
+ * I2C transaction failed
+ */
+void imu_get_diag(uint8_t *status0, bool *bus_error);
 
 #ifdef __cplusplus
 }
