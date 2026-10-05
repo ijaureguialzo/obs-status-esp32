@@ -25,6 +25,42 @@ final class ObsCommandTests: XCTestCase {
         let command = ObsCommand.ledOn(color: LEDColor(red: 0, green: 0, blue: 255))
         XCTAssertEqual(command, "LED_ON:0,0,255\n")
     }
+
+    func testSceneCommand() {
+        XCTAssertEqual(ObsCommand.scene(name: "Main Scene"), "SCENE:Main Scene\n")
+    }
+
+    func testSceneCommandSanitizesLineBreaks() {
+        XCTAssertEqual(ObsCommand.scene(name: "Main\nScene\r2"), "SCENE:Main Scene 2\n")
+    }
+
+    func testSceneCommandWithEmptyName() {
+        XCTAssertEqual(ObsCommand.scene(name: ""), "SCENE:\n")
+    }
+
+    func testSceneCommandKeepsUTF8() {
+        XCTAssertEqual(ObsCommand.scene(name: "Escena 日本語"), "SCENE:Escena 日本語\n")
+    }
+}
+
+final class ObsEventTests: XCTestCase {
+    func testParseTogglePause() {
+        XCTAssertEqual(ObsEvent.parse("EVENT:TOGGLE_PAUSE"), .togglePause)
+    }
+
+    func testParseTrimsLineEnding() {
+        XCTAssertEqual(ObsEvent.parse("EVENT:TOGGLE_PAUSE\r\n"), .togglePause)
+    }
+
+    func testParseIgnoresCommandResponses() {
+        XCTAssertNil(ObsEvent.parse("OK"))
+        XCTAssertNil(ObsEvent.parse("STATUS:LED=ON|USB=CONNECTED|ERROR=0"))
+        XCTAssertNil(ObsEvent.parse("ERROR: UNKNOWN_COMMAND"))
+    }
+
+    func testEventLinesSharePrefix() {
+        XCTAssertTrue(ObsEvent.togglePause.rawValue.hasPrefix(ObsEvent.linePrefix))
+    }
 }
 
 final class LEDColorTests: XCTestCase {

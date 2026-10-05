@@ -32,8 +32,13 @@ protocol OBSWebSocketServiceProtocol: AnyObject {
     var isReconnecting: Bool { get }
     var recordingState: RecordingState { get }
     var recordingStateStream: AsyncStream<RecordingState> { get }
+    /// Name of the active OBS program scene, if known.
+    var currentSceneName: String? { get }
+    var sceneNameStream: AsyncStream<String?> { get }
     func connect(host: String, port: Int, token: String) async throws
     func disconnect()
+    /// Pauses the recording if it is running, resumes it if it is paused.
+    func toggleRecordPause() async
 }
 
 @MainActor
@@ -42,12 +47,14 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
     private var webSocket: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
     private var continuations: [UUID: AsyncStream<RecordingState>.Continuation] = [:]
+    private var sceneContinuations: [UUID: AsyncStream<String?>.Continuation] = [:]
     private var connectionHost: String?
     private var connectionPort: Int?
     private var connectionToken = ""
     private(set) var isConnected = false
     private(set) var isReconnecting = false
     private(set) var recordingState: RecordingState = .unknown
+    private(set) var currentSceneName: String?
 
     var recordingStateStream: AsyncStream<RecordingState> {
         AsyncStream { continuation in
@@ -57,6 +64,19 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
             continuation.onTermination = { [weak self] _ in
                 Task { @MainActor [weak self] in
                     self?.continuations[id] = nil
+                }
+            }
+        }
+    }
+
+    var sceneNameStream: AsyncStream<String?> {
+        AsyncStream { continuation in
+            let id = UUID()
+            sceneContinuations[id] = continuation
+            continuation.yield(currentSceneName)
+            continuation.onTermination = { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.sceneContinuations[id] = nil
                 }
             }
         }
@@ -90,6 +110,18 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         isReconnecting = false
         closeTransport()
         setRecordingState(.unknown)
+        setSceneName(nil)
+    }
+
+    func toggleRecordPause() async {
+        guard isConnected, let webSocket else { return }
+        try? await sendJSON([
+            "op": 6,
+            "d": [
+                "requestType": "ToggleRecordPause",
+                "requestId": UUID().uuidString,
+            ],
+        ], to: webSocket)
     }
 
     private func establishConnection() async throws {
@@ -119,9 +151,10 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
 
             var identifyData: [String: Any] = [
                 "rpcVersion": rpcVersion,
-                // obs-websocket v5 event subscription bitmask: Outputs (1 << 6),
-                // which carries RecordStateChanged — the only event we use.
-                "eventSubscriptions": 1 << 6,
+                // obs-websocket v5 event subscription bitmask:
+                // Outputs (1 << 6) carries RecordStateChanged,
+                // Scenes (1 << 2) carries CurrentProgramSceneChanged.
+                "eventSubscriptions": (1 << 6) | (1 << 2),
             ]
             if let authentication = data["authentication"] as? [String: Any],
                let salt = authentication["salt"] as? String,
@@ -145,10 +178,18 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
             isConnected = true
             isReconnecting = false
             setRecordingState(.unknown)
+            setSceneName(nil)
             try await sendJSON([
                 "op": 6,
                 "d": [
                     "requestType": "GetRecordStatus",
+                    "requestId": UUID().uuidString,
+                ],
+            ], to: newWebSocket)
+            try await sendJSON([
+                "op": 6,
+                "d": [
+                    "requestType": "GetCurrentProgramScene",
                     "requestId": UUID().uuidString,
                 ],
             ], to: newWebSocket)
@@ -177,6 +218,14 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                     setRecordingState(active && !paused ? .recording : .notRecording)
                     continue
                 }
+                if message["op"] as? Int == 7,
+                   let data = message["d"] as? [String: Any],
+                   data["requestType"] as? String == "GetCurrentProgramScene",
+                   let responseData = data["responseData"] as? [String: Any],
+                   let sceneName = responseData["currentProgramSceneName"] as? String {
+                    setSceneName(sceneName)
+                    continue
+                }
                 guard message["op"] as? Int == 5,
                       let data = message["d"] as? [String: Any],
                       let eventType = data["eventType"] as? String,
@@ -185,12 +234,16 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                 }
                 if eventType == "RecordStateChanged" {
                     setRecordingState(Self.recordingState(from: eventData))
+                } else if eventType == "CurrentProgramSceneChanged",
+                          let sceneName = eventData["sceneName"] as? String {
+                    setSceneName(sceneName)
                 }
             } catch {
                 guard !Task.isCancelled else { return }
                 isConnected = false
                 isReconnecting = true
                 setRecordingState(.unknown)
+                setSceneName(nil)
                 closeTransport()
 
                 while !Task.isCancelled {
@@ -272,6 +325,14 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         recordingState = state
         for continuation in continuations.values {
             continuation.yield(state)
+        }
+    }
+
+    private func setSceneName(_ name: String?) {
+        guard name != currentSceneName else { return }
+        currentSceneName = name
+        for continuation in sceneContinuations.values {
+            continuation.yield(name)
         }
     }
 

@@ -43,6 +43,9 @@ enum USBCDCError: LocalizedError {
 protocol USBCDCServiceProtocol: Sendable {
     /// Yields whenever a serial device is plugged in or removed.
     nonisolated var deviceEvents: AsyncStream<Void> { get }
+    /// Unsolicited lines sent by the ESP32 (lines starting with `EVENT:`),
+    /// e.g. a tap on the touch screen asking to toggle the recording pause.
+    nonisolated var events: AsyncStream<String> { get }
     func enumerateDevices() async -> [USBDevice]
     func connect(_ device: USBDevice) async throws
     func disconnect() async
@@ -77,13 +80,104 @@ private final class DeviceEventBroadcaster: @unchecked Sendable {
     }
 }
 
+/// Routes lines read from the serial port by the detached reader loop:
+/// lines starting with the event prefix are broadcast to event subscribers,
+/// any other line completes the pending command response. Lock-based so the
+/// reader thread and the actor can both use it safely.
+private final class LineRouter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pendingID: UUID?
+    private var pendingContinuation: CheckedContinuation<String, Error>?
+    private var eventContinuations: [UUID: AsyncStream<String>.Continuation] = [:]
+    private var stopped = true
+
+    var isStopped: Bool {
+        lock.withLock { stopped }
+    }
+
+    var hasPending: Bool {
+        lock.withLock { pendingContinuation != nil }
+    }
+
+    func eventStream() -> AsyncStream<String> {
+        AsyncStream { continuation in
+            let id = UUID()
+            lock.withLock { eventContinuations[id] = continuation }
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                self.lock.withLock { self.eventContinuations[id] = nil }
+            }
+        }
+    }
+
+    func handleLine(_ line: String) {
+        if line.hasPrefix(ObsEvent.linePrefix) {
+            let subscribers = lock.withLock { Array(eventContinuations.values) }
+            for continuation in subscribers {
+                continuation.yield(line)
+            }
+            return
+        }
+        let pending = lock.withLock { () -> CheckedContinuation<String, Error>? in
+            let continuation = pendingContinuation
+            pendingContinuation = nil
+            pendingID = nil
+            return continuation
+        }
+        pending?.resume(returning: line)
+    }
+
+    func registerPending(id: UUID, continuation: CheckedContinuation<String, Error>) {
+        let isStopped = lock.withLock { () -> Bool in
+            if stopped || pendingContinuation != nil {
+                return true
+            }
+            pendingID = id
+            pendingContinuation = continuation
+            return false
+        }
+        if isStopped {
+            continuation.resume(throwing: USBCDCError.notConnected)
+        }
+    }
+
+    func timeout(id: UUID) {
+        let pending = lock.withLock { () -> CheckedContinuation<String, Error>? in
+            guard pendingID == id, let continuation = pendingContinuation else { return nil }
+            pendingContinuation = nil
+            pendingID = nil
+            return continuation
+        }
+        pending?.resume(throwing: USBCDCError.readFailed(error: 0))
+    }
+
+    /// Arms the router for a new connection.
+    func restart() {
+        lock.withLock { stopped = false }
+    }
+
+    /// Stops the reader loop and fails any pending command.
+    func stop() {
+        let pending = lock.withLock { () -> CheckedContinuation<String, Error>? in
+            stopped = true
+            let continuation = pendingContinuation
+            pendingContinuation = nil
+            pendingID = nil
+            return continuation
+        }
+        pending?.resume(throwing: USBCDCError.notConnected)
+    }
+}
+
 actor USBCDCService: USBCDCServiceProtocol {
     // MARK: - Properties
-    
+
     private var fileDescriptor: Int32 = -1
     private var connectedDevice: USBDevice?
     private var isConnectedFlag: Bool = false
     private let broadcaster = DeviceEventBroadcaster()
+    private let router = LineRouter()
+    private var readerTask: Task<Void, Never>?
     private var notificationsStarted = false
 #if canImport(Darwin)
     private var notificationPort: IONotificationPortRef?
@@ -93,6 +187,10 @@ actor USBCDCService: USBCDCServiceProtocol {
 
     nonisolated var deviceEvents: AsyncStream<Void> {
         broadcaster.stream()
+    }
+
+    nonisolated var events: AsyncStream<String> {
+        router.eventStream()
     }
     
     // MARK: - Public API
@@ -224,9 +322,14 @@ actor USBCDCService: USBCDCServiceProtocol {
         
         connectedDevice = device
         isConnectedFlag = true
+        router.restart()
+        startReader()
     }
-    
+
     func disconnect() async {
+        router.stop()
+        readerTask?.cancel()
+        readerTask = nil
         if fileDescriptor >= 0 {
             close(fileDescriptor)
             fileDescriptor = -1
@@ -234,12 +337,18 @@ actor USBCDCService: USBCDCServiceProtocol {
         connectedDevice = nil
         isConnectedFlag = false
     }
-    
+
     func sendCommand(_ command: String, to device: USBDevice) async throws -> String {
         guard fileDescriptor >= 0, connectedDevice?.path == device.path else {
             throw USBCDCError.notConnected
         }
-        
+
+        // Serialize commands: wait for any in-flight command to complete
+        while router.hasPending {
+            try await Task.sleep(for: .milliseconds(10))
+            guard fileDescriptor >= 0 else { throw USBCDCError.notConnected }
+        }
+
         let data = Data(command.utf8)
         let writeResult = data.withUnsafeBytes { buffer in
             var offset = 0
@@ -256,30 +365,72 @@ actor USBCDCService: USBCDCServiceProtocol {
             return true
         }
         guard writeResult else { throw USBCDCError.writeFailed(error: errno) }
-        
-        var response: [UInt8] = []
-        response.reserveCapacity(128)
-        let deadline = DispatchTime.now().uptimeNanoseconds + 2_000_000_000
-        while response.count < 256 {
-            var byte: UInt8 = 0
-            let bytesRead = read(fileDescriptor, &byte, 1)
-            if bytesRead < 0, errno == EINTR {
-                continue
+
+        // The reader loop completes the pending response with the next
+        // non-event line; arm a timeout so callers never hang forever.
+        let id = UUID()
+        return try await withCheckedThrowingContinuation { continuation in
+            router.registerPending(id: id, continuation: continuation)
+            Task { [router] in
+                try? await Task.sleep(for: .seconds(2))
+                router.timeout(id: id)
             }
-            if bytesRead == 0, DispatchTime.now().uptimeNanoseconds < deadline {
-                continue
-            }
-            guard bytesRead > 0 else { throw USBCDCError.readFailed(error: errno) }
-            if byte == 0x0A {
-                return String(decoding: response, as: UTF8.self)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            response.append(byte)
         }
-        throw USBCDCError.readFailed(error: EMSGSIZE)
+    }
+
+    // MARK: - Reader loop
+
+    /// Continuously reads the serial port on a detached task and routes
+    /// complete lines through the LineRouter. Uses poll() so the loop
+    /// notices disconnection and cancellation promptly.
+    private func startReader() {
+        let fd = fileDescriptor
+        let router = router
+        readerTask = Task.detached(priority: .utility) {
+            var buffer: [UInt8] = []
+            buffer.reserveCapacity(256)
+            var pollFD = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+
+            while !router.isStopped && !Task.isCancelled {
+                let result = poll(&pollFD, 1, 100)
+                if result < 0 {
+                    if errno == EINTR { continue }
+                    break
+                }
+                if result == 0 { continue }
+                if pollFD.revents & Int16(POLLIN) == 0 {
+                    if pollFD.revents & Int16(POLLERR | POLLHUP | POLLNVAL) != 0 { break }
+                    continue
+                }
+
+                var byte: UInt8 = 0
+                let bytesRead = read(fd, &byte, 1)
+                if bytesRead <= 0 {
+                    if bytesRead < 0 && errno == EINTR { continue }
+                    break
+                }
+                if byte == 0x0A {
+                    let line = String(decoding: buffer, as: UTF8.self)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    buffer.removeAll(keepingCapacity: true)
+                    if !line.isEmpty {
+                        router.handleLine(line)
+                    }
+                } else if byte != 0x0D {
+                    if buffer.count < 1024 {
+                        buffer.append(byte)
+                    } else {
+                        // Overflowing line: discard and resync on next newline
+                        buffer.removeAll(keepingCapacity: true)
+                    }
+                }
+            }
+        }
     }
     
     deinit {
+        router.stop()
+        readerTask?.cancel()
         if fileDescriptor >= 0 {
             close(fileDescriptor)
         }

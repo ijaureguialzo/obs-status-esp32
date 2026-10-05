@@ -50,13 +50,37 @@ enum ObsCommand: String, CaseIterable {
     case blinkFast = "BLINK_FAST"
     case blinkSlow = "BLINK_SLOW"
     case status = "STATUS"
-    
+
     var lineTerminated: String {
         "\(rawValue)\n"
     }
 
     static func ledOn(color: LEDColor) -> String {
         "LED_ON:\(color.red),\(color.green),\(color.blue)\n"
+    }
+
+    /// Tells the ESP32 which OBS scene is active so boards with a display
+    /// can show its name. Newlines and carriage returns are stripped.
+    static func scene(name: String) -> String {
+        let sanitized = name
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+        return "SCENE:\(sanitized)\n"
+    }
+}
+
+/// Unsolicited events sent from the ESP32 to the macOS app.
+/// Every event line starts with the `EVENT:` prefix.
+enum ObsEvent: String {
+    /// The user tapped the touch screen; pause/resume the OBS recording.
+    case togglePause = "EVENT:TOGGLE_PAUSE"
+
+    /// Prefix shared by every event line; used to route incoming lines.
+    static let linePrefix = "EVENT:"
+
+    static func parse(_ line: String) -> ObsEvent? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ObsEvent(rawValue: trimmed)
     }
 }
 

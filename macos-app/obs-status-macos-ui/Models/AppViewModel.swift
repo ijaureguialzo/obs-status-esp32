@@ -28,6 +28,7 @@ final class AppViewModel {
     var lastESPResponse: String?
     var espLastSeen: Date?
     var recordingLEDColor: LEDColor = .recordingDefault
+    var currentSceneName: String?
     
     // MARK: - Services
     
@@ -42,7 +43,9 @@ final class AppViewModel {
         
         // Listen for OBS state changes
         observeOBSState()
+        observeSceneName()
         observeDeviceEvents()
+        observeESPEvents()
     }
     
     // MARK: - OBS Connection
@@ -129,7 +132,8 @@ final class AppViewModel {
             errorMessage = nil
             AppSettings.shared.lastESPDevicePath = device.path
             await sendLEDCommand(obsService.recordingState)
-            
+            await sendSceneCommand(obsService.currentSceneName)
+
             // Start periodic status polling
             startStatusPolling()
             
@@ -189,6 +193,26 @@ final class AppViewModel {
         }
     }
     
+    /// Sends the active OBS scene name so boards with a display can show it.
+    func sendSceneCommand(_ sceneName: String?) async {
+        guard espConnected, let device = selectedDevice else { return }
+        let commandLine = ObsCommand.scene(name: sceneName ?? "")
+
+        do {
+            let response = try await usbService.sendCommand(commandLine, to: device)
+            lastESPResponse = response
+            espLastSeen = Date()
+            if ObsProtocolUtil.isErrorResponse(response) {
+                espError = response
+            }
+        } catch {
+            espConnected = false
+            espError = error.localizedDescription
+            errorMessage = error.localizedDescription
+            await usbService.disconnect()
+        }
+    }
+
     func queryESPStatus() async {
         guard espConnected, let device = selectedDevice else { return }
         
@@ -222,6 +246,33 @@ final class AppViewModel {
             obsConnecting = obsService.isReconnecting
         }
     }
+
+    /// Push the active OBS scene name to the ESP32 (boards with a display
+    /// show it on screen; other boards acknowledge and ignore it).
+    private func observeSceneName() {
+        Task { [weak self] in
+            guard let self else { return }
+            for await name in obsService.sceneNameStream {
+                currentSceneName = name
+                await sendSceneCommand(name)
+            }
+        }
+    }
+
+    /// React to unsolicited ESP32 events (e.g. a tap on the touch screen
+    /// asks OBS to pause/resume the recording).
+    private func observeESPEvents() {
+        Task { [weak self] in
+            guard let self else { return }
+            for await line in usbService.events {
+                guard let event = ObsEvent.parse(line) else { continue }
+                switch event {
+                case .togglePause:
+                    await obsService.toggleRecordPause()
+                }
+            }
+        }
+    }
     
     /// Re-scan the device list whenever a serial device is plugged in or removed.
     private func observeDeviceEvents() {
@@ -253,6 +304,7 @@ final class AppViewModel {
                         espError = nil
                         errorMessage = nil
                         await sendLEDCommand(obsService.recordingState)
+                        await sendSceneCommand(obsService.currentSceneName)
                     } catch {
                         espConnecting = false
                         espError = error.localizedDescription
