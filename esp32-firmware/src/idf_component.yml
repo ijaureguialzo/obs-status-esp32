@@ -1,0 +1,5 @@
+## IDF Component Manager dependencies
+## espressif/esp_lcd_touch is required by the vendored esp_lcd_touch_axs5106
+## driver used on the ESP32-C6-Touch-LCD-1.47 board.
+dependencies:
+  espressif/esp_lcd_touch: "^1.1.2"

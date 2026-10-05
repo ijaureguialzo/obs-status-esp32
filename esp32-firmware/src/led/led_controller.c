@@ -32,7 +32,7 @@ typedef enum {
     LED_MODE_BLINK_SLOW,
 } led_mode_t;
 
-static uint8_t s_led_pin = CONFIG_LED_GPIO_NUM;
+static uint8_t s_led_pin;
 static TaskHandle_t s_blink_task = NULL;
 static SemaphoreHandle_t s_led_mutex = NULL;
 static rmt_channel_handle_t s_led_channel = NULL;

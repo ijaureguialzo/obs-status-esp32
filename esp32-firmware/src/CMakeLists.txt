@@ -3,6 +3,8 @@ idf_component_register(
         main.c
         usb/usb_cdc.c
         led/led_controller.c
+        display/display_controller.c
+        touch/touch_controller.c
         protocol/protocol_parser.c
     INCLUDE_DIRS
         ../include
@@ -10,6 +12,14 @@ idf_component_register(
         driver
         nvs_flash
         esp_rom
+        esp_lcd
         esp_driver_rmt
         esp_driver_usb_serial_jtag
+        esp_driver_spi
+        esp_driver_i2c
+        esp_driver_ledc
+        esp_driver_gpio
+        esp_lcd_jd9853
+        esp_lcd_touch_axs5106
+        espressif__esp_lcd_touch
 )

@@ -6,12 +6,19 @@
 #include "protocol_parser.h"
 #include "usb_cdc.h"
 #include "led_controller.h"
+#include "display_controller.h"
 #include "obs_protocol.h"
 #include "freertos/FreeRTOS.h"
 #include <stdio.h>
 #include <string.h>
 
 #define RESPONSE_BUFFER_SIZE 128
+
+/* Screen backgrounds used to mirror the LED state on boards with a display */
+#define DISPLAY_COLOR_RECORDING_DEFAULT_G 255
+#define DISPLAY_COLOR_OFF      0, 0, 0
+#define DISPLAY_COLOR_ERROR    255, 128, 0
+#define DISPLAY_COLOR_IDLE     32, 32, 32
 
 static char s_response_buffer[RESPONSE_BUFFER_SIZE];
 
@@ -43,6 +50,7 @@ esp_err_t protocol_process(const char *line)
 
     if (strcmp(trimmed, PROTOCOL_TXT_LED_ON) == 0) {
         led_on();
+        display_set_background(0, DISPLAY_COLOR_RECORDING_DEFAULT_G, 0);
         send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
@@ -57,21 +65,31 @@ esp_err_t protocol_process(const char *line)
         }
         led_set_color(red, green, blue);
         led_on();
+        display_set_background(red, green, blue);
         send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_LED_OFF) == 0) {
         led_off();
+        display_set_background(DISPLAY_COLOR_OFF);
         send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_BLINK_FAST) == 0) {
         led_blink_fast();
+        display_set_background(DISPLAY_COLOR_ERROR);
         send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
     } else if (strcmp(trimmed, PROTOCOL_TXT_BLINK_SLOW) == 0) {
         led_blink_slow();
+        display_set_background(DISPLAY_COLOR_IDLE);
+        send_response(PROTOCOL_TXT_OK);
+        return ESP_OK;
+
+    } else if (strncmp(trimmed, PROTOCOL_TXT_SCENE_PREFIX,
+                       strlen(PROTOCOL_TXT_SCENE_PREFIX)) == 0) {
+        display_set_scene(trimmed + strlen(PROTOCOL_TXT_SCENE_PREFIX));
         send_response(PROTOCOL_TXT_OK);
         return ESP_OK;
 
@@ -116,4 +134,10 @@ static void send_response(const char *response)
 {
     snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE, "%s" PROTOCOL_LINE_END, response);
     usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
+}
+
+void protocol_notify_toggle_pause(void)
+{
+    static const char event[] = PROTOCOL_TXT_EVENT_TOGGLE_PAUSE PROTOCOL_LINE_END;
+    usb_cdc_send((const uint8_t *)event, sizeof(event) - 1);
 }

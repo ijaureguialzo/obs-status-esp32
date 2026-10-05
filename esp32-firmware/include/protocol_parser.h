@@ -34,6 +34,15 @@ esp_err_t protocol_process(const char *line);
  */
 esp_err_t protocol_init(void);
 
+/**
+ * @brief Emit the EVENT:TOGGLE_PAUSE line towards the host
+ *
+ * Called by the touch controller when the user taps the screen. The macOS
+ * app reacts by pausing/resuming the OBS recording. Safe to call on boards
+ * without a display; the event is simply sent over USB CDC.
+ */
+void protocol_notify_toggle_pause(void);
+
 #ifdef __cplusplus
 }
 #endif

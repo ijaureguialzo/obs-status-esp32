@@ -1,0 +1,39 @@
+{
+    "build": {
+      "core": "esp32",
+      "f_cpu": "160000000L",
+      "f_flash": "80000000L",
+      "flash_mode": "qio",
+      "hwids": [
+        [
+          "0x303A",
+          "0x1001"
+        ]
+      ],
+      "mcu": "esp32c6"
+    },
+    "connectivity": [
+      "wifi",
+      "bluetooth"
+    ],
+    "debug": {
+      "default_tool": "esp-builtin",
+      "onboard_tools": [
+        "esp-builtin"
+      ],
+      "openocd_target": "esp32c6.cfg"
+    },
+    "frameworks": [
+      "espidf"
+    ],
+    "name": "Waveshare ESP32-C6-Touch-LCD-1.47 (4 MB)",
+    "upload": {
+      "flash_size": "4MB",
+      "maximum_ram_size": 327680,
+      "maximum_size": 4194304,
+      "require_upload_port": true,
+      "speed": 921600
+    },
+    "url": "https://www.waveshare.com/wiki/ESP32-C6-Touch-LCD-1.47",
+    "vendor": "Waveshare"
+  }

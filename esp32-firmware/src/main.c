@@ -14,10 +14,16 @@
 
 #include "usb_cdc.h"
 #include "led_controller.h"
+#include "display_controller.h"
+#include "touch_controller.h"
 #include "protocol_parser.h"
 #include "obs_protocol.h"
 
 static const char *TAG = "obs-status";
+
+#ifndef CONFIG_LED_GPIO_NUM
+#define CONFIG_LED_GPIO_NUM 38
+#endif
 
 #define APP_TASK_STACK_SIZE 4096
 #define APP_TASK_PRIORITY 5
@@ -43,10 +49,24 @@ static void app_task(void *pv_parameters)
         ESP_LOGE(TAG, "Failed to initialize USB: %s", esp_err_to_name(ret));
     }
 
+#if CONFIG_LED_GPIO_NUM >= 0
     ESP_LOGI(TAG, "Initializing LED on GPIO%d", CONFIG_LED_GPIO_NUM);
     ret = led_init(CONFIG_LED_GPIO_NUM);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize LED: %s", esp_err_to_name(ret));
+    }
+#else
+    ESP_LOGI(TAG, "No onboard LED on this board - LED commands affect the display only");
+#endif
+
+    ret = display_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize display: %s", esp_err_to_name(ret));
+    }
+
+    ret = touch_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize touch: %s", esp_err_to_name(ret));
     }
 
     ret = protocol_init();
