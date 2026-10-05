@@ -2,18 +2,30 @@
 
 ## Overview
 
-A two-part system that monitors OBS Studio recording status and provides a physical LED indicator via an ESP32
-microcontroller.
+A two-part system that monitors OBS Studio recording status and provides a physical indicator via an ESP32
+microcontroller: an RGB LED on classic ESP32-S3 boards, or a touch LCD on the Waveshare ESP32-C6-Touch-LCD-1.47.
 
 ```
-┌─────────────────────┐         ┌──────────────────────┐         ┌─────────────────┐
-│  OBS Studio         │         │  macOS Application   │         │  ESP32 Board    │
-│  (WebSocket API)    │◄───────►│  (SwiftUI App)       │◄───────►│  (ESP-IDF)      │
-│                     │  ws:4455│                      │  USB    │                 │
-│ Recording State     │         │  • Connect to OBS    │  CDC    │ LED Control     │
-│ (via WebSocket)     │         │  • Connect to ESP32  │◄───────►│  (onboard LED)  │
-└─────────────────────┘         └──────────────────────┘         └─────────────────┘
+┌─────────────────────┐         ┌──────────────────────┐         ┌──────────────────────┐
+│  OBS Studio         │         │  macOS Application   │         │  ESP32 Board         │
+│  (WebSocket API)    │◄───────►│  (SwiftUI App)       │◄───────►│  (ESP-IDF)           │
+│                     │  ws:4455│                      │  USB    │                      │
+│ Recording State     │         │  • Connect to OBS    │  CDC    │ LED Control          │
+│ + Active Scene      │         │  • Connect to ESP32  │◄───────►│ (onboard LED)        │
+│ (via WebSocket)     │         │                      │         │          —or—        │
+│                     │         │                      │  EVENT: │ Touch LCD with scene │
+│                     │         │                      │◄────────│ name + tap-to-pause  │
+└─────────────────────┘         └──────────────────────┘         └──────────────────────┘
 ```
+
+## Supported Boards
+
+| Board | PlatformIO environment | Indicator | Extras |
+|-------|------------------------|-----------|--------|
+| ESP32-S3-DevKit N8R8 (default) | `esp32-s3-dev-kit-n8r8` | Onboard WS2812 RGB LED | — |
+| Waveshare ESP32-C6-Touch-LCD-1.47 | `esp32-c6-touch-lcd-1_47` | 172x320 touch LCD | Screen background shows the recording color, the active OBS scene name is displayed, and tapping the screen pauses/resumes the recording |
+
+Both boards use their native USB Serial JTAG peripheral, so a single USB-C cable is used for flashing, monitoring and communication with the app.
 
 ## Implementation Status
 
@@ -25,7 +37,8 @@ microcontroller.
 | ESP32 Firmware  | ✅ Done | Full implementation with all modules        |
 | Protocol Parser | ✅ Done | Text command parsing and dispatch           |
 | LED Controller  | ✅ Done | WS2812 RGB LED via RMT + dedicated blink task |
-| USB CDC (ESP32) | ✅ Done | USB Serial JTAG (ESP32-S3 native USB)         |
+| LCD + Touch (C6) | ✅ Done | JD9853 panel via esp_lcd, AXS5106L touch, scene display + tap-to-pause |
+| USB CDC (ESP32) | ✅ Done | USB Serial JTAG (ESP32-S3/C6 native USB)         |
 
 ## Project Structure
 
@@ -74,11 +87,15 @@ obs-status-esp32/
 │   │   └── Assets.xcassets/              # App icons and assets
 │
 ├── esp32-firmware/              # ESP-IDF firmware for ESP32
-│   ├── platformio.ini           # PlatformIO configuration
+│   ├── platformio.ini           # PlatformIO configuration (one env per board)
 │   ├── CMakeLists.txt           # Build configuration
+│   ├── boards/                  # Custom board definitions (S3 N8R8, C6 Touch LCD)
+│   ├── components/              # Vendored Waveshare JD9853 / AXS5106 drivers
 │   ├── include/
 │   │   ├── usb_cdc.h            # USB CDC interface
 │   │   ├── led_controller.h     # LED control interface
+│   │   ├── display_controller.h # LCD interface (display boards)
+│   │   ├── touch_controller.h   # Touch input interface (display boards)
 │   │   └── protocol_parser.h    # Command parser interface
 │   └── src/
 │       ├── main.c               # Application entry point
@@ -86,6 +103,10 @@ obs-status-esp32/
 │       │   └── usb_cdc.c        # USB CDC implementation
 │       ├── led/
 │       │   └── led_controller.c # LED control implementation
+│       ├── display/
+│       │   └── display_controller.c # LCD background + scene name rendering
+│       ├── touch/
+│       │   └── touch_controller.c   # Tap detection -> EVENT:TOGGLE_PAUSE
 │       └── protocol/
 │           └── protocol_parser.c # Command parser implementation
 │
@@ -99,7 +120,7 @@ obs-status-esp32/
 - **macOS 14.0+** (Sonoma)
 - **Xcode 15.0+** (for macOS app)
 - **OBS Studio** with the [obs-websocket](https://github.com/obsproject/obs-websocket) plugin
-- **ESP32-S3 board** (default target: ESP32-S3-DevKit N8R8; Freenove ESP32-S3-WROOM and other boards can be enabled in `esp32-firmware/platformio.ini`)
+- **ESP32 board**: ESP32-S3-DevKit N8R8 (default target) or Waveshare ESP32-C6-Touch-LCD-1.47; other boards can be enabled in `esp32-firmware/platformio.ini`
 - **PlatformIO** (for ESP32 firmware)
 
 ### Build with Make
@@ -107,10 +128,18 @@ obs-status-esp32/
 From the repository root:
 
 ```bash
-make            # Build the ESP32 firmware and macOS app
+make            # Build the ESP32 firmware (default board) and macOS app
 make firmware   # Build only the ESP32 firmware
 make install    # Upload the firmware to the connected ESP32
 make macos      # Build only the macOS app
+```
+
+Pick the board that is connected with the `BOARD` variable or the shortcuts:
+
+```bash
+make install BOARD=esp32-c6-touch-lcd-1_47   # Waveshare ESP32-C6-Touch-LCD-1.47
+make install-c6                              # shortcut for the C6 board
+make install-s3                              # shortcut for the ESP32-S3 board
 ```
 
 ### 1. macOS Application (Xcode)
@@ -140,11 +169,17 @@ swift build
 ```bash
 cd esp32-firmware
 
-# Build firmware
+# Build firmware (default environment: esp32-s3-dev-kit-n8r8)
 pio run
+
+# Build firmware for the Waveshare ESP32-C6-Touch-LCD-1.47
+pio run -e esp32-c6-touch-lcd-1_47
 
 # Upload to ESP32 (default environment)
 pio run -t upload
+
+# Upload to the C6 board
+pio run -e esp32-c6-touch-lcd-1_47 -t upload
 
 # Monitor serial output
 pio device monitor -b 115200
@@ -158,11 +193,14 @@ pio device monitor -b 115200
 4. Connect to OBS Studio
 5. Select your ESP32 device from the dropdown
 6. Connect to ESP32
-7. The onboard LED will now respond to OBS recording state!
+7. The onboard LED will now respond to OBS recording state! On the
+   ESP32-C6-Touch-LCD-1.47 the screen shows the active scene name and fills
+   with the recording color while recording; tap the screen to pause or
+   resume the recording.
 
 ## Communication Protocol
 
-Text-based protocol over USB CDC serial (115200 baud, 8N1 — the baud rate is configured on the macOS side only; the ESP32-S3 USB Serial JTAG ignores it):
+Text-based protocol over USB CDC serial (115200 baud, 8N1 — the baud rate is configured on the macOS side only; the ESP32 USB Serial JTAG ignores it):
 
 | Command                       | Description                                          |
 |-------------------------------|------------------------------------------------------|
@@ -172,6 +210,16 @@ Text-based protocol over USB CDC serial (115200 baud, 8N1 — the baud rate is c
 | `BLINK_FAST`                  | Blink fast (error state)                             |
 | `BLINK_SLOW`                  | Blink slow (idle/disconnected)                       |
 | `STATUS`                      | Query current state                                  |
+| `SCENE:<name>`                | Set the active OBS scene name (shown on display boards; ignored otherwise) |
+
+Unsolicited events sent by the ESP32:
+
+| Event                | Description                                             |
+|----------------------|---------------------------------------------------------|
+| `EVENT:TOGGLE_PAUSE` | User tapped the touch screen; pause/resume the recording |
+
+On display boards, `LED_ON`/`LED_OFF`/blink commands also repaint the screen
+background with the corresponding color.
 
 Responses: `OK` or `ERROR: <description>`
 

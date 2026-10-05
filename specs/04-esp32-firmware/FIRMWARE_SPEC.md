@@ -10,36 +10,60 @@ Embedded firmware for the ESP32 microcontroller that receives commands from the 
 |-----------------|-------------------------|
 | Language        | C (ESP-IDF)            |
 | Framework       | ESP-IDF v5.2+          |
-| Target Board    | Freenove ESP32-S3-WROOM (configurable) |
+| Target Boards   | ESP32-S3-DevKit N8R8 (default), Waveshare ESP32-C6-Touch-LCD-1.47 |
 | Build System    | PlatformIO             |
 
 ## 3. Hardware Configuration
 
-### 3.1 Target Board
+### 3.1 Target Boards
 
-Default: `freenove_esp32_s3_wroom`
+Default: `esp32-s3-dev-kit-n8r8` (PlatformIO environment of the same name).
+
+Alternative: `esp32-c6-touch-lcd-1_47` (Waveshare ESP32-C6-Touch-LCD-1.47).
 
 ```ini
-[env:freenove_esp32_s3_wroom]
+[env:esp32-s3-dev-kit-n8r8]
 platform = espressif32
-board = freenove_esp32_s3_wroom
+board = esp32-s3-dev-kit-n8r8
+framework = espidf
+
+[env:esp32-c6-touch-lcd-1_47]
+platform = espressif32
+board = esp32-c6-touch-lcd-1_47
 framework = espidf
 ```
 
 ### 3.2 Pin Mapping
 
+#### ESP32-S3-DevKit N8R8
+
 | Component     | Pin  | Notes                        |
 |---------------|------|------------------------------|
-| Onboard LED   | GPIO48 | Addressable RGB (WS2812, ESP32-S3-DevKitC-1 N8R8) |
-| USB Device    | N/A  | Native USB (USBD)           |
+| Onboard LED   | GPIO38 | Addressable RGB (WS2812)   |
+| USB Device    | N/A  | USB Serial JTAG (native USB) |
 
-**Note**: The ESP32-S3-DevKitC-1 onboard RGB LED uses the WS2812 protocol and
-must be driven with RMT, not as a simple GPIO output. `CONFIG_LED_GPIO_NUM`
-selects the data pin for other boards with a compatible addressable RGB LED.
+#### Waveshare ESP32-C6-Touch-LCD-1.47
+
+| Component          | Pin    | Notes                                  |
+|--------------------|--------|----------------------------------------|
+| LCD (JD9853, SPI2) | SCLK=GPIO1, MOSI=GPIO2, MISO=GPIO3 | 172x320, ST7789-compatible |
+| LCD control        | CS=GPIO14, DC=GPIO15, RST=GPIO22   |                        |
+| LCD backlight      | GPIO23 | LEDC PWM, 5 kHz, active-high           |
+| Touch (AXS5106L)   | I2C SDA=GPIO18, SCL=GPIO19, RST=GPIO20, INT=GPIO21 | I2C addr 0x63, shared bus with the IMU |
+| Onboard LED        | none   | The screen background mirrors the LED color |
+| USB Device         | GPIO12/13 | USB Serial JTAG (native USB)        |
+
+**Note**: The ESP32-S3 onboard RGB LED uses the WS2812 protocol and must be
+driven with RMT, not as a simple GPIO output. `CONFIG_LED_GPIO_NUM` selects
+the data pin; set it to `-1` on boards without an addressable LED (the LED
+commands then only affect the display, if present).
+
+`CONFIG_BOARD_HAS_DISPLAY=1` (defined by the C6 environment) compiles in the
+display and touch modules; elsewhere they are no-op stubs.
 
 ### 3.3 USB Configuration
 
-- **USB Stack**: Native USB (not USB-OTG)
+- **USB Stack**: USB Serial JTAG (native USB, ESP32-S3 and ESP32-C6)
 - **Device Class**: CDC-ACM (Communication Device Class - Abstract Control Model)
 - **Endpoints**: 
   - CDC Command endpoint (interrupt, optional)
@@ -54,22 +78,31 @@ selects the data pin for other boards with a compatible addressable RGB LED.
 esp32-firmware/
 ├── src/
 │   ├── usb/
-│   │   └── usb_cdc.c/h         # USB CDC device driver wrapper
+│   │   └── usb_cdc.c            # USB CDC device driver wrapper
 │   ├── led/
-│   │   └── led_controller.c/h  # LED control (GPIO/PWM)
+│   │   └── led_controller.c     # LED control (WS2812 via RMT)
+│   ├── display/
+│   │   ├── display_controller.c # LCD control (JD9853 via esp_lcd, display boards only)
+│   │   └── font8x8_basic.h      # Public domain 8x8 bitmap font
+│   ├── touch/
+│   │   └── touch_controller.c   # AXS5106L touch input (display boards only)
 │   └── protocol/
-│       └── protocol_parser.c/h  # Command parsing & dispatch
+│       └── protocol_parser.c    # Command parsing & dispatch
 ├── include/
 │   ├── usb_cdc.h
 │   ├── led_controller.h
+│   ├── display_controller.h
+│   ├── touch_controller.h
 │   └── protocol_parser.h
 ├── components/
-│   └── (optional custom components)
-├── main/
-│   └── app_main.c              # Application entry point
+│   ├── esp_lcd_jd9853/          # Vendored Waveshare LCD panel driver
+│   └── esp_lcd_touch_axs5106/   # Vendored Waveshare touch driver
+├── boards/
+│   ├── esp32-s3-dev-kit-n8r8.json
+│   └── esp32-c6-touch-lcd-1_47.json
 ├── CMakeLists.txt
 ├── platformio.ini
-└── sdkconfig
+└── sdkconfig.<environment>
 ```
 
 ### 4.2 Module Responsibilities
@@ -108,11 +141,41 @@ void led_set_color(uint8_t red, uint8_t green, uint8_t blue);
 - Dispatch to appropriate handler (LED control)
 - Generate response strings
 - Handle unknown commands with error responses
+- On display boards, mirror the LED color to the screen background and
+  handle the `SCENE:<name>` command
+- Emit `EVENT:TOGGLE_PAUSE` via `protocol_notify_toggle_pause()` (called by
+  the touch controller)
 
 **API**:
 ```c
 esp_err_t protocol_process(const char *line);
 // Returns ESP_OK on success, ESP_ERR_NOT_FOUND for unknown commands
+void protocol_notify_toggle_pause(void);
+```
+
+#### `display_controller.c/h` – Display Control Layer (display boards only)
+- Initialize the JD9853 LCD panel (SPI) and LEDC backlight
+- Fill the background with the current LED/recording color
+- Render the active OBS scene name (8x8 bitmap font, 2x scale, centered,
+  automatic contrast color)
+- Compiled to no-op stubs when `CONFIG_BOARD_HAS_DISPLAY` is not defined
+
+**API**:
+```c
+esp_err_t display_init(void);
+void display_set_background(uint8_t red, uint8_t green, uint8_t blue);
+void display_set_scene(const char *name);
+```
+
+#### `touch_controller.c/h` – Touch Input Layer (display boards only)
+- Initialize the AXS5106L touch controller (shared I2C bus, 400 kHz)
+- Poll every 50 ms; on a tap (rising edge) call
+  `protocol_notify_toggle_pause()`
+- Compiled to a no-op stub when `CONFIG_BOARD_HAS_DISPLAY` is not defined
+
+**API**:
+```c
+esp_err_t touch_init(void);
 ```
 
 ### 4.3 Application Flow (`app_main.c`)
@@ -158,17 +221,17 @@ esp_err_t protocol_process(const char *line);
 
 ## 6. Configuration
 
-### 6.1 Kconfig Options
+### 6.1 Build Flags
 
 ```
-CONFIG_LED_GPIO_NUM=48        # WS2812 RGB data pin on ESP32-S3-DevKitC-1
-CONFIG_USB_CDC_BAUD_RATE=115200
-CONFIG_COMMAND_TIMEOUT_MS=10000  # Disconnect timeout
+CONFIG_LED_GPIO_NUM=38        # WS2812 RGB data pin (ESP32-S3); -1 = no LED
+CONFIG_BOARD_HAS_DISPLAY=1    # Compile display + touch modules (C6 board)
 ```
 
 ### 6.2 Runtime Config
 
-All configuration via `sdkconfig` (PlatformIO manages this).
+All other configuration via `sdkconfig` (PlatformIO manages one
+`sdkconfig.<environment>` file per environment).
 
 ## 7. Error Handling
 
@@ -182,11 +245,20 @@ All configuration via `sdkconfig` (PlatformIO manages this).
 ## 8. Build & Flash
 
 ```bash
-# Build
-pio run -e freenove_esp32_s3_wroom
+# Build (ESP32-S3, default)
+pio run -e esp32-s3-dev-kit-n8r8
+
+# Build (ESP32-C6-Touch-LCD-1.47)
+pio run -e esp32-c6-touch-lcd-1_47
 
 # Upload
-pio run -e freenove_esp32_s3_wroom -t upload
+pio run -e esp32-s3-dev-kit-n8r8 -t upload
+pio run -e esp32-c6-touch-lcd-1_47 -t upload
+
+# Or via Make from the repository root
+make install BOARD=esp32-c6-touch-lcd-1_47
+make install-c6        # shortcut
+make install-s3        # shortcut
 
 # Monitor (for debugging)
 pio device monitor -b 115200

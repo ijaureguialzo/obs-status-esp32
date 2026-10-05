@@ -51,14 +51,12 @@ xcrun notarytool submit obs-status.app \
 ### 2.1 Build Targets
 
 ```bash
-# Production build
-pio run -e freenove_esp32_s3_wroom -e esp32-s3-devkitc-1
+# Production builds (one PlatformIO environment per board)
+pio run -e esp32-s3-dev-kit-n8r8        # ESP32-S3 dev board (onboard RGB LED)
+pio run -e esp32-c6-touch-lcd-1_47      # Waveshare ESP32-C6-Touch-LCD-1.47 (touch LCD)
 
-# Custom board (add to platformio.ini)
-[env:<board-name>]
-platform = espressif32
-board = <board-name>
-framework = espidf
+# Or via Make from the repository root
+make firmware BOARD=esp32-c6-touch-lcd-1_47
 ```
 
 ### 2.2 Flash Images
@@ -77,6 +75,8 @@ esptool.py --chip esp32s3 --port /dev/cu.usbserial-* \
 esptool.py --chip esp32s3 --port /dev/cu.usbserial-* \
     write_flash --flash_mode qio --flash_size 4MB 0x0 firmware.bin 0x8000 partitions.bin
 ```
+
+Use `--chip esp32c6` for the Waveshare ESP32-C6-Touch-LCD-1.47.
 
 ## 3. Installation Guide
 
@@ -104,10 +104,13 @@ esptool.py --chip esp32s3 --port /dev/cu.usbserial-* \
 9. Observe the LED respond to OBS recording state!
 
 ### 3.4 ESP32 Flashing (First Time)
-1. Connect ESP32 via USB-C
+1. Connect the ESP32 via USB-C
 2. Identify the serial port: `ls /dev/cu.*`
-3. Flash the firmware: `pio run -e freenove_esp32_s3_wroom -t upload`
-4. Verify: LED should blink slowly (waiting for commands)
+3. Flash the firmware matching your board:
+   - ESP32-S3-DevKit N8R8: `make install-s3`
+   - Waveshare ESP32-C6-Touch-LCD-1.47: `make install-c6`
+4. Verify: the LED should blink slowly (waiting for commands); on the C6
+   board the screen lights up dark gray instead
 
 ## 4. Troubleshooting
 
