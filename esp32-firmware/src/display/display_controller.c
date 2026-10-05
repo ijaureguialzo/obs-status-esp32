@@ -84,8 +84,10 @@ static const char *TAG = "display";
 /* The IMU Z axis is normal to the board, so a dominant Z means the board is
  * lying flat (ambiguous) and is ignored. The in-plane axis (X or Y) with the
  * strongest reading is the vertical one; its sign tells right from left.
- * If a board revision mounts the QMI8658 differently, flip this define. */
-#define IMU_USB_RIGHT_WHEN_NEGATIVE 1
+ * Measured on this board: a positive reading means the USB connector is on
+ * the right. If a board revision mounts the QMI8658 differently, flip this
+ * define. */
+#define IMU_USB_RIGHT_WHEN_NEGATIVE 0
 
 static esp_lcd_panel_handle_t s_panel = NULL;
 static SemaphoreHandle_t s_mutex = NULL;
@@ -283,13 +285,13 @@ static void redraw_locked(void)
 }
 
 /* Apply the landscape orientation: USB on the right swaps axes (MV) and
- * mirrors the row counter (MY) so logical Y walks the visible GRAM columns
- * from 205 down to 34; USB on the left is the same rotated 180 degrees
- * (MX instead of MY). The GRAM gap stays on the Y window in both cases. */
+ * mirrors the column counter (MX) so logical X walks the GRAM rows from
+ * 319 down to 0; USB on the left is the same rotated 180 degrees
+ * (MY instead of MX). The GRAM gap stays on the Y window in both cases. */
 static esp_err_t apply_rotation(bool usb_right)
 {
     ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(s_panel, true), TAG, "Swap XY failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, !usb_right, usb_right), TAG, "Mirror failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, usb_right, !usb_right), TAG, "Mirror failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_set_gap(s_panel, LCD_GAP_X, LCD_GAP_Y), TAG, "Gap failed");
     return ESP_OK;
 }
