@@ -5,6 +5,7 @@
 
 import CryptoKit
 import Foundation
+import os
 
 enum OBSWebSocketError: LocalizedError {
     case invalidURL
@@ -46,6 +47,10 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
     private var session: URLSession?
     private var webSocket: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
+    private var keepAliveTask: Task<Void, Never>?
+    /// When the keep-alive probe response was last received.
+    private var lastKeepAliveResponse: Date?
+    private let logger = Logger(subsystem: "ObsStatus", category: "OBSWebSocket")
     private var continuations: [UUID: AsyncStream<RecordingState>.Continuation] = [:]
     private var sceneContinuations: [UUID: AsyncStream<String?>.Continuation] = [:]
     private var connectionHost: String?
@@ -201,6 +206,50 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
             closeTransport()
             throw error
         }
+        startKeepAlive()
+    }
+
+    /// Probes the socket every 30 s with a GetVersion request (OBS always
+    /// answers one, and the response is otherwise ignored). If no response
+    /// comes back within the deadline the link is assumed dead (Wi-Fi black
+    /// hole, Mac sleep, ...) even though TCP has not noticed yet: closing
+    /// the transport makes the receive loop fail and start re-connecting.
+    private func startKeepAlive() {
+        keepAliveTask?.cancel()
+        keepAliveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled else { break }
+                await self?.keepAliveCheck()
+            }
+        }
+    }
+
+    private func keepAliveCheck() async {
+        guard isConnected, let webSocket else { return }
+        let probeSent = Date()
+        try? await sendJSON([
+            "op": 6,
+            "d": [
+                "requestType": "GetVersion",
+                "requestId": UUID().uuidString,
+            ],
+        ], to: webSocket)
+
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            if let last = lastKeepAliveResponse, last > probeSent {
+                return // healthy
+            }
+            guard isConnected else { return }
+            try? await Task.sleep(for: .seconds(1))
+        }
+
+        guard let last = lastKeepAliveResponse, last > probeSent else {
+            logger.warning("OBS WebSocket keep-alive timed out - forcing reconnect")
+            closeTransport()
+            return
+        }
     }
 
     private func receiveMessages() async {
@@ -220,6 +269,13 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                    let active = responseData["outputActive"] as? Bool {
                     let paused = responseData["outputPaused"] as? Bool ?? false
                     setRecordingState(active && !paused ? .recording : .notRecording)
+                    continue
+                }
+                if message["op"] as? Int == 7,
+                   let data = message["d"] as? [String: Any],
+                   data["requestType"] as? String == "GetVersion" {
+                    // Keep-alive probe: record the arrival, ignore the payload.
+                    lastKeepAliveResponse = Date()
                     continue
                 }
                 if message["op"] as? Int == 7,
@@ -318,6 +374,8 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
     }
 
     private func closeTransport() {
+        keepAliveTask?.cancel()
+        keepAliveTask = nil
         isConnected = false
         webSocket?.cancel(with: .normalClosure, reason: nil)
         webSocket = nil
