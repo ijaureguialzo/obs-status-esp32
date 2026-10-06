@@ -2,9 +2,11 @@
  * @file display_controller.c
  * @brief LCD display control for the Waveshare ESP32-C6-Touch-LCD-1.47
  *
- * Panel: JD9853 (ST7789 command compatible) over SPI, driven in landscape
- * (320x172, USB connector on the right) via MADCTL MV+MY. The visible
- * window starts at GRAM column 34, hence the Y gap after swapping axes.
+ * Panel: JD9853 (ST7789 command compatible) over SPI. The landscape frame
+ * (320x172) is rotated in software and streamed in the panel's native
+ * portrait scan order, so the GRAM write front follows the panel refresh
+ * scan and the redraw shows no diagonal tearing. Only GRAM columns 34..205
+ * are visible (X gap 34).
  * Backlight: LEDC PWM on GPIO23 (active high).
  * Text: public domain 8x8 VGA bitmap font, rendered at 2x scale, centered.
  *
@@ -48,14 +50,15 @@ static const char *TAG = "display";
 
 #define LCD_SPI_HOST       SPI2_HOST
 #define LCD_PIXEL_CLOCK_HZ (80 * 1000 * 1000)
-/* Logical (landscape) resolution after swapping axes */
+/* Logical (landscape) resolution */
 #define LCD_H_RES          320
 #define LCD_V_RES          172
-/* The JD9853 GRAM is 240 px wide but only columns 34..205 are visible; after
- * swap_xy the column addresses are driven by the Y window, so the gap moves
- * to the Y axis. */
-#define LCD_GAP_X          0
-#define LCD_GAP_Y          34
+/* Physical (portrait) GRAM streaming order: 172 columns x 320 rows. The
+ * JD9853 GRAM is 240 px wide but only columns 34..205 are visible. */
+#define LCD_PHYS_W         172
+#define LCD_PHYS_H         320
+#define LCD_GAP_X          34
+#define LCD_GAP_Y          0
 
 #define BL_LEDC_TIMER      LEDC_TIMER_0
 #define BL_LEDC_CHANNEL    LEDC_CHANNEL_0
@@ -269,27 +272,32 @@ static void redraw_locked(void)
     uint16_t bg_wire = (uint16_t)((bg >> 8) | (bg << 8));
     uint16_t fg_wire = (uint16_t)((fg >> 8) | (fg << 8));
 
-    /* Compose the whole frame, then push it in one draw call: a single
-     * 110 KB DMA stream at 80 MHz lands in ~15 ms, so the color change is
-     * perceived as one instant sweep with no banding or diagonal wipe. */
-    const int pixels = LCD_H_RES * LCD_V_RES;
-    for (int i = 0; i < pixels; i++) {
-        s_frame[i] = ((s_text_mask[i / 8] >> (i % 8)) & 1u) ? fg_wire : bg_wire;
+    /* Compose the frame rotated into the panel's native portrait order
+     * (column index fastest). Writing the GRAM in scan-out order keeps the
+     * write front aligned with the refresh, so the color change appears as
+     * a fast uniform sweep instead of a diagonal wipe.
+     *
+     * Mapping (equivalent to the previous MADCTL landscape setup, per the
+     * ST7789 counter rules: with MV, MX mirrors the CASET counter and MY
+     * the RASET counter):
+     *   USB right (was MV+MX): physical(row, col+34) <- logical(319-row, col)
+     *   USB left  (was MV+MY): physical(row, col+34) <- logical(row, 171-col) */
+    const bool usb_right = s_usb_right;
+    for (int row = 0; row < LCD_PHYS_H; row++) {
+        uint16_t *out = &s_frame[row * LCD_PHYS_W];
+        for (int col = 0; col < LCD_PHYS_W; col++) {
+            const int lx = usb_right ? (LCD_H_RES - 1 - row) : row;
+            const int ly = usb_right ? col : (LCD_V_RES - 1 - col);
+            const int idx = ly * LCD_H_RES + lx;
+            out[col] = ((s_text_mask[idx / 8] >> (idx % 8)) & 1u) ? fg_wire : bg_wire;
+        }
     }
-    esp_lcd_panel_draw_bitmap(s_panel, 0, 0, LCD_H_RES, LCD_V_RES, s_frame);
+    esp_lcd_panel_draw_bitmap(s_panel, 0, 0, LCD_PHYS_W, LCD_PHYS_H, s_frame);
 }
 
-/* Apply the landscape orientation: USB on the right swaps axes (MV) and
- * mirrors the column counter (MX) so logical X walks the GRAM rows from
- * 319 down to 0; USB on the left is the same rotated 180 degrees
- * (MY instead of MX). The GRAM gap stays on the Y window in both cases. */
-static esp_err_t apply_rotation(bool usb_right)
-{
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(s_panel, true), TAG, "Swap XY failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(s_panel, usb_right, !usb_right), TAG, "Mirror failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_set_gap(s_panel, LCD_GAP_X, LCD_GAP_Y), TAG, "Gap failed");
-    return ESP_OK;
-}
+/* Orientation is applied purely in software when composing the frame (see
+ * redraw_locked), so switching sides is just a redraw — no panel commands.
+ * USB right and USB left differ by a 180 degree rotation of the mapping. */
 
 static float absf_local(float v)
 {
@@ -355,9 +363,7 @@ static void orientation_task(void *pv_parameters)
                 s_usb_right = desired;
                 ESP_LOGI(TAG, "Orientation changed: USB %s (ax=%.2f ay=%.2f az=%.2f)",
                          s_usb_right ? "right" : "left", ax, ay, az);
-                if (apply_rotation(s_usb_right) == ESP_OK) {
-                    redraw_locked();
-                }
+                redraw_locked();
                 xSemaphoreGive(s_mutex);
             }
         }
@@ -422,7 +428,8 @@ esp_err_t display_init(void)
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(s_panel), TAG, "Panel reset failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(s_panel), TAG, "Panel init sequence failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_invert_color(s_panel, true), TAG, "Color invert failed");
-    ESP_RETURN_ON_ERROR(apply_rotation(s_usb_right), TAG, "Rotation failed");
+    /* Native portrait order; only GRAM columns 34..205 are visible */
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_set_gap(s_panel, LCD_GAP_X, LCD_GAP_Y), TAG, "Gap failed");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(s_panel, true), TAG, "Display on failed");
 
     ESP_RETURN_ON_ERROR(backlight_init(), TAG, "Backlight init failed");
