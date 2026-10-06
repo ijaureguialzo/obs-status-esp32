@@ -70,10 +70,11 @@ static const char *TAG = "display";
 #define TEXT_COLS    (LCD_H_RES / CELL_SIZE)
 #define TEXT_MAX_LINES (LCD_V_RES / CELL_SIZE)
 
-/* SPI transfers are done in horizontal bands to bound RAM usage */
-#define BAND_LINES 20
-
 #define SCENE_MAX_LEN 96
+
+/* Full-screen RGB565 frame (320x172x2 = 110 KB static): rendered in one shot
+ * and pushed in a single DMA transfer, so a redraw is one fast uniform sweep
+ * instead of visible band-by-band painting. */
 
 /* Auto-rotation (QMI8658A): only the two landscape orientations are
  * supported; portrait or flat readings keep the current orientation. */
@@ -100,8 +101,8 @@ static bool s_usb_right = true;
 
 /* 1-bit offscreen text mask; set bits are drawn in the text color */
 static uint8_t s_text_mask[LCD_H_RES * LCD_V_RES / 8];
-/* Reusable DMA-capable band buffer */
-static uint16_t s_band[LCD_H_RES * BAND_LINES];
+/* Full frame buffer, DMA-capable */
+static uint16_t s_frame[LCD_H_RES * LCD_V_RES];
 
 static uint16_t rgb565(uint8_t red, uint8_t green, uint8_t blue)
 {
@@ -114,11 +115,6 @@ static void mask_set_pixel(int x, int y)
         return;
     }
     s_text_mask[(y * LCD_H_RES + x) / 8] |= (uint8_t)(1u << ((y * LCD_H_RES + x) % 8));
-}
-
-static bool mask_get_pixel(int x, int y)
-{
-    return (s_text_mask[(y * LCD_H_RES + x) / 8] >> ((y * LCD_H_RES + x) % 8)) & 1u;
 }
 
 /* Look up the 8x8 glyph for a Unicode code point: basic Latin from
@@ -273,15 +269,14 @@ static void redraw_locked(void)
     uint16_t bg_wire = (uint16_t)((bg >> 8) | (bg << 8));
     uint16_t fg_wire = (uint16_t)((fg >> 8) | (fg << 8));
 
-    for (int y0 = 0; y0 < LCD_V_RES; y0 += BAND_LINES) {
-        int lines = (y0 + BAND_LINES <= LCD_V_RES) ? BAND_LINES : LCD_V_RES - y0;
-        for (int y = 0; y < lines; y++) {
-            for (int x = 0; x < LCD_H_RES; x++) {
-                s_band[y * LCD_H_RES + x] = mask_get_pixel(x, y0 + y) ? fg_wire : bg_wire;
-            }
-        }
-        esp_lcd_panel_draw_bitmap(s_panel, 0, y0, LCD_H_RES, y0 + lines, s_band);
+    /* Compose the whole frame, then push it in one draw call: a single
+     * 110 KB DMA stream at 80 MHz lands in ~15 ms, so the color change is
+     * perceived as one instant sweep with no banding or diagonal wipe. */
+    const int pixels = LCD_H_RES * LCD_V_RES;
+    for (int i = 0; i < pixels; i++) {
+        s_frame[i] = ((s_text_mask[i / 8] >> (i % 8)) & 1u) ? fg_wire : bg_wire;
     }
+    esp_lcd_panel_draw_bitmap(s_panel, 0, 0, LCD_H_RES, LCD_V_RES, s_frame);
 }
 
 /* Apply the landscape orientation: USB on the right swaps axes (MV) and
