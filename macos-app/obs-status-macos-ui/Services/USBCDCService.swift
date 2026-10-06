@@ -269,8 +269,15 @@ actor USBCDCService: USBCDCServiceProtocol {
                         let usbDescription: String? = getCFProperty(service, key: kUSBProductString as CFString)
                         let usbSerialNumber: String? = getCFProperty(service, key: kUSBSerialNumberString as CFString)
 
+                        // The picker is for ESP32 boards. Skip unrelated
+                        // serial devices (modems, Bluetooth SPP, ...); the
+                        // native USB Serial JTAG port is always kept, even
+                        // if its vendor lookup fails on some systems.
+                        let isESP32 = (usbVendorID.map(USBDevice.isESP32Device) ?? false)
+                            || (callout == Self.nativeJTAGPortPath)
+
                         let devicePath = callout ?? serialPath
-                        if let path = devicePath, isValidSerialPath(path) {
+                        if isESP32, let path = devicePath, isValidSerialPath(path) {
                             if path == Self.nativeJTAGPortPath {
                                 sawJTAGPort = true
                             }

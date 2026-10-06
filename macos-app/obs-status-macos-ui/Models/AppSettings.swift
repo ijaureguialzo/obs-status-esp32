@@ -18,7 +18,8 @@ private enum Key {
     static let tokenAccount = "obs-websocket-token"
 }
 
-class AppSettings {
+@MainActor
+final class AppSettings {
     static let shared = AppSettings()
     
     private let fileURL: URL

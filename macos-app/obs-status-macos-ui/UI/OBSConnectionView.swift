@@ -58,14 +58,14 @@ struct OBSConnectionView: View {
             
             Section("Preferences") {
                 Toggle("Connect automatically on launch", isOn: Binding(
-                    get: { AppSettings.shared.autoConnect },
-                    set: { AppSettings.shared.autoConnect = $0 }
+                    get: { viewModel.settings.autoConnect },
+                    set: { viewModel.settings.autoConnect = $0 }
                 ))
             }
         }
         .formStyle(.grouped)
         .onAppear {
-            let config = AppSettings.shared.obsConfig
+            let config = viewModel.settings.obsConfig
             host = config.host
             port = String(config.port)
             token = config.token
@@ -106,7 +106,7 @@ struct OBSConnectionView: View {
     // MARK: - Actions
     
     private func saveSettings() {
-        AppSettings.shared.obsConfig = OBSConfig(
+        viewModel.settings.obsConfig = OBSConfig(
             host: host.trimmingCharacters(in: .whitespacesAndNewlines),
             port: Int(port) ?? 0,
             token: token,

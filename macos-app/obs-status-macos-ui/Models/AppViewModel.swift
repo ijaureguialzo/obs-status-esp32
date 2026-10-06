@@ -37,12 +37,16 @@ final class AppViewModel {
     
     @ObservationIgnored private let obsService: OBSWebSocketServiceProtocol
     @ObservationIgnored private let usbService: USBCDCServiceProtocol
+    @ObservationIgnored let settings: AppSettings
     @ObservationIgnored private var statusTask: Task<Void, Never>?
-    
-    init(obsService: OBSWebSocketServiceProtocol? = nil, usbService: USBCDCServiceProtocol? = nil) {
+
+    init(obsService: OBSWebSocketServiceProtocol? = nil,
+         usbService: USBCDCServiceProtocol? = nil,
+         settings: AppSettings? = nil) {
         self.obsService = obsService ?? OBSWebSocketService()
         self.usbService = usbService ?? USBCDCService()
-        self.recordingLEDColor = AppSettings.shared.recordingLEDColor
+        self.settings = settings ?? .shared
+        self.recordingLEDColor = self.settings.recordingLEDColor
         
         // Listen for OBS state changes
         observeOBSState()
@@ -57,7 +61,7 @@ final class AppViewModel {
         guard !obsConnected, !obsConnecting else { return }
         
         // Validate configuration
-        let config = AppSettings.shared.obsConfig
+        let config = self.settings.obsConfig
         guard !config.host.isEmpty, (1...65535).contains(config.port) else {
             obsError = String(localized: "Please configure a valid OBS host and port")
             return
@@ -117,14 +121,14 @@ final class AppViewModel {
            !availableDevices.contains(where: { $0.path == selectedDevice.path }) {
             self.selectedDevice = nil
         }
-        if selectedDevice == nil, let lastPath = AppSettings.shared.lastESPDevicePath {
+        if selectedDevice == nil, let lastPath = self.settings.lastESPDevicePath {
             selectedDevice = availableDevices.first { $0.path == lastPath }
         }
     }
 
     func prepare() async {
         await scanDevices()
-        guard AppSettings.shared.autoConnect else { return }
+        guard self.settings.autoConnect else { return }
         await connectOBS()
         if selectedDevice != nil {
             await connectESP()
@@ -143,7 +147,7 @@ final class AppViewModel {
             espConnected = true
             espError = nil
             errorMessage = nil
-            AppSettings.shared.lastESPDevicePath = device.path
+            self.settings.lastESPDevicePath = device.path
             await sendLEDCommand(obsService.recordingState)
             await sendSceneCommand(obsService.currentSceneName)
 
@@ -191,7 +195,7 @@ final class AppViewModel {
     
     func setRecordingLEDColor(_ color: LEDColor) {
         recordingLEDColor = color
-        AppSettings.shared.recordingLEDColor = color
+        self.settings.recordingLEDColor = color
         guard obsRecording else { return }
         Task {
             await sendLEDCommand(.recording)
