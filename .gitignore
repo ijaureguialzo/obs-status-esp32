@@ -47,3 +47,7 @@ sdkconfig.old
 __pycache__/
 
 esp32-firmware/sdkconfig.esp32-s3-dev-kit-n8r8
+
+esp32-firmware/dependencies.lock
+
+esp32-firmware/sdkconfig.esp32-c6-touch-lcd-1_47
