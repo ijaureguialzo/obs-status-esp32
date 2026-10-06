@@ -1,3 +1,0 @@
-idf_build_get_property(ELF_FILE ELF_FILE)
-file(COPY ${ELF_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/)
-file(RENAME ${ELF_FILE} ${ELF_FILE}.elf)
