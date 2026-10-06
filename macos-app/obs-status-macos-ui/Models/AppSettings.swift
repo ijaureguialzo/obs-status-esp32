@@ -66,17 +66,21 @@ class AppSettings {
             let data = try Data(contentsOf: fileURL)
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let configDict = json[Key.obsConfigKey] as? [String: Any] {
-                    let savedToken: String
+                    // The token only lives in the Keychain. Legacy settings
+                    // files may still carry a plaintext "token" entry; it is
+                    // ignored here (fail closed: the user re-enters it) and
+                    // stripped from disk by the save() migration below.
+                    var savedToken = ""
                     do {
-                        savedToken = try loadToken() ?? (configDict["token"] as? String ?? "")
+                        savedToken = try loadToken() ?? ""
                     } catch {
                         logger.error("Unable to load OBS token from Keychain: \(error.localizedDescription, privacy: .public)")
-                        savedToken = configDict["token"] as? String ?? ""
                     }
                     _obsConfig = OBSConfig(
                         host: configDict["host"] as? String ?? "localhost",
                         port: configDict["port"] as? Int ?? 4455,
-                        token: savedToken
+                        token: savedToken,
+                        secure: (configDict["secure"] as? Bool) ?? false
                     )
                 }
                 if let colorDict = json[Key.recordingLEDColorKey] as? [String: Int],
@@ -94,6 +98,8 @@ class AppSettings {
                 }
                 _lastESPDevicePath = json[Key.espDevicePathKey] as? String
                 _autoConnect = (json[Key.autoConnectKey] as? Bool) ?? false
+                // Legacy migration: rewrite the file to strip any plaintext
+                // "token" entry that older versions persisted there.
                 if json[Key.obsConfigKey] is [String: Any],
                    (json[Key.obsConfigKey] as? [String: Any])?["token"] is String {
                     save()
@@ -112,6 +118,7 @@ class AppSettings {
                 Key.obsConfigKey: [
                     "host": _obsConfig.host,
                     "port": _obsConfig.port,
+                    "secure": _obsConfig.secure,
                 ],
                 Key.recordingLEDColorKey: [
                     "red": Int(_recordingLEDColor.red),
@@ -135,6 +142,11 @@ class AppSettings {
                 withIntermediateDirectories: true
             )
             try data.write(to: fileURL, options: [.atomic])
+            // The settings reference the user's network; keep them private.
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: fileURL.path
+            )
         } catch {
             logger.error("Unable to save settings: \(error.localizedDescription, privacy: .public)")
         }
