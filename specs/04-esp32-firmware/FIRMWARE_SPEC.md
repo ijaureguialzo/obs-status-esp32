@@ -46,7 +46,7 @@ framework = espidf
 
 | Component          | Pin    | Notes                                  |
 |--------------------|--------|----------------------------------------|
-| LCD (JD9853, SPI2) | SCLK=GPIO1, MOSI=GPIO2, MISO=GPIO3 | 172x320 native, ST7789-compatible; driven in landscape (320x172) via MADCTL MV+MY/MV+MX with Y gap 34 |
+| LCD (JD9853, SPI2) | SCLK=GPIO1, MOSI=GPIO2, MISO=GPIO3 | 172x320 native, ST7789-compatible; driven in its native portrait scan order (X gap 34) with the 320x172 landscape frame rotated in software, so redraws follow the refresh scan and show no tearing |
 | LCD control        | CS=GPIO14, DC=GPIO15, RST=GPIO22   |                        |
 | LCD backlight      | GPIO23 | LEDC PWM, 5 kHz, active-high           |
 | Touch (AXS5106L)   | I2C SDA=GPIO18, SCL=GPIO19, RST=GPIO20, INT=GPIO21 | I2C addr 0x63, shared bus with the IMU |

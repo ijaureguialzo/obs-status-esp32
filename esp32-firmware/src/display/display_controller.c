@@ -277,17 +277,16 @@ static void redraw_locked(void)
      * write front aligned with the refresh, so the color change appears as
      * a fast uniform sweep instead of a diagonal wipe.
      *
-     * Mapping (equivalent to the previous MADCTL landscape setup, per the
-     * ST7789 counter rules: with MV, MX mirrors the CASET counter and MY
-     * the RASET counter):
-     *   USB right (was MV+MX): physical(row, col+34) <- logical(319-row, col)
-     *   USB left  (was MV+MY): physical(row, col+34) <- logical(row, 171-col) */
+     * Mapping (equivalent to the previous MADCTL landscape setup; verified
+     * on hardware):
+     *   USB right: physical(row, col+34) <- logical(row, 171-col)
+     *   USB left:  physical(row, col+34) <- logical(319-row, col) */
     const bool usb_right = s_usb_right;
     for (int row = 0; row < LCD_PHYS_H; row++) {
         uint16_t *out = &s_frame[row * LCD_PHYS_W];
         for (int col = 0; col < LCD_PHYS_W; col++) {
-            const int lx = usb_right ? (LCD_H_RES - 1 - row) : row;
-            const int ly = usb_right ? col : (LCD_V_RES - 1 - col);
+            const int lx = usb_right ? row : (LCD_H_RES - 1 - row);
+            const int ly = usb_right ? (LCD_V_RES - 1 - col) : col;
             const int idx = ly * LCD_H_RES + lx;
             out[col] = ((s_text_mask[idx / 8] >> (idx % 8)) & 1u) ? fg_wire : bg_wire;
         }
