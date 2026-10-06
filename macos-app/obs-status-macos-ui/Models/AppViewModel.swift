@@ -16,6 +16,9 @@ final class AppViewModel {
     var obsRecording: Bool = false
     var obsConnecting: Bool = false
     var obsError: String?
+    /// Non-fatal advisory shown in the OBS panel (e.g. plaintext token on
+    /// an unencrypted remote connection).
+    var obsWarning: String?
     
     var espConnected: Bool = false
     var espConnecting: Bool = false
@@ -60,6 +63,14 @@ final class AppViewModel {
             return
         }
         
+        // Warn (without blocking) when an unencrypted link would cross the
+        // network: the token and recording state would travel in the clear.
+        let host = config.host.lowercased()
+        let isLocalHost = host == "localhost" || host == "127.0.0.1" || host == "::1"
+        obsWarning = (config.secure || isLocalHost)
+            ? nil
+            : String(localized: "This OBS connection is not encrypted: the token and recording state travel in plaintext. Enable wss if your OBS setup supports it.")
+        
         obsConnecting = true
         obsError = nil
         
@@ -67,7 +78,8 @@ final class AppViewModel {
             try await obsService.connect(
                 host: config.host,
                 port: config.port,
-                token: config.token
+                token: config.token,
+                secure: config.secure
             )
             obsConnected = true
             obsError = nil
@@ -82,6 +94,7 @@ final class AppViewModel {
         obsConnecting = false
         obsConnected = false
         obsRecording = false
+        obsWarning = nil
         obsService.disconnect()
     }
     
@@ -153,11 +166,14 @@ final class AppViewModel {
     }
     
     // MARK: - LED Control
-    
+
+    /// Maximum attempts for a single command before the link is declared
+    /// dead. Transient read timeouts are retried; write failures are not.
+    private static let espCommandMaxAttempts = 3
+
     func sendLEDCommand(_ state: RecordingState) async {
-        guard espConnected else { return }
-        guard let device = selectedDevice else { return }
-        
+        guard espConnected, let device = selectedDevice else { return }
+
         let commandLine: String
         switch state {
         case .recording:
@@ -165,25 +181,14 @@ final class AppViewModel {
         case .notRecording:
             commandLine = ObsCommand.ledOff.lineTerminated
         case .unknown:
-            return
+            // OBS is unreachable (or its state is unknown): show the
+            // idle/disconnected pattern instead of keeping the last
+            // recording color forever.
+            commandLine = ObsCommand.blinkSlow.lineTerminated
         }
-
-        do {
-            let response = try await usbService.sendCommand(commandLine, to: device)
-            lastESPResponse = response
-            espLastSeen = Date()
-            errorMessage = nil
-            if ObsProtocolUtil.isErrorResponse(response) {
-                espError = response
-            }
-        } catch {
-            espConnected = false
-            espError = error.localizedDescription
-            errorMessage = error.localizedDescription
-            await usbService.disconnect()
-        }
+        await deliver(commandLine, to: device)
     }
-
+    
     func setRecordingLEDColor(_ color: LEDColor) {
         recordingLEDColor = color
         AppSettings.shared.recordingLEDColor = color
@@ -197,41 +202,68 @@ final class AppViewModel {
     func sendSceneCommand(_ sceneName: String?) async {
         guard espConnected, let device = selectedDevice else { return }
         let commandLine = ObsCommand.scene(name: sceneName ?? "")
-
-        do {
-            let response = try await usbService.sendCommand(commandLine, to: device)
-            lastESPResponse = response
-            espLastSeen = Date()
-            if ObsProtocolUtil.isErrorResponse(response) {
-                espError = response
-            }
-        } catch {
-            espConnected = false
-            espError = error.localizedDescription
-            errorMessage = error.localizedDescription
-            await usbService.disconnect()
-        }
+        await deliver(commandLine, to: device)
     }
 
     func queryESPStatus() async {
         guard espConnected, let device = selectedDevice else { return }
-        
-        do {
-            let response = try await usbService.sendCommand(
-                ObsCommand.status.lineTerminated,
-                to: device
-            )
-            lastESPResponse = response
-            espLastSeen = Date()
-            errorMessage = nil
-            if ObsProtocolUtil.isErrorResponse(response) {
-                espError = response
+        await deliver(ObsCommand.status.lineTerminated, to: device)
+    }
+
+    /// Sends a command to the ESP32, retrying transient read timeouts (slow
+    /// device, USB hiccup) before tearing the connection down.
+    ///
+    /// A well-formed `ERROR:` response means the device answered, so the
+    /// link is healthy: it is surfaced, not retried. A write failure or
+    /// exhausted retries disconnects the device; the status polling loop
+    /// then tries to reconnect with backoff.
+    private func deliver(_ commandLine: String, to device: USBDevice) async {
+        guard espConnected else { return }
+
+        var lastError: Error?
+        var succeeded = false
+        for attempt in 1...Self.espCommandMaxAttempts {
+            do {
+                let response = try await usbService.sendCommand(commandLine, to: device)
+                lastESPResponse = response
+                espLastSeen = Date()
+                errorMessage = nil
+                if ObsProtocolUtil.isErrorResponse(response) {
+                    espError = response
+                }
+                succeeded = true
+                break
+            } catch {
+                lastError = error
+                guard isTransientReadFailure(error), attempt < Self.espCommandMaxAttempts else {
+                    break
+                }
+                espError = error.localizedDescription
+                errorMessage = error.localizedDescription
+                try? await Task.sleep(for: .milliseconds(500))
+                guard espConnected else { return }
             }
-        } catch {
-            espConnected = false
-            espError = error.localizedDescription
-            await usbService.disconnect()
         }
+
+        guard !succeeded else { return }
+
+        espConnected = false
+        let message = lastError?.localizedDescription
+            ?? String(localized: "Lost connection to the ESP32")
+        espError = message
+        errorMessage = message
+        await usbService.disconnect()
+    }
+
+    /// A zero-code read failure is the router's response timeout: the device
+    /// did not answer, which can be transient. Anything else (write errors,
+    /// explicit disconnection) is not retryable.
+    private func isTransientReadFailure(_ error: Error) -> Bool {
+        guard let usbError = error as? USBCDCError else { return false }
+        if case .readFailed(let code) = usbError {
+            return code == 0
+        }
+        return false
     }
     
     // MARK: - Private
