@@ -88,6 +88,11 @@ private final class LineRouter: @unchecked Sendable {
     private let lock = NSLock()
     private var pendingID: UUID?
     private var pendingContinuation: CheckedContinuation<String, Error>?
+    /// Last well-formed response that arrived while no command was pending.
+    /// Kept so a response that beats `registerPending` can still be matched;
+    /// dropped before each write (see discardStaleResponse) so a late
+    /// response from a previously timed-out command is never misattributed.
+    private var stashedResponse: String?
     private var eventContinuations: [UUID: AsyncStream<String>.Continuation] = [:]
     private var stopped = true
 
@@ -125,26 +130,54 @@ private final class LineRouter: @unchecked Sendable {
             return
         }
         let pending = lock.withLock { () -> CheckedContinuation<String, Error>? in
-            let continuation = pendingContinuation
-            pendingContinuation = nil
-            pendingID = nil
-            return continuation
+            if let continuation = pendingContinuation {
+                pendingContinuation = nil
+                pendingID = nil
+                return continuation
+            }
+            // No command in flight: keep the response in case a command is
+            // armed right after this line is read (see registerPending).
+            stashedResponse = line
+            return nil
         }
         pending?.resume(returning: line)
     }
 
+    private enum Registration {
+        /// A stashed response was consumed immediately.
+        case immediate(String)
+        case armed
+        case rejected(USBCDCError)
+    }
+
     func registerPending(id: UUID, continuation: CheckedContinuation<String, Error>) {
-        let isStopped = lock.withLock { () -> Bool in
-            if stopped || pendingContinuation != nil {
-                return true
+        let registration = lock.withLock { () -> Registration in
+            if let stashed = stashedResponse {
+                stashedResponse = nil
+                return .immediate(stashed)
+            }
+            guard !stopped, pendingContinuation == nil else {
+                return .rejected(USBCDCError.notConnected)
             }
             pendingID = id
             pendingContinuation = continuation
-            return false
+            return .armed
         }
-        if isStopped {
-            continuation.resume(throwing: USBCDCError.notConnected)
+        switch registration {
+        case .immediate(let line):
+            continuation.resume(returning: line)
+        case .armed:
+            return
+        case .rejected(let error):
+            continuation.resume(throwing: error)
         }
+    }
+
+    /// Drops any stashed response before a new command is written, so a
+    /// late response from a previously timed-out command cannot be mistaken
+    /// for the answer of the new one.
+    func discardStaleResponse() {
+        lock.withLock { stashedResponse = nil }
     }
 
     func timeout(id: UUID) {
@@ -159,13 +192,17 @@ private final class LineRouter: @unchecked Sendable {
 
     /// Arms the router for a new connection.
     func restart() {
-        lock.withLock { stopped = false }
+        lock.withLock {
+            stopped = false
+            stashedResponse = nil
+        }
     }
 
     /// Stops the reader loop and fails any pending command.
     func stop() {
         let pending = lock.withLock { () -> CheckedContinuation<String, Error>? in
             stopped = true
+            stashedResponse = nil
             let continuation = pendingContinuation
             pendingContinuation = nil
             pendingID = nil
@@ -198,6 +235,9 @@ actor USBCDCService: USBCDCServiceProtocol {
     nonisolated var events: AsyncStream<String> {
         router.eventStream()
     }
+
+    /// BSD path of the first native USB Serial JTAG port (ESP32-S3/C6).
+    static let nativeJTAGPortPath = "/dev/cu.debug-console"
     
     // MARK: - Public API
     
@@ -206,77 +246,71 @@ actor USBCDCService: USBCDCServiceProtocol {
 #if canImport(Darwin)
         return await Task {
             var devices: [USBDevice] = []
-            
-            // Check for USB Serial JTAG (ESP32-S3 native)
-            // Appears as /dev/cu.debug-console
-            let jtagPath = "/dev/cu.debug-console"
-            if FileManager.default.fileExists(atPath: jtagPath) {
-                // Avoid adding if already found via IOKit enumeration
-                let alreadyExists = devices.contains { $0.path == jtagPath }
-                if !alreadyExists {
-                    devices.append(USBDevice(
-                        vendorID: 0x303A, // Espressif
-                        productID: 0x0001,
-                        serialNumber: nil,
-                        deviceDescription: "USB JTAG/serial debug unit",
-                        name: "ESP32-S3 USB Serial JTAG",
-                        path: jtagPath
-                    ))
-                }
-            }
-            
-            // Also enumerate CDC-ACM devices (CP210x, CH340, FTDI, etc.)
-            // This handles other boards that enumerate as standard USB serial
-            guard let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary? else {
-                return devices
-            }
-            
+            var sawJTAGPort = false
+
+            // Enumerate all BSD serial services: CDC-ACM adapters (CP210x,
+            // CH340, FTDI, ...) and, on most systems, the native USB Serial
+            // JTAG port (/dev/cu.debug-console) as well.
             var matchingDict: io_object_t = 0
-            let status = IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matchingDict)
-            
-            guard status == KERN_SUCCESS else {
-                return devices
-            }
-            
-            guard matchingDict != 0 else {
-                return devices
-            }
-            
-            let iterator = matchingDict
-            
-            var service = IOIteratorNext(iterator)
-            
-            while service != 0 {
-                let name = getCFStringProperty(service, key: "name") ?? "Serial device"
-                let callout = getCFStringProperty(service, key: "IOCalloutDevice")
-                let serialPath = getCFStringProperty(service, key: "IODialinDevice")
-                
-                let usbVendorID: UInt16? = getCFProperty(service, key: kUSBVendorID as CFString)
-                let usbProductID: UInt16? = getCFProperty(service, key: kUSBProductID as CFString)
-                let usbDescription: String? = getCFProperty(service, key: kUSBProductString as CFString)
-                let usbSerialNumber: String? = getCFProperty(service, key: kUSBSerialNumberString as CFString)
-                
-                let devicePath = callout ?? serialPath
-                if let path = devicePath, isValidSerialPath(path) {
-                    // Avoid duplicates
-                    let exists = devices.contains { $0.path == path }
-                    if !exists {
-                        devices.append(USBDevice(
-                            vendorID: usbVendorID ?? 0,
-                            productID: usbProductID ?? 0,
-                            serialNumber: usbSerialNumber,
-                            deviceDescription: usbDescription,
-                            name: name,
-                            path: path
-                        ))
+            if let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary? {
+                if IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matchingDict) == KERN_SUCCESS,
+                   matchingDict != 0 {
+                    let iterator = matchingDict
+
+                    var service = IOIteratorNext(iterator)
+
+                    while service != 0 {
+                        let name = getCFStringProperty(service, key: "name") ?? "Serial device"
+                        let callout = getCFStringProperty(service, key: "IOCalloutDevice")
+                        let serialPath = getCFStringProperty(service, key: "IODialinDevice")
+
+                        let usbVendorID: UInt16? = getCFProperty(service, key: kUSBVendorID as CFString)
+                        let usbProductID: UInt16? = getCFProperty(service, key: kUSBProductID as CFString)
+                        let usbDescription: String? = getCFProperty(service, key: kUSBProductString as CFString)
+                        let usbSerialNumber: String? = getCFProperty(service, key: kUSBSerialNumberString as CFString)
+
+                        let devicePath = callout ?? serialPath
+                        if let path = devicePath, isValidSerialPath(path) {
+                            if path == Self.nativeJTAGPortPath {
+                                sawJTAGPort = true
+                            }
+                            // Avoid duplicates
+                            let exists = devices.contains { $0.path == path }
+                            if !exists {
+                                devices.append(USBDevice(
+                                    vendorID: usbVendorID ?? 0,
+                                    productID: usbProductID ?? 0,
+                                    serialNumber: usbSerialNumber,
+                                    deviceDescription: usbDescription,
+                                    name: name,
+                                    path: path
+                                ))
+                            }
+                        }
+
+                        IOObjectRelease(service)
+                        service = IOIteratorNext(iterator)
                     }
+
+                    IOObjectRelease(iterator)
                 }
-                
-                IOObjectRelease(service)
-                service = IOIteratorNext(iterator)
             }
-            
-            IOObjectRelease(iterator)
+
+            // Fallback for systems whose IOKit enumeration does not surface
+            // the USB Serial JTAG port, even though it exists as a BSD
+            // serial device.
+            let jtagPath = Self.nativeJTAGPortPath
+            if !sawJTAGPort, FileManager.default.fileExists(atPath: jtagPath) {
+                devices.append(USBDevice(
+                    vendorID: 0x303A, // Espressif
+                    productID: 0x1001, // USB Serial JTAG
+                    serialNumber: nil,
+                    deviceDescription: "USB JTAG/serial debug unit",
+                    name: "ESP32-S3 USB Serial JTAG",
+                    path: jtagPath
+                ))
+            }
+
             return devices
         }.value
 #else
@@ -355,6 +389,10 @@ actor USBCDCService: USBCDCServiceProtocol {
             guard fileDescriptor >= 0 else { throw USBCDCError.notConnected }
         }
 
+        // Drop any stale response from a previously timed-out command so it
+        // cannot be mistaken for the answer of the new one.
+        router.discardStaleResponse()
+
         let data = Data(command.utf8)
         let writeResult = data.withUnsafeBytes { buffer in
             var offset = 0
@@ -373,7 +411,10 @@ actor USBCDCService: USBCDCServiceProtocol {
         guard writeResult else { throw USBCDCError.writeFailed(error: errno) }
 
         // The reader loop completes the pending response with the next
-        // non-event line; arm a timeout so callers never hang forever.
+        // non-event line; arm a timeout so callers never hang forever. A
+        // response that arrives before the pending is armed below is stashed
+        // by the router and consumed immediately, which closes the race
+        // between the write and the arming.
         let id = UUID()
         return try await withCheckedThrowingContinuation { continuation in
             router.registerPending(id: id, continuation: continuation)
