@@ -12,6 +12,7 @@ struct OBSConnectionView: View {
     @State private var host: String = "localhost"
     @State private var port: String = "4455"
     @State private var token: String = ""
+    @State private var secure: Bool = false
     
     var body: some View {
         Form {
@@ -23,6 +24,9 @@ struct OBSConnectionView: View {
                     .disabled(viewModel.obsConnected)
                 
                 SecureField("WebSocket Token (optional)", text: $token)
+                    .disabled(viewModel.obsConnected)
+                
+                Toggle("Encrypt connection (wss)", isOn: $secure)
                     .disabled(viewModel.obsConnected)
                 
                 HStack {
@@ -37,6 +41,12 @@ struct OBSConnectionView: View {
                     connectionStatusRow
                     Spacer()
                     connectButton
+                }
+                
+                if let warning = viewModel.obsWarning {
+                    Label(warning, systemImage: "exclamationmark.shield.fill")
+                        .foregroundColor(.orange)
+                        .font(.caption)
                 }
                 
                 if let error = viewModel.obsError {
@@ -59,6 +69,7 @@ struct OBSConnectionView: View {
             host = config.host
             port = String(config.port)
             token = config.token
+            secure = config.secure
         }
     }
     
@@ -98,7 +109,8 @@ struct OBSConnectionView: View {
         AppSettings.shared.obsConfig = OBSConfig(
             host: host.trimmingCharacters(in: .whitespacesAndNewlines),
             port: Int(port) ?? 0,
-            token: token
+            token: token,
+            secure: secure
         )
     }
     

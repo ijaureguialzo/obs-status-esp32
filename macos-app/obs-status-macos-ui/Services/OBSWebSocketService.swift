@@ -35,7 +35,7 @@ protocol OBSWebSocketServiceProtocol: AnyObject {
     /// Name of the active OBS program scene, if known.
     var currentSceneName: String? { get }
     var sceneNameStream: AsyncStream<String?> { get }
-    func connect(host: String, port: Int, token: String) async throws
+    func connect(host: String, port: Int, token: String, secure: Bool) async throws
     func disconnect()
     /// Pauses the recording if it is running, resumes it if it is paused.
     func toggleRecordPause() async
@@ -51,6 +51,7 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
     private var connectionHost: String?
     private var connectionPort: Int?
     private var connectionToken = ""
+    private var connectionSecure = false
     private(set) var isConnected = false
     private(set) var isReconnecting = false
     private(set) var recordingState: RecordingState = .unknown
@@ -82,11 +83,12 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         }
     }
 
-    func connect(host: String, port: Int, token: String) async throws {
+    func connect(host: String, port: Int, token: String, secure: Bool) async throws {
         guard !isConnected else { return }
         connectionHost = host
         connectionPort = port
         connectionToken = token
+        connectionSecure = secure
         isReconnecting = false
         do {
             try await establishConnection()
@@ -97,6 +99,7 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
             closeTransport()
             connectionHost = nil
             connectionPort = nil
+            connectionSecure = false
             throw error
         }
     }
@@ -107,6 +110,7 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         connectionHost = nil
         connectionPort = nil
         connectionToken = ""
+        connectionSecure = false
         isReconnecting = false
         closeTransport()
         setRecordingState(.unknown)
@@ -126,7 +130,7 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
 
     private func establishConnection() async throws {
         var components = URLComponents()
-        components.scheme = "ws"
+        components.scheme = connectionSecure ? "wss" : "ws"
         components.host = connectionHost
         components.port = connectionPort
         guard let url = components.url else {

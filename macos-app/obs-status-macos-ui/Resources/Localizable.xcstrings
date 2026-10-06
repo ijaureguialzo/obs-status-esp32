@@ -960,6 +960,36 @@
           }
         }
       }
+    },
+    "Lost connection to the ESP32": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ha perdido la conexión con el ESP32"
+          }
+        }
+      }
+    },
+    "This OBS connection is not encrypted: the token and recording state travel in plaintext. Enable wss if your OBS setup supports it.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La conexión con OBS no está cifrada: el token y el estado de grabación viajan en texto plano. Activa wss si tu configuración de OBS lo admite."
+          }
+        }
+      }
+    },
+    "Encrypt connection (wss)": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cifrar conexión (wss)"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
