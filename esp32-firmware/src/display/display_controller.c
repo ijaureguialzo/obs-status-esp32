@@ -258,7 +258,10 @@ static void layout_text(void)
                 break; /* line budget exhausted; drop the rest of the word */
             }
         }
-        if (cur_len > 0 && line_count < TEXT_MAX_LINES) {
+        if (line_count < TEXT_MAX_LINES &&
+            (cur_len > 0 || seg_end < len)) {
+            /* An empty segment (from a '\n\n' or spaces) yields a blank
+             * line; a trailing newline at the end of the text does not. */
             line_start[line_count] = cur_start;
             line_len[line_count] = cur_len;
             line_count++;
@@ -502,7 +505,7 @@ esp_err_t display_init(void)
     /* Boot screen: title and version, centered. It is replaced by the first
      * background/scene pushed by the host (an empty scene blanks it). */
     char boot[64];
-    snprintf(boot, sizeof(boot), "OBS Status\nv%s (%s)",
+    snprintf(boot, sizeof(boot), "OBS Status\n\nv%s (%s)",
              FIRMWARE_VERSION, FIRMWARE_BUILD);
     display_set_scene(boot);
     return ESP_OK;
