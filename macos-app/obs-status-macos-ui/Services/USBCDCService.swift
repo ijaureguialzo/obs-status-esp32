@@ -443,6 +443,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         readerTask = Task.detached(priority: .utility) {
             var buffer: [UInt8] = []
             buffer.reserveCapacity(256)
+            var chunk = [UInt8](repeating: 0, count: 256)
             var pollFD = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
 
             while !router.isStopped && !Task.isCancelled {
@@ -457,25 +458,30 @@ actor USBCDCService: USBCDCServiceProtocol {
                     continue
                 }
 
-                var byte: UInt8 = 0
-                let bytesRead = read(fd, &byte, 1)
+                let bytesRead = chunk.withUnsafeMutableBytes { raw -> Int in
+                    guard let baseAddress = raw.baseAddress else { return 0 }
+                    return read(fd, baseAddress, raw.count)
+                }
                 if bytesRead <= 0 {
                     if bytesRead < 0 && errno == EINTR { continue }
                     break
                 }
-                if byte == 0x0A {
-                    let line = String(decoding: buffer, as: UTF8.self)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    buffer.removeAll(keepingCapacity: true)
-                    if !line.isEmpty {
-                        router.handleLine(line)
-                    }
-                } else if byte != 0x0D {
-                    if buffer.count < 1024 {
-                        buffer.append(byte)
-                    } else {
-                        // Overflowing line: discard and resync on next newline
+
+                for byte in chunk.prefix(bytesRead) {
+                    if byte == 0x0A {
+                        let line = String(decoding: buffer, as: UTF8.self)
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
                         buffer.removeAll(keepingCapacity: true)
+                        if !line.isEmpty {
+                            router.handleLine(line)
+                        }
+                    } else if byte != 0x0D {
+                        if buffer.count < 1024 {
+                            buffer.append(byte)
+                        } else {
+                            // Overflowing line: discard and resync on next newline
+                            buffer.removeAll(keepingCapacity: true)
+                        }
                     }
                 }
             }
