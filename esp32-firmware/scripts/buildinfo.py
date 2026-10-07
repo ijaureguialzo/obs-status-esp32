@@ -1,5 +1,5 @@
 """PlatformIO extra script (pre scope): keep the generated firmware version
-header in sync with the git-ignored version.txt at the project root.
+header in sync with the committed version.txt at the project root.
 
 The PlatformIO ESP-IDF builder compiles sources itself (from the CMake code
 model) and never runs ninja, so the CMake custom command that regenerates
@@ -7,7 +7,7 @@ the header does not fire under `pio run`. This script runs the shared
 scripts/generate_version.sh and replaces include/firmware_version_generated.h
 only when its content actually changed, so:
 
-  - the first build (fresh checkout, no version.txt) gets the committed
+  - the first build (version.txt missing or malformed) gets the committed
     fallback values (1.0.0 / build 1);
   - editing version.txt and re-running `pio run` recompiles the firmware
     with the new values (sources #include the header, so SCons tracks it);

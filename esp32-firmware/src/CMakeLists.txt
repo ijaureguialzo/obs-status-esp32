@@ -29,11 +29,11 @@ idf_component_register(
         espressif__esp_lcd_touch
 )
 
-# Version / build number from the git-ignored version.txt at the project
-# root (line 1: version, line 2: build number). The values land in
-# include/firmware_version_generated.h, which is git-ignored and
+# Version / build number from version.txt at the project root
+# (committed to git; line 1: version, line 2: build number). The values land
+# in include/firmware_version_generated.h, which is git-ignored and
 # (re)generated in place by scripts/generate_version.sh with fallback
-# values (1.0.0 / build 1) when version.txt is absent (fresh clones / CI);
+# values (1.0.0 / build 1) when version.txt is absent or malformed;
 # sources pick them up through #include "firmware_version.h". PlatformIO's
 # SCons-driven build never runs ninja, so esp32-firmware/scripts/buildinfo.py
 # (extra script) performs the same regeneration for `pio run`.

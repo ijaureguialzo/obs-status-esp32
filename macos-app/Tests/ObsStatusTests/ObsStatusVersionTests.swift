@@ -3,7 +3,7 @@ import XCTest
 @testable import ObsStatus
 
 final class ObsStatusVersionTests: XCTestCase {
-    /// The exact values depend on the local git-ignored version.txt (or the
+    /// The exact values depend on the local version.txt (or the
     /// 1.0.0 / 1 fallback in CI), so only the "X (Y)" shape is asserted.
     func testDisplayFormat() {
         XCTAssertFalse(ObsStatusVersion.version.isEmpty)

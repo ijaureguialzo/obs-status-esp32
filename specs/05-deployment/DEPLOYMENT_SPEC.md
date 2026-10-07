@@ -131,3 +131,9 @@ Semantic Versioning: `MAJOR.MINOR.PATCH`
 - **Patch**: Bug fixes
 
 Both macOS app and ESP32 firmware share the same version number for simplicity.
+
+The single source of truth is `version.txt` at the project root (committed to
+git): line 1 is the version, line 2 the build number. Every build bakes it
+into the firmware (`FIRMWARE_VERSION`/`FIRMWARE_BUILD`) and the app bundle
+Info.plist via `scripts/generate_version.sh`, which falls back to `1.0.0` /
+build `1` when the file is missing or malformed.

@@ -3,7 +3,7 @@ import PackagePlugin
 
 /// Build tool plugin that bakes the project version into the app at build
 /// time. It runs scripts/generate_version.sh (the same generator the
-/// firmware uses), which reads the git-ignored `version.txt` at the project
+/// firmware uses), which reads the committed `version.txt` at the project
 /// root — line 1 is the version, line 2 the build number — and writes
 /// ObsStatusVersion.swift into the plugin output directory. The generator
 /// falls back to 1.0.0 / build 1 when the file is missing or malformed

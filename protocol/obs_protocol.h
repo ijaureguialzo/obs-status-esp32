@@ -65,8 +65,7 @@
 // Firmware Version
 // ==========================
 
-// Reported in the STATUS response. The values come from the git-ignored
-// version.txt at the project root (injected at build time); see
+// Reported in the STATUS response. The values come from version.txt at the project root (injected at build time); see
 // esp32-firmware/include/firmware_version.h for the fallbacks.
 #include "firmware_version.h"
 

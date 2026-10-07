@@ -4,7 +4,7 @@
 //  App version and build number.
 //
 //  The values are read from the app bundle's Info.plist at runtime. A target
-//  run script bakes them there from the git-ignored version.txt at the
+//  run script bakes them there from version.txt at the
 //  project root (scripts/generate_version.sh) after the bundle is assembled
 //  and before code signing, so no generated source file is ever needed in
 //  the source tree. When the values are missing (ad-hoc builds) it falls
