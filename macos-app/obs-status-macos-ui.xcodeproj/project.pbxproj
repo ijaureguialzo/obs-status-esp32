@@ -63,10 +63,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 414C321C306C70A100633EA1 /* Build configuration list for PBXNativeTarget "obs-status-macos-ui" */;
 			buildPhases = (
-				414C500100000000000000B1 /* Generate version */,
 				414C31F9306C70A000633EA1 /* Sources */,
 				414C31FA306C70A000633EA1 /* Frameworks */,
 				414C31FB306C70A000633EA1 /* Resources */,
+				414C500200000000000000B2 /* Bake version into Info.plist */,
 			);
 			buildRules = (
 			);
@@ -123,20 +123,17 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		414C500100000000000000B1 /* Generate version */ = {
+		414C500200000000000000B2 /* Bake version into Info.plist */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			inputPaths = (
 				"${SRCROOT}/../version.txt",
 				"${SRCROOT}/../scripts/generate_version.sh",
 			);
-			name = "Generate version";
-			outputPaths = (
-				"${SRCROOT}/obs-status-macos-ui/Generated/ObsStatusVersion.swift",
-			);
+			name = "Bake version into Info.plist";
 			shellPath = /bin/sh;
 			shellScript = (
-				"sh \"${SRCROOT}/../scripts/generate_version.sh\" swift \"${SRCROOT}/obs-status-macos-ui/Generated/ObsStatusVersion.swift\"",
+				"sh \"${SRCROOT}/../scripts/generate_version.sh\" plist \"${BUILT_PRODUCTS_DIR}/${FULL_PRODUCT_NAME}/Contents/Info.plist\" \"${SRCROOT}/../version.txt\"",
 				"",
 			);
 		};

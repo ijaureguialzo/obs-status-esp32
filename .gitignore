@@ -63,7 +63,9 @@ esp32-firmware/sdkconfig.esp32-c6-touch-lcd-1_47
 # regenerates it before compiling, so it is safe to ignore.
 /esp32-firmware/include/firmware_version_generated.h
 
-# Note: macos-app/.../Generated/ObsStatusVersion.swift is intentionally
-# committed: Xcode snapshots the synchronized group's file list before the
-# run script runs, so a missing file would fail the first build after a
-# clean checkout (the build only self-heals on the second run).
+# The app used to keep a generated ObsStatusVersion.swift here; the app now
+# reads its version from the bundle Info.plist (baked from version.txt by a
+# run script), so nothing should live in this folder. It is ignored as a
+# guard: a file appearing here would be picked up by the synchronized group
+# and clash with Models/ObsStatusVersion.swift.
+/macos-app/obs-status-macos-ui/Generated/

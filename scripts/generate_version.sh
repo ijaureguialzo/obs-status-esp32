@@ -1,38 +1,38 @@
 #!/usr/bin/env bash
 #
-# generate_version.sh <swift|c> <output-file>
+# generate_version.sh <swift|c|plist> <output-file> [version-file]
 #
 # Central version generator. Reads the git-ignored version.txt at the
-# project root (line 1: version, line 2: build number) and writes a small
-# generated source/header with the values baked in at build time:
+# project root (line 1: version, line 2: build number) and emits the values
+# in the shape each build needs:
 #
-#   swift -> ObsStatusVersion.swift   (macOS app, via the SwiftPM build
-#                                      tool plugin and the Xcode run script)
-#   c     -> firmware_version_generated.h (ESP32 firmware, via CMake)
+#   swift -> ObsStatusVersion.swift  (SwiftPM build tool plugin for
+#                                     swift build / swift test; the Xcode
+#                                     app gets the values in its Info.plist
+#                                     instead, via the plist kind)
+#   c     -> firmware_version_generated.h (ESP32 firmware)
+#   plist -> patches an Info.plist in place (the Xcode run script bakes the
+#            values into the built app bundle before code signing)
 #
-# Both consumers fall back to 1.0.0 / build 1 when version.txt is missing
+# All consumers fall back to 1.0.0 / build 1 when version.txt is missing
 # or malformed, so fresh checkouts and CI keep building.
 
 set -euo pipefail
 
-if [ $# -ne 2 ]; then
-    echo "usage: $0 <swift|c> <output-file>" >&2
+if [ $# -ne 2 ] && [ $# -ne 3 ]; then
+    echo "usage: $0 <swift|c|plist> <output-file> [version-file]" >&2
     exit 1
 fi
 
 kind=$1
 output=$2
 
-case "$kind" in
-    swift|c) ;;
-    *)
-        echo "generate_version: unknown kind '$kind' (expected 'swift' or 'c')" >&2
-        exit 1
-        ;;
-esac
-
 project_root=$(cd "$(dirname "$0")/.." && pwd)
-version_file=$project_root/version.txt
+if [ $# -eq 3 ]; then
+    version_file=$3
+else
+    version_file=$project_root/version.txt
+fi
 
 version="1.0.0"
 build="1"
@@ -50,6 +50,24 @@ if [ -f "$version_file" ]; then
     else
         echo "generate_version: invalid build number '$file_build', falling back to $build" >&2
     fi
+fi
+
+case "$kind" in
+    swift|c|plist) ;;
+    *)
+        echo "generate_version: unknown kind '$kind' (expected 'swift', 'c' or 'plist')" >&2
+        exit 1
+        ;;
+esac
+
+if [ "$kind" = "plist" ]; then
+    if [ ! -f "$output" ]; then
+        echo "generate_version: Info.plist '$output' does not exist yet" >&2
+        exit 1
+    fi
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$output"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build" "$output"
+    exit 0
 fi
 
 mkdir -p "$(dirname "$output")"
