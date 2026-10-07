@@ -84,10 +84,34 @@ enum ObsEvent: String {
     }
 }
 
+/// Well-formed command responses, mirroring protocol/obs_protocol.h.
+///
+/// These strings are the single in-Swift copy of the protocol's response
+/// vocabulary; a CI check (scripts/check_protocol_sync.sh) verifies that
+/// every literal defined in the C header exists here.
+enum ObsResponse {
+    static let ok = "OK"
+    static let errorPrefix = "ERROR:"
+    static let errorUnknown = "ERROR: UNKNOWN_COMMAND"
+    static let errorInvalidFormat = "ERROR: INVALID_FORMAT"
+    static let statusPrefix = "STATUS:"
+
+    /// Whether a line read from the serial port is a command response
+    /// (anything else is firmware log output and gets dropped).
+    static func isResponse(_ line: String) -> Bool {
+        line == ok || line.hasPrefix(errorPrefix) || line.hasPrefix(statusPrefix)
+    }
+
+    /// Whether a completed response reports an error.
+    static func isErrorResponse(_ response: String) -> Bool {
+        response.hasPrefix(errorPrefix)
+    }
+}
+
 /// Utility functions for protocol handling
 enum ObsProtocolUtil {
     /// Check if a response indicates an error
     static func isErrorResponse(_ response: String) -> Bool {
-        response.hasPrefix("ERROR:")
+        ObsResponse.isErrorResponse(response)
     }
 }
