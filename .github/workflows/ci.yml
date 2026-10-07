@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  protocol-sync:
+    name: Protocol sync (C header <-> Swift)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check protocol definitions stay in sync
+        run: bash scripts/check_protocol_sync.sh
+
+  firmware:
+    name: Firmware (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [ esp32-s3-dev-kit-n8r8, esp32-c6-touch-lcd-1_47 ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PlatformIO Core
+        run: pip install platformio
+      - name: Build firmware
+        run: pio run -d esp32-firmware -e ${{ matrix.env }}
+      - name: Protocol unit tests (host)
+        if: matrix.env == 'esp32-s3-dev-kit-n8r8'
+        run: pio test -d esp32-firmware -e host-tests
+
+  macos-app:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (SwiftPM)
+        run: swift build --package-path macos-app
+      - name: Unit tests
+        run: swift test --package-path macos-app
+      - name: Build .app (Xcode)
+        working-directory: macos-app
+        run: xcodebuild -scheme obs-status-macos-ui -configuration Debug build
