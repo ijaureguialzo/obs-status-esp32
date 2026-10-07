@@ -18,6 +18,14 @@ extern "C" {
 
 esp_err_t usb_cdc_init(void);
 esp_err_t usb_cdc_send(const uint8_t *data, size_t len);
+/**
+ * @brief Non-blocking variant of usb_cdc_send
+ *
+ * Fails immediately (ESP_ERR_TIMEOUT) when the USB host is not draining
+ * instead of blocking; meant for unsolicited events such as
+ * EVENT:TOGGLE_PAUSE, where a lost frame is acceptable.
+ */
+esp_err_t usb_cdc_send_nowait(const uint8_t *data, size_t len);
 int usb_cdc_recv(uint8_t *buffer, size_t len, TickType_t timeout);
 bool usb_cdc_is_connected(void);
 

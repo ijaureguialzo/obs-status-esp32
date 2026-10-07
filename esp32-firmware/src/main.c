@@ -35,6 +35,8 @@ static TickType_t s_last_command_time = 0;
 
 static void handle_protocol_line(const char *line)
 {
+    /* Kept at DEBUG: log output and protocol traffic share the USB console,
+     * and the host polls STATUS every 2 s. */
     ESP_LOGD(TAG, "Received command: %s", line);
     protocol_process(line);
     s_last_command_time = xTaskGetTickCount();

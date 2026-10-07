@@ -125,5 +125,7 @@ static void send_response(const char *response)
 void protocol_notify_toggle_pause(void)
 {
     static const char event[] = PROTOCOL_TXT_EVENT_TOGGLE_PAUSE PROTOCOL_LINE_END;
-    usb_cdc_send((const uint8_t *)event, sizeof(event) - 1);
+    /* Non-blocking: if the host is asleep and not draining the USB link,
+     * drop the event instead of stalling the touch task for a second. */
+    usb_cdc_send_nowait((const uint8_t *)event, sizeof(event) - 1);
 }

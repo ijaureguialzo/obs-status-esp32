@@ -22,6 +22,10 @@
 
 static const char *TAG = "usb_serial";
 
+/* Guards the driver calls: on chips where the USB Serial JTAG install
+ * fails (or before init), the raw driver functions must not be touched. */
+static bool s_installed = false;
+
 esp_err_t usb_cdc_init(void)
 {
     ESP_LOGI(TAG, "Initializing USB Serial JTAG");
@@ -33,14 +37,15 @@ esp_err_t usb_cdc_init(void)
         return ret;
     }
 
+    s_installed = true;
     ESP_LOGI(TAG, "USB Serial JTAG initialized");
     return ESP_OK;
 }
 
 esp_err_t usb_cdc_send(const uint8_t *data, size_t len)
 {
-    if (data == NULL || len == 0) {
-        return ESP_ERR_INVALID_ARG;
+    if (!s_installed || data == NULL || len == 0) {
+        return ESP_ERR_INVALID_STATE;
     }
 
     size_t total_written = 0;
@@ -56,12 +61,30 @@ esp_err_t usb_cdc_send(const uint8_t *data, size_t len)
     return ESP_OK;
 }
 
+esp_err_t usb_cdc_send_nowait(const uint8_t *data, size_t len)
+{
+    if (!s_installed || data == NULL || len == 0) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    /* Zero timeout: fails fast when the host is not draining (e.g. the Mac
+     * is asleep). Only for unsolicited events where a lost frame is
+     * acceptable; use usb_cdc_send() for command responses. */
+    if (usb_serial_jtag_write_bytes(data, len, 0) != (int)len) {
+        return ESP_ERR_TIMEOUT;
+    }
+    return ESP_OK;
+}
+
 int usb_cdc_recv(uint8_t *buffer, size_t len, TickType_t timeout)
 {
+    if (!s_installed || buffer == NULL) {
+        return 0;
+    }
     return usb_serial_jtag_read_bytes(buffer, len, timeout);
 }
 
 bool usb_cdc_is_connected(void)
 {
-    return usb_serial_jtag_is_connected();
+    return s_installed && usb_serial_jtag_is_connected();
 }
