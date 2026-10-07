@@ -102,6 +102,14 @@ static uint8_t s_bg_blue;
 static char s_scene[SCENE_MAX_LEN];
 static bool s_usb_right = true;
 
+/* A redraw is expensive (full-frame software rotation + a 110 KB SPI
+ * transfer) on the single-core C6, so state setters only mark the frame
+ * dirty and one task repaints at most once per poll period. This
+ * coalesces bursts (scene + background + orientation changing together)
+ * into a single redraw. Guarded by s_mutex. */
+#define REFRESH_POLL_MS 30
+static bool s_redraw_pending = false;
+
 /* 1-bit offscreen text mask; set bits are drawn in the text color */
 static uint8_t s_text_mask[LCD_H_RES * LCD_V_RES / 8];
 /* Full frame buffer, DMA-capable */
@@ -295,8 +303,30 @@ static void redraw_locked(void)
 }
 
 /* Orientation is applied purely in software when composing the frame (see
- * redraw_locked), so switching sides is just a redraw — no panel commands.
- * USB right and USB left differ by a 180 degree rotation of the mapping. */
+ * redraw_locked), so switching sides just marks the frame dirty — no panel
+ * commands. USB right and USB left differ by a 180 degree rotation of the
+ * mapping. */
+
+/* Redraws the screen when the frame is dirty. A dedicated task keeps the
+ * expensive repaint out of the protocol/touch/IMU tasks and coalesces
+ * back-to-back state changes. */
+static void refresh_task(void *pv_parameters)
+{
+    (void)pv_parameters;
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(REFRESH_POLL_MS));
+        if (s_mutex == NULL) {
+            continue;
+        }
+        if (xSemaphoreTake(s_mutex, 0) == pdTRUE) {
+            if (s_redraw_pending && s_panel != NULL) {
+                s_redraw_pending = false;
+                redraw_locked();
+            }
+            xSemaphoreGive(s_mutex);
+        }
+    }
+}
 
 static float absf_local(float v)
 {
@@ -332,7 +362,9 @@ static void orientation_task(void *pv_parameters)
 
         if (log_countdown-- <= 0) {
             log_countdown = ORIENTATION_LOG_EVERY;
-            ESP_LOGI(TAG, "accel ax=%.2f ay=%.2f az=%.2f", ax, ay, az);
+            /* DEBUG: this fires every ~2 s and shares the USB console with
+             * the protocol; raise the host log level to see it. */
+            ESP_LOGD(TAG, "accel ax=%.2f ay=%.2f az=%.2f", ax, ay, az);
         }
 
         const float abs_x = absf_local(ax);
@@ -360,9 +392,9 @@ static void orientation_task(void *pv_parameters)
             stable_count = 0;
             if (xSemaphoreTake(s_mutex, portMAX_DELAY) == pdTRUE) {
                 s_usb_right = desired;
+                s_redraw_pending = true;
                 ESP_LOGI(TAG, "Orientation changed: USB %s (ax=%.2f ay=%.2f az=%.2f)",
                          s_usb_right ? "right" : "left", ax, ay, az);
-                redraw_locked();
                 xSemaphoreGive(s_mutex);
             }
         }
@@ -433,6 +465,10 @@ esp_err_t display_init(void)
 
     ESP_RETURN_ON_ERROR(backlight_init(), TAG, "Backlight init failed");
 
+    if (xTaskCreate(refresh_task, "display_rf", 4096, NULL, 4, NULL) != pdPASS) {
+        ESP_LOGW(TAG, "Could not start display refresh task");
+    }
+
     /* Auto-rotate between the two landscape orientations using the IMU;
      * if the chip does not answer, the screen stays in the default
      * (USB on the right) orientation. */
@@ -457,7 +493,7 @@ void display_set_background(uint8_t red, uint8_t green, uint8_t blue)
     s_bg_red = red;
     s_bg_green = green;
     s_bg_blue = blue;
-    redraw_locked();
+    s_redraw_pending = true;
     xSemaphoreGive(s_mutex);
 }
 
@@ -471,7 +507,7 @@ void display_set_scene(const char *name)
     }
     strncpy(s_scene, name, sizeof(s_scene) - 1);
     s_scene[sizeof(s_scene) - 1] = '\0';
-    redraw_locked();
+    s_redraw_pending = true;
     xSemaphoreGive(s_mutex);
 }
 
