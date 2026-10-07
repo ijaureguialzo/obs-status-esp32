@@ -13,8 +13,9 @@ only when its content actually changed, so:
     with the new values (sources #include the header, so SCons tracks it);
   - builds with an unchanged version.txt stay incremental.
 
-The header is committed with fallback values and overwritten in place; the
-version bump shows up as a small diff in the generated file.
+The generated header is git-ignored; this script (re)creates it before
+every build so a fresh checkout compiles, and only overwrites it when the
+content actually changed so unchanged builds stay incremental.
 """
 
 import os

@@ -5,8 +5,9 @@
  * The values come from firmware_version_generated.h, which is generated
  * from the git-ignored version.txt at the project root
  * (scripts/generate_version.sh, run by the CMake build, the PlatformIO
- * extra script, and friends). The committed generated header holds the
- * fallback values for fresh checkouts / CI.
+ * extra script, and friends). The generated header is git-ignored and is
+ * (re)created by the build; the generator falls back to 1.0.0 / build 1
+ * for fresh checkouts / CI.
  */
 #ifndef FIRMWARE_VERSION_H
 #define FIRMWARE_VERSION_H

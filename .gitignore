@@ -58,5 +58,12 @@ esp32-firmware/sdkconfig.esp32-c6-touch-lcd-1_47
 # fall back to 1.0.0 / build 1 when it is absent, e.g. in CI)
 /version.txt
 
+# Generated firmware version header: every firmware build path (PlatformIO
+# extra script, CMake configure/bootstrap, ninja custom command)
+# regenerates it before compiling, so it is safe to ignore.
+/esp32-firmware/include/firmware_version_generated.h
+
 # Note: macos-app/.../Generated/ObsStatusVersion.swift is intentionally
-# committed (regenerated in place by the build, so clean checkouts build)
+# committed: Xcode snapshots the synchronized group's file list before the
+# run script runs, so a missing file would fail the first build after a
+# clean checkout (the build only self-heals on the second run).

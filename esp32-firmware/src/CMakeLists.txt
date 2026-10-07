@@ -31,12 +31,12 @@ idf_component_register(
 
 # Version / build number from the git-ignored version.txt at the project
 # root (line 1: version, line 2: build number). The values land in
-# include/firmware_version_generated.h, which is committed with fallback
-# values (fresh clones / CI) and (re)generated in place by
-# scripts/generate_version.sh; sources pick them up through
-# #include "firmware_version.h". PlatformIO's SCons-driven build never runs
-# ninja, so esp32-firmware/scripts/buildinfo.py (extra script) performs the
-# same regeneration for `pio run`.
+# include/firmware_version_generated.h, which is git-ignored and
+# (re)generated in place by scripts/generate_version.sh with fallback
+# values (1.0.0 / build 1) when version.txt is absent (fresh clones / CI);
+# sources pick them up through #include "firmware_version.h". PlatformIO's
+# SCons-driven build never runs ninja, so esp32-firmware/scripts/buildinfo.py
+# (extra script) performs the same regeneration for `pio run`.
 set(OBS_STATUS_VERSION_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/../include/firmware_version_generated.h)
 
 set(OBS_STATUS_VERSION_DEPS ${CMAKE_SOURCE_DIR}/../scripts/generate_version.sh)
