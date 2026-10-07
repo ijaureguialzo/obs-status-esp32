@@ -1,3 +1,12 @@
+/*
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Derived from the esp-bsp esp_lcd_touch component
+ * (https://github.com/espressif/esp-bsp); modified for the Waveshare
+ * ESP32-C6-Touch-LCD-1.47 board.
+ */
 #include <stdio.h>
 #include "esp_lcd_touch_axs5106.h"
 
