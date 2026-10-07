@@ -35,6 +35,7 @@ esp32-firmware/partitions.bin
 
 # Swift Package Manager
 macos-app/.build/
+macos-app/.derived/
 Package.pins
 Package.resolved
 
