@@ -35,6 +35,7 @@
 
 #include "font8x8_basic.h"
 #include "font8x8_ext_latin.h"
+#include "firmware_version.h"
 #include "imu_qmi8658.h"
 
 static const char *TAG = "display";
@@ -205,6 +206,19 @@ static void layout_text(void)
     size_t cur_start = 0;
     size_t cur_len = 0;
     while (i < len && line_count < TEXT_MAX_LINES) {
+        /* Explicit line break (used by the boot screen) */
+        if (cps[i] == '\n') {
+            if (cur_len > 0) {
+                line_start[line_count] = cur_start;
+                line_len[line_count] = cur_len;
+                line_count++;
+            }
+            i += 1;
+            cur_start = i;
+            cur_len = 0;
+            continue;
+        }
+
         /* Extract next word */
         size_t word_start = i;
         while (i < len && cps[i] != ' ') {
@@ -482,6 +496,13 @@ esp_err_t display_init(void)
 
     ESP_LOGI(TAG, "Display initialized (%dx%d)", LCD_H_RES, LCD_V_RES);
     display_set_background(0, 0, 0);
+
+    /* Boot screen: title and version, centered. It is replaced by the first
+     * background/scene pushed by the host (an empty scene blanks it). */
+    char boot[64];
+    snprintf(boot, sizeof(boot), "OBS Status\nv%s (%s)",
+             FIRMWARE_VERSION, FIRMWARE_BUILD);
+    display_set_scene(boot);
     return ESP_OK;
 }
 

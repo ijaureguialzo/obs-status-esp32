@@ -53,3 +53,10 @@ esp32-firmware/dependencies.lock
 esp32-firmware/sdkconfig.esp32-c6-touch-lcd-1_47
 
 .serena/
+
+# Central version file (read by the firmware and macOS app builds; both
+# fall back to 1.0.0 / build 1 when it is absent, e.g. in CI)
+/version.txt
+
+# Note: macos-app/.../Generated/ObsStatusVersion.swift is intentionally
+# committed (regenerated in place by the build, so clean checkouts build)

@@ -38,12 +38,17 @@ let package = Package(
                 "Models/AppSettings.swift",
                 "Models/ObsProtocol.swift",
                 "Extensions/AsyncStream+Extensions.swift",
-            ]
+            ],
+            plugins: ["VersionGenerator"]
         ),
         .testTarget(
             name: "ObsStatusTests",
             dependencies: ["ObsStatus"],
             path: "Tests/ObsStatusTests"
+        ),
+        .plugin(
+            name: "VersionGenerator",
+            capability: .buildTool
         )
     ]
 )

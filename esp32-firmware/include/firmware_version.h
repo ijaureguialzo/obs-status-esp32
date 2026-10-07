@@ -1,0 +1,19 @@
+/**
+ * @file firmware_version.h
+ * @brief Firmware version and build number
+ *
+ * The values come from firmware_version_generated.h, which is generated
+ * from the git-ignored version.txt at the project root
+ * (scripts/generate_version.sh, run by the CMake build, the PlatformIO
+ * extra script, and friends). The committed generated header holds the
+ * fallback values for fresh checkouts / CI.
+ */
+#ifndef FIRMWARE_VERSION_H
+#define FIRMWARE_VERSION_H
+
+#include "firmware_version_generated.h"
+
+/* "1.0.0 (1)" */
+#define FIRMWARE_VERSION_WITH_BUILD FIRMWARE_VERSION " (" FIRMWARE_BUILD ")"
+
+#endif /* FIRMWARE_VERSION_H */

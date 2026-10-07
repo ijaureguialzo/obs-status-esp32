@@ -63,6 +63,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 414C321C306C70A100633EA1 /* Build configuration list for PBXNativeTarget "obs-status-macos-ui" */;
 			buildPhases = (
+				414C500100000000000000B1 /* Generate version */,
 				414C31F9306C70A000633EA1 /* Sources */,
 				414C31FA306C70A000633EA1 /* Frameworks */,
 				414C31FB306C70A000633EA1 /* Resources */,
@@ -120,6 +121,26 @@
 			);
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		414C500100000000000000B1 /* Generate version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			inputPaths = (
+				"${SRCROOT}/../version.txt",
+				"${SRCROOT}/../scripts/generate_version.sh",
+			);
+			name = "Generate version";
+			outputPaths = (
+				"${SRCROOT}/obs-status-macos-ui/Generated/ObsStatusVersion.swift",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"sh \"${SRCROOT}/../scripts/generate_version.sh\" swift \"${SRCROOT}/obs-status-macos-ui/Generated/ObsStatusVersion.swift\"",
+				"",
+			);
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		414C31F9306C70A000633EA1 /* Sources */ = {
@@ -259,6 +280,7 @@
 				DEVELOPMENT_TEAM = RSEH385M54;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "../macos-app/obs-status-macos-ui/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "OBS Status";
@@ -291,6 +313,7 @@
 				DEVELOPMENT_TEAM = RSEH385M54;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "../macos-app/obs-status-macos-ui/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "OBS Status";

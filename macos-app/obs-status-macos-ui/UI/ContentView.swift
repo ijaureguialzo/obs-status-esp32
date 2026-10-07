@@ -45,7 +45,9 @@ struct ContentView: View {
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 240)
             .safeAreaInset(edge: .bottom) {
-                Text("OBS Status v1.0.0")
+                Text(String(format: String(localized: "OBS Status v%1$@ (%2$@)"),
+                            ObsStatusVersion.version,
+                            ObsStatusVersion.build))
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)

@@ -657,22 +657,6 @@
         }
       }
     },
-    "OBS Status v1.0.0": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OBS Status v1.0.0"
-          }
-        },
-        "eu": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OBS Status v1.0.0"
-          }
-        }
-      }
-    },
     "OBS WebSocket Settings": {
       "localizations": {
         "es": {
@@ -997,6 +981,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "El ESP32 no ha respondido (¿está encendido y ha terminado de arrancar?)"
+          }
+        }
+      }
+    },
+    "OBS Status v%1$@ (%2$@)": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS Status v%1$@ (%2$@)"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OBS Status v%1$@ (%2$@)"
           }
         }
       }

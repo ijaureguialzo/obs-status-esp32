@@ -65,10 +65,9 @@
 // Firmware Version
 // ==========================
 
-// Reported in the STATUS response; overridable at build time
-// (build_flags: -DFIRMWARE_VERSION="x.y.z")
-#ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.0.0"
-#endif
+// Reported in the STATUS response. The values come from the git-ignored
+// version.txt at the project root (injected at build time); see
+// esp32-firmware/include/firmware_version.h for the fallbacks.
+#include "firmware_version.h"
 
 #endif // OBS_PROTOCOL_H
