@@ -129,6 +129,7 @@
 			inputPaths = (
 				"${SRCROOT}/../version.txt",
 				"${SRCROOT}/../scripts/generate_version.sh",
+				"${BUILT_PRODUCTS_DIR}/${FULL_PRODUCT_NAME}/Contents/Info.plist",
 			);
 			name = "Bake version into Info.plist";
 			shellPath = /bin/sh;
@@ -278,6 +279,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FUSE_BUILD_PHASES = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "../macos-app/obs-status-macos-ui/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "OBS Status";
@@ -311,6 +313,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FUSE_BUILD_PHASES = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "../macos-app/obs-status-macos-ui/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "OBS Status";
