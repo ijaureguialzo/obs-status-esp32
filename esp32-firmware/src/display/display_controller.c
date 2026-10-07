@@ -185,8 +185,9 @@ static void draw_glyph(uint32_t cp, int cell_x, int cell_y)
     }
 }
 
-/* Rebuild s_text_mask from s_scene: wrap on word boundaries (long words are
- * hard-split), center each line horizontally and the block vertically. */
+/* Rebuild s_text_mask from s_scene: explicit newlines break lines, other
+ * text wraps on word boundaries (long words are hard-split); each line is
+ * centered horizontally and the block vertically. */
 static void layout_text(void)
 {
     memset(s_text_mask, 0, sizeof(s_text_mask));
@@ -197,72 +198,73 @@ static void layout_text(void)
         return;
     }
 
-    /* Wrapped lines: start offset and length in code points */
+    /* Resulting lines: start offset and length in code points */
     size_t line_start[TEXT_MAX_LINES];
     size_t line_len[TEXT_MAX_LINES];
     int line_count = 0;
 
-    size_t i = 0;
-    size_t cur_start = 0;
-    size_t cur_len = 0;
-    while (i < len && line_count < TEXT_MAX_LINES) {
-        /* Explicit line break (used by the boot screen) */
-        if (cps[i] == '\n') {
-            if (cur_len > 0) {
+    /* Process each newline-delimited segment independently so a '
+' always
+     * breaks the line instead of wrapping into a (blank) glyph. */
+    size_t seg = 0;
+    while (seg <= len && line_count < TEXT_MAX_LINES) {
+        size_t seg_end = seg;
+        while (seg_end < len && cps[seg_end] != '\n') {
+            seg_end++;
+        }
+
+        /* Word-wrap the segment cps[seg..seg_end) */
+        size_t i = seg;
+        size_t cur_start = seg;
+        size_t cur_len = 0;
+        while (i < seg_end && line_count < TEXT_MAX_LINES) {
+            size_t word_start = i;
+            while (i < seg_end && cps[i] != ' ') {
+                i++;
+            }
+            size_t word_len = i - word_start;
+            while (i < seg_end && cps[i] == ' ') {
+                i++;
+            }
+
+            if (word_len > TEXT_COLS) {
+                /* Hard-split words longer than a full line */
+                if (cur_len > 0) {
+                    line_start[line_count] = cur_start;
+                    line_len[line_count] = cur_len;
+                    line_count++;
+                }
+                while (word_len > TEXT_COLS && line_count < TEXT_MAX_LINES) {
+                    line_start[line_count] = word_start;
+                    line_len[line_count] = TEXT_COLS;
+                    line_count++;
+                    word_start += TEXT_COLS;
+                    word_len -= TEXT_COLS;
+                }
+                cur_start = word_start;
+                cur_len = (word_start < seg_end) ? word_len : 0;
+            } else if (cur_len == 0) {
+                cur_start = word_start;
+                cur_len = word_len;
+            } else if (cur_len + 1 + word_len <= TEXT_COLS) {
+                cur_len += 1 + word_len;
+            } else if (line_count < TEXT_MAX_LINES) {
                 line_start[line_count] = cur_start;
                 line_len[line_count] = cur_len;
                 line_count++;
+                cur_start = word_start;
+                cur_len = word_len;
+            } else {
+                break; /* line budget exhausted; drop the rest of the word */
             }
-            i += 1;
-            cur_start = i;
-            cur_len = 0;
-            continue;
         }
-
-        /* Extract next word */
-        size_t word_start = i;
-        while (i < len && cps[i] != ' ') {
-            i++;
-        }
-        size_t word_len = i - word_start;
-        while (i < len && cps[i] == ' ') {
-            i++;
-        }
-
-        if (word_len > TEXT_COLS) {
-            /* Hard-split words longer than a full line */
-            if (cur_len > 0) {
-                line_start[line_count] = cur_start;
-                line_len[line_count] = cur_len;
-                line_count++;
-                cur_len = 0;
-            }
-            while (word_len > TEXT_COLS && line_count < TEXT_MAX_LINES) {
-                line_start[line_count] = word_start;
-                line_len[line_count] = TEXT_COLS;
-                line_count++;
-                word_start += TEXT_COLS;
-                word_len -= TEXT_COLS;
-            }
-            cur_start = word_start;
-            cur_len = word_len;
-        } else if (cur_len == 0) {
-            cur_start = word_start;
-            cur_len = word_len;
-        } else if (cur_len + 1 + word_len <= TEXT_COLS) {
-            cur_len += 1 + word_len;
-        } else {
+        if (cur_len > 0 && line_count < TEXT_MAX_LINES) {
             line_start[line_count] = cur_start;
             line_len[line_count] = cur_len;
             line_count++;
-            cur_start = word_start;
-            cur_len = word_len;
         }
-    }
-    if (cur_len > 0 && line_count < TEXT_MAX_LINES) {
-        line_start[line_count] = cur_start;
-        line_len[line_count] = cur_len;
-        line_count++;
+
+        seg = seg_end + 1; /* skip the newline (or run past the end) */
     }
 
     if (line_count == 0) {
