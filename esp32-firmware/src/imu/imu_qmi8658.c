@@ -30,24 +30,29 @@ static const char *TAG = "imu";
 #define QMI8658_WHO_AM_I_ID 0x05
 #define ACCEL_G_PER_LSB     (4.0f / 32768.0f)
 
-/* The vendor BSP uses a 1 s timeout on this bus; shorter timeouts make reads
- * fail en masse because the chip stretches the clock occasionally. */
-#define QMI8658_I2C_TIMEOUT_MS 1000
+/* The vendor BSP uses a 1 s timeout on this bus: init (soft reset and
+ * register writes) keeps it, because the chip stretches the clock while
+ * it resets. Runtime reads use a much shorter timeout so a slow or
+ * hanging chip does not monopolize the I2C bus shared with the touch
+ * controller (which polls every 50 ms): an occasional lost sample is
+ * fine, the orientation logic requires several stable samples anyway. */
+#define QMI8658_INIT_TIMEOUT_MS 1000
+#define QMI8658_READ_TIMEOUT_MS 100
 
 static i2c_master_dev_handle_t s_dev = NULL;
 static uint8_t s_last_status = 0;
 static bool s_last_error = false;
 
-static esp_err_t reg_read(uint8_t reg, uint8_t *data, size_t len)
+static esp_err_t reg_read(uint8_t reg, uint8_t *data, size_t len, int timeout_ms)
 {
     return i2c_master_transmit_receive(s_dev, &reg, 1, data, len,
-                                       pdMS_TO_TICKS(QMI8658_I2C_TIMEOUT_MS));
+                                       pdMS_TO_TICKS(timeout_ms));
 }
 
-static esp_err_t reg_write(uint8_t reg, uint8_t value)
+static esp_err_t reg_write(uint8_t reg, uint8_t value, int timeout_ms)
 {
     const uint8_t buf[2] = { reg, value };
-    return i2c_master_transmit(s_dev, buf, sizeof buf, pdMS_TO_TICKS(QMI8658_I2C_TIMEOUT_MS));
+    return i2c_master_transmit(s_dev, buf, sizeof buf, pdMS_TO_TICKS(timeout_ms));
 }
 
 esp_err_t imu_init(void)
@@ -69,7 +74,8 @@ esp_err_t imu_init(void)
     }
 
     uint8_t id = 0;
-    if (reg_read(QMI8658_WHO_AM_I, &id, 1) != ESP_OK || id != QMI8658_WHO_AM_I_ID) {
+    if (reg_read(QMI8658_WHO_AM_I, &id, 1, QMI8658_INIT_TIMEOUT_MS) != ESP_OK ||
+        id != QMI8658_WHO_AM_I_ID) {
         ESP_LOGW(TAG, "QMI8658A not found (WHO_AM_I = 0x%02x)", id);
         i2c_master_bus_rm_device(s_dev);
         s_dev = NULL;
@@ -80,14 +86,14 @@ esp_err_t imu_init(void)
      * accel+gyro enabled, accel +/-4 g @ 250 Hz, gyro +/-512 dps @ 250 Hz.
      * (Enabling the accel alone, CTRL7=0x01, leaves this chip reporting
      * zeros, so the full vendor sequence is kept.) */
-    if (reg_write(QMI8658_RESET, 0xB0) != ESP_OK) {
+    if (reg_write(QMI8658_RESET, 0xB0, QMI8658_INIT_TIMEOUT_MS) != ESP_OK) {
         return ESP_FAIL;
     }
     vTaskDelay(pdMS_TO_TICKS(10));
-    if (reg_write(QMI8658_CTRL1, 0x40) != ESP_OK ||
-        reg_write(QMI8658_CTRL7, 0x03) != ESP_OK ||
-        reg_write(QMI8658_CTRL2, 0x95) != ESP_OK ||
-        reg_write(QMI8658_CTRL3, 0xD5) != ESP_OK) {
+    if (reg_write(QMI8658_CTRL1, 0x40, QMI8658_INIT_TIMEOUT_MS) != ESP_OK ||
+        reg_write(QMI8658_CTRL7, 0x03, QMI8658_INIT_TIMEOUT_MS) != ESP_OK ||
+        reg_write(QMI8658_CTRL2, 0x95, QMI8658_INIT_TIMEOUT_MS) != ESP_OK ||
+        reg_write(QMI8658_CTRL3, 0xD5, QMI8658_INIT_TIMEOUT_MS) != ESP_OK) {
         ESP_LOGE(TAG, "IMU configuration failed");
         return ESP_FAIL;
     }
@@ -102,7 +108,7 @@ bool imu_read_accel(float *ax_g, float *ay_g, float *az_g)
         return false;
     }
     uint8_t status = 0;
-    if (reg_read(QMI8658_STATUS0, &status, 1) != ESP_OK) {
+    if (reg_read(QMI8658_STATUS0, &status, 1, QMI8658_READ_TIMEOUT_MS) != ESP_OK) {
         s_last_error = true;
         return false;
     }
@@ -113,7 +119,7 @@ bool imu_read_accel(float *ax_g, float *ay_g, float *az_g)
         return false;
     }
     uint8_t raw[6];
-    if (reg_read(QMI8658_AX_L, raw, sizeof(raw)) != ESP_OK) {
+    if (reg_read(QMI8658_AX_L, raw, sizeof(raw), QMI8658_READ_TIMEOUT_MS) != ESP_OK) {
         s_last_error = true;
         return false;
     }
