@@ -990,6 +990,16 @@
           }
         }
       }
+    },
+    "The ESP32 did not respond (is it powered on and finished booting?)": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El ESP32 no ha respondido (¿está encendido y ha terminado de arrancar?)"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -19,6 +19,8 @@ enum USBCDCError: LocalizedError {
     case writeFailed(error: Int32)
     case readFailed(error: Int32)
     case invalidBaudRate
+    /// The port opened but the board never answered the connection handshake.
+    case linkNotReady
     
     var errorDescription: String? {
         switch self {
@@ -36,6 +38,8 @@ enum USBCDCError: LocalizedError {
                 : String(localized: "Read failed with error code: \(String(err))")
         case .invalidBaudRate:
             return String(localized: "Invalid baud rate configured")
+        case .linkNotReady:
+            return String(localized: "The ESP32 did not respond (is it powered on and finished booting?)")
         }
     }
 }
@@ -95,9 +99,22 @@ private final class LineRouter: @unchecked Sendable {
     private var stashedResponse: String?
     private var eventContinuations: [UUID: AsyncStream<String>.Continuation] = [:]
     private var stopped = true
+    /// Bumped on restart()/stop() so a reader task from a previous session
+    /// (cancellation is cooperative and not instantaneous) notices that it
+    /// is stale and exits instead of racing the new reader on the same fd.
+    private var readerGeneration: UInt64 = 0
 
     var isStopped: Bool {
         lock.withLock { stopped }
+    }
+
+    var currentReaderGeneration: UInt64 {
+        lock.withLock { readerGeneration }
+    }
+
+    /// Captured by the reader task at start.
+    func readerGenerationToken() -> UInt64 {
+        lock.withLock { readerGeneration }
     }
 
     var hasPending: Bool {
@@ -195,6 +212,7 @@ private final class LineRouter: @unchecked Sendable {
         lock.withLock {
             stopped = false
             stashedResponse = nil
+            readerGeneration &+= 1
         }
     }
 
@@ -203,6 +221,7 @@ private final class LineRouter: @unchecked Sendable {
         let pending = lock.withLock { () -> CheckedContinuation<String, Error>? in
             stopped = true
             stashedResponse = nil
+            readerGeneration &+= 1
             let continuation = pendingContinuation
             pendingContinuation = nil
             pendingID = nil
@@ -221,6 +240,13 @@ actor USBCDCService: USBCDCServiceProtocol {
     private let broadcaster = DeviceEventBroadcaster()
     private let router = LineRouter()
     private var readerTask: Task<Void, Never>?
+
+    /// Default upper bound for a command response; the connect handshake
+    /// uses a longer window because a fresh USB-Serial-JTAG link needs a
+    /// moment before it flows.
+    private static let responseTimeout: Duration = .seconds(2)
+    private static let connectHandshakeTimeout: Duration = .seconds(3)
+    private static let connectHandshakeAttempts = 3
     private var notificationsStarted = false
 #if canImport(Darwin)
     private var notificationPort: IONotificationPortRef?
@@ -367,10 +393,39 @@ actor USBCDCService: USBCDCServiceProtocol {
             throw USBCDCError.cannotOpen(path: device.path)
         }
         
+        // Discard whatever accumulated in the kernel queue before we took
+        // over the port (firmware boot log, a previous session): the reader
+        // must only see data produced by this connection.
+        tcflush(fileDescriptor, TCIFLUSH)
+        
         connectedDevice = device
         isConnectedFlag = true
         router.restart()
         startReader()
+        
+        // A freshly opened USB-Serial-JTAG port can take a while before data
+        // actually flows (kernel negotiation, or the firmware still booting
+        // after power-up / USB re-enumeration — e.g. auto-connect right
+        // after plugging the board). Verify the link with a STATUS handshake
+        // instead of declaring success on open(): otherwise the caller sees
+        // a working connection whose first commands then time out one by
+        // one and error messages linger.
+        for _ in 1...Self.connectHandshakeAttempts {
+            guard isConnectedFlag else { throw USBCDCError.notConnected }
+            do {
+                _ = try await sendCommand(ObsCommand.status.lineTerminated, to: device,
+                                          timeout: Self.connectHandshakeTimeout)
+                return
+            } catch {
+                guard isConnectedFlag else { throw error }
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+        
+        // The port opened but the board never answered: tear the link down
+        // and report it instead of leaving a silently broken connection.
+        await disconnect()
+        throw USBCDCError.linkNotReady
     }
 
     func disconnect() async {
@@ -386,6 +441,10 @@ actor USBCDCService: USBCDCServiceProtocol {
     }
 
     func sendCommand(_ command: String, to device: USBDevice) async throws -> String {
+        try await sendCommand(command, to: device, timeout: Self.responseTimeout)
+    }
+    
+    private func sendCommand(_ command: String, to device: USBDevice, timeout: Duration) async throws -> String {
         guard fileDescriptor >= 0, connectedDevice?.path == device.path else {
             throw USBCDCError.notConnected
         }
@@ -426,7 +485,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         return try await withCheckedThrowingContinuation { continuation in
             router.registerPending(id: id, continuation: continuation)
             Task { [router] in
-                try? await Task.sleep(for: .seconds(2))
+                try? await Task.sleep(for: timeout)
                 router.timeout(id: id)
             }
         }
@@ -440,13 +499,19 @@ actor USBCDCService: USBCDCServiceProtocol {
     private func startReader() {
         let fd = fileDescriptor
         let router = router
+        let generation = router.readerGenerationToken()
         readerTask = Task.detached(priority: .utility) {
             var buffer: [UInt8] = []
             buffer.reserveCapacity(256)
             var chunk = [UInt8](repeating: 0, count: 256)
             var pollFD = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
 
-            while !router.isStopped && !Task.isCancelled {
+            // The generation check kills a stale reader from a previous
+            // session: cancellation is cooperative, so a just-cancelled
+            // task can still run one or two loops after restart() flips
+            // `stopped` back on, and two readers on the same fd would split
+            // the byte stream and lose every line.
+            while !router.isStopped && !Task.isCancelled && router.currentReaderGeneration == generation {
                 let result = poll(&pollFD, 1, 100)
                 if result < 0 {
                     if errno == EINTR { continue }

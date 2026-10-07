@@ -23,6 +23,10 @@ final class AppViewModel {
     var espConnected: Bool = false
     var espConnecting: Bool = false
     var espError: String?
+    /// Bumped on every connect/disconnect so in-flight commands from a
+    /// previous session (rapid connect/disconnect taps) can tell the link
+    /// is now owned by a newer session and stop retrying/tearing it down.
+    @ObservationIgnored private var espSession = 0
     
     var availableDevices: [USBDevice] = []
     var selectedDevice: USBDevice?
@@ -147,6 +151,7 @@ final class AppViewModel {
             espConnected = true
             espError = nil
             errorMessage = nil
+            espSession &+= 1
             self.settings.lastESPDevicePath = device.path
             await sendLEDCommand(obsService.recordingState)
             await sendSceneCommand(obsService.currentSceneName)
@@ -165,6 +170,7 @@ final class AppViewModel {
     func disconnectESP() async {
         espConnected = false
         espConnecting = false
+        espSession &+= 1
         stopStatusPolling()
         await usbService.disconnect()
     }
@@ -223,6 +229,7 @@ final class AppViewModel {
     /// then tries to reconnect with backoff.
     private func deliver(_ commandLine: String, to device: USBDevice) async {
         guard espConnected else { return }
+        let session = espSession
 
         var lastError: Error?
         var succeeded = false
@@ -234,6 +241,10 @@ final class AppViewModel {
                 errorMessage = nil
                 if ObsProtocolUtil.isErrorResponse(response) {
                     espError = response
+                } else {
+                    // The device answered: clear any stale error left over
+                    // from a previous failed attempt.
+                    espError = nil
                 }
                 succeeded = true
                 break
@@ -245,11 +256,14 @@ final class AppViewModel {
                 espError = error.localizedDescription
                 errorMessage = error.localizedDescription
                 try? await Task.sleep(for: .milliseconds(500))
-                guard espConnected else { return }
+                guard espConnected, espSession == session else { return }
             }
         }
 
         guard !succeeded else { return }
+        // A newer session now owns the link (rapid re-connect): don't tear
+        // it down just because the previous one's command failed.
+        guard espSession == session else { return }
 
         espConnected = false
         let message = lastError?.localizedDescription
@@ -339,6 +353,7 @@ final class AppViewModel {
                         espConnecting = false
                         espError = nil
                         errorMessage = nil
+                        espSession &+= 1
                         await sendLEDCommand(obsService.recordingState)
                         await sendSceneCommand(obsService.currentSceneName)
                     } catch {
