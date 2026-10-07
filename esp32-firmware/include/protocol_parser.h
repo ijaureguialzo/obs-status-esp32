@@ -17,9 +17,13 @@ extern "C" {
 #endif
 
 /**
- * @brief Maximum length of a command line
+ * @brief Maximum length of a command line (including the terminator)
+ *
+ * Defined in obs_protocol.h, the canonical protocol definition shared
+ * with the macOS app.
  */
-#define PROTOCOL_MAX_LINE_LENGTH 128
+
+#include "obs_protocol.h"
 
 /**
  * @brief Process an incoming command line

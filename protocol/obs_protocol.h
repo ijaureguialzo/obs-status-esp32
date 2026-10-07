@@ -58,7 +58,17 @@
 // Status Response Format
 // ==========================
 
-// Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>"
-#define PROTOCOL_STATUS_FORMAT "STATUS:LED=%s|USB=%s|ERROR=%d"
+// Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>|FW=<version>"
+#define PROTOCOL_STATUS_FORMAT "STATUS:LED=%s|USB=%s|ERROR=%d|FW=%s"
+
+// ==========================
+// Firmware Version
+// ==========================
+
+// Reported in the STATUS response; overridable at build time
+// (build_flags: -DFIRMWARE_VERSION="x.y.z")
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "1.0.0"
+#endif
 
 #endif // OBS_PROTOCOL_H

@@ -17,6 +17,7 @@
 #include "display_controller.h"
 #include "touch_controller.h"
 #include "protocol_parser.h"
+#include "protocol_line_buffer.h"
 #include "obs_protocol.h"
 
 static const char *TAG = "obs-status";
@@ -29,6 +30,15 @@ static const char *TAG = "obs-status";
 #define APP_TASK_PRIORITY 5
 #define USB_RECV_TIMEOUT_MS 100
 #define DISCONNECT_TIMEOUT_MS 10000
+
+static TickType_t s_last_command_time = 0;
+
+static void handle_protocol_line(const char *line)
+{
+    ESP_LOGD(TAG, "Received command: %s", line);
+    protocol_process(line);
+    s_last_command_time = xTaskGetTickCount();
+}
 
 static void app_task(void *pv_parameters)
 {
@@ -77,9 +87,9 @@ static void app_task(void *pv_parameters)
     led_blink_slow();
 
     char recv_buffer[PROTOCOL_MAX_LINE_LENGTH];
-    char line_buffer[PROTOCOL_MAX_LINE_LENGTH];
-    size_t line_length = 0;
-    uint32_t last_command_time = xTaskGetTickCount();
+    protocol_line_buffer_t line;
+    protocol_line_buffer_reset(&line);
+    s_last_command_time = xTaskGetTickCount();
     bool idle_mode = false;
 
     ESP_LOGI(TAG, "Entering main loop (waiting for commands)");
@@ -90,30 +100,16 @@ static void app_task(void *pv_parameters)
                                        pdMS_TO_TICKS(USB_RECV_TIMEOUT_MS));
 
         if (bytes_read > 0) {
-            recv_buffer[bytes_read] = '\0';
             idle_mode = false;
 
-            for (int i = 0; i < bytes_read; i++) {
-                if (recv_buffer[i] == '\n') {
-                    if (line_length > 0) {
-                        line_buffer[line_length] = '\0';
-                        ESP_LOGI(TAG, "Received command: %s", line_buffer);
+            protocol_line_buffer_feed(&line, (const uint8_t *)recv_buffer,
+                                      (size_t)bytes_read, handle_protocol_line);
 
-                        protocol_process(line_buffer);
-
-                        line_length = 0;
-                        last_command_time = xTaskGetTickCount();
-                    }
-                } else if (recv_buffer[i] != '\r') {
-                    if (line_length < PROTOCOL_MAX_LINE_LENGTH - 1) {
-                        line_buffer[line_length++] = recv_buffer[i];
-                    }
-                }
-            }
-
-            last_command_time = xTaskGetTickCount();
+            // Any received data counts as activity, even if it does not
+            // complete a line.
+            s_last_command_time = xTaskGetTickCount();
         } else {
-            uint32_t elapsed = xTaskGetTickCount() - last_command_time;
+            uint32_t elapsed = xTaskGetTickCount() - s_last_command_time;
 
             if (elapsed > pdMS_TO_TICKS(DISCONNECT_TIMEOUT_MS) && !idle_mode) {
                 ESP_LOGW(TAG, "No commands for %lu ms - entering idle mode",
@@ -129,7 +125,7 @@ static void app_task(void *pv_parameters)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "ObsStatus ESP32 Firmware v1.0.0");
+    ESP_LOGI(TAG, "ObsStatus ESP32 Firmware " FIRMWARE_VERSION);
 
     // Pin to the second core when available; unicore chips (ESP32-C6)
     // must use core 0 or xTaskCreatePinnedToCore asserts.

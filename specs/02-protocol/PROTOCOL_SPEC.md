@@ -86,14 +86,15 @@ Requests the current status from the ESP32.
 STATUS\n
 ```
 
-**Response**: `STATUS:LED=<state>|USB=<usbState>|ERROR=<errorCode>\n`
+**Response**: `STATUS:LED=<state>|USB=<usbState>|ERROR=<errorCode>|FW=<version>\n`
 
 Where:
 - `LED`: `ON` / `OFF`
 - `USB`: `CONNECTED` / `DISCONNECTED` (USB host connection state; the ESP32 has no knowledge of OBS)
 - `errorCode`: `0` (none) or error code integer
+- `version`: firmware version (useful for diagnosing protocol mismatches)
 
-**Example**: `STATUS:LED=ON|USB=CONNECTED|ERROR=0\n`
+**Example**: `STATUS:LED=ON|USB=CONNECTED|ERROR=0|FW=1.0.0\n`
 
 ### 3.6 Command: `SCENE:<name>`
 
@@ -172,7 +173,12 @@ Examples:
 ## 6. Timeout Handling
 
 - If no command received from macOS app within 10 seconds → BLINK_SLOW (disconnected)
-- If macOS app receives no response to `STATUS` within 2 seconds → mark ESP32 as disconnected
+- If the macOS app receives no response to a command within 2 seconds it
+  retries up to 3 times (500 ms apart); a write failure is not retried. If
+  the attempts are exhausted the app marks the ESP32 as disconnected and
+  attempts to reconnect with backoff.
+- A well-formed `ERROR: ...` response is a healthy link (the device
+  answered) and is surfaced to the user, not retried.
 
 ## 7. Future Extensions (Reserved)
 

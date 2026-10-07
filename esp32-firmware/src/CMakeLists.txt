@@ -8,8 +8,11 @@ idf_component_register(
         board/board_i2c.c
         imu/imu_qmi8658.c
         protocol/protocol_parser.c
+        protocol/protocol_message.c
+        protocol/protocol_line_buffer.c
     INCLUDE_DIRS
         ../include
+        ../../protocol
     REQUIRES
         driver
         nvs_flash
