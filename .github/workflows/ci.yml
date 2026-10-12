@@ -42,4 +42,7 @@ jobs:
         run: swift test --package-path macos-app
       - name: Build .app (Xcode)
         working-directory: macos-app
-        run: xcodebuild -scheme obs-status-macos-ui -configuration Debug build
+        # The project pins the developer's team (RSEH385M54), which CI machines
+        # cannot access; this job only needs a non-distributable build, so
+        # disable code signing.
+        run: xcodebuild -scheme obs-status-macos-ui -configuration Debug build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
