@@ -46,7 +46,16 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      # swift-format ships with the Xcode toolchain on the runner; the
+      # project's style lives in macos-app/.swift-format. Strict mode makes
+      # any formatting drift fail the build.
+      - name: Lint (swift-format)
+        run: xcrun swift-format lint --strict --recursive obs-status-macos-ui Tests
+        working-directory: macos-app
+      # The app must build warning-free; new warnings fail the build.
       - name: Build (SwiftPM)
+        env:
+          SWIFT_TREAT_WARNINGS_AS_ERRORS: "1"
         run: swift build --package-path macos-app
       - name: Unit tests
         run: swift test --package-path macos-app

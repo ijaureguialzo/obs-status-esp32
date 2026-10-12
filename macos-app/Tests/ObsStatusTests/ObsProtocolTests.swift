@@ -5,6 +5,7 @@
 
 import SwiftUI
 import XCTest
+
 @testable import ObsStatus
 
 final class ObsCommandTests: XCTestCase {
@@ -44,7 +45,8 @@ final class ObsCommandTests: XCTestCase {
 
     func testSceneNameIsTruncatedToTheDisplayBudget() {
         let longName = String(repeating: "a", count: 200)
-        XCTAssertEqual(ObsCommand.scene(name: longName), "SCENE:\(String(repeating: "a", count: 95))\n")
+        XCTAssertEqual(
+            ObsCommand.scene(name: longName), "SCENE:\(String(repeating: "a", count: 95))\n")
     }
 
     func testSceneNameAtTheBudgetIsUnchanged() {
@@ -58,7 +60,7 @@ final class ObsCommandTests: XCTestCase {
         // UTF-8 (no U+FFFD).
         let cjk = String(repeating: "日", count: 95)
         let command = ObsCommand.scene(name: cjk)
-        let payload = command.dropFirst("SCENE:".count).dropLast() // strip prefix + newline
+        let payload = command.dropFirst("SCENE:".count).dropLast()  // strip prefix + newline
         let payloadBytes = Array(payload.utf8)
         XCTAssertLessThanOrEqual(payloadBytes.count, 121)
         XCTAssertFalse(String(payload).contains("\u{FFFD}"))
@@ -68,8 +70,9 @@ final class ObsCommandTests: XCTestCase {
     }
 
     func testAuthCommand() {
-        XCTAssertEqual(ObsCommand.auth(secret: "abcd1234ef56abcd1234ef56abcd1234"),
-                       "AUTH:abcd1234ef56abcd1234ef56abcd1234\n")
+        XCTAssertEqual(
+            ObsCommand.auth(secret: "abcd1234ef56abcd1234ef56abcd1234"),
+            "AUTH:abcd1234ef56abcd1234ef56abcd1234\n")
     }
 
     func testAuthResponses() {

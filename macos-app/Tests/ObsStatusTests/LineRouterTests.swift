@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import ObsStatus
 
 /// Regression tests for the LineRouter and LineSplitter, the two most
@@ -58,7 +59,7 @@ final class LineRouterTests: XCTestCase {
 
     func testResponseArrivingBeforePendingIsStashed() async {
         let router = makeRouter()
-        router.handleLine("OK") // no pending command: must be stashed
+        router.handleLine("OK")  // no pending command: must be stashed
         let result = try? await pendingResult(router, id: UUID())
         XCTAssertEqual(result, "OK")
     }
@@ -81,7 +82,7 @@ final class LineRouterTests: XCTestCase {
         await waitForPending(router)
         router.handleLine("I (1234) app: Tap detected - toggling record pause")
         let stillArmed = router.hasPending
-        XCTAssertTrue(stillArmed) // the log line was dropped
+        XCTAssertTrue(stillArmed)  // the log line was dropped
         router.handleLine("OK")
         let result = await response.value
         XCTAssertEqual(result, "OK")
@@ -89,13 +90,13 @@ final class LineRouterTests: XCTestCase {
 
     func testStaleResponseIsDiscardedBeforeTheNextCommand() async {
         let router = makeRouter()
-        router.handleLine("OK") // stashed
+        router.handleLine("OK")  // stashed
         router.discardStaleResponse()
         let id = UUID()
         let response = Task { try? await pendingResult(router, id: id) }
         await waitForPending(router)
         let stillArmed = router.hasPending
-        XCTAssertTrue(stillArmed) // the stale response was dropped
+        XCTAssertTrue(stillArmed)  // the stale response was dropped
         router.handleLine("OK")
         let result = await response.value
         XCTAssertEqual(result, "OK")
@@ -117,7 +118,7 @@ final class LineRouterTests: XCTestCase {
         let id = UUID()
         let outcome = Task { try? await pendingResult(router, id: id) }
         await waitForPending(router)
-        router.timeout(id: UUID()) // a different command timed out
+        router.timeout(id: UUID())  // a different command timed out
         let stillArmed = router.hasPending
         XCTAssertTrue(stillArmed)
         router.timeout(id: id)
@@ -147,7 +148,7 @@ final class LineRouterTests: XCTestCase {
 
     func testRestartClearsStashAndAllowsNewSessions() async {
         let router = makeRouter()
-        router.handleLine("OK") // stashed
+        router.handleLine("OK")  // stashed
         router.stop()
         router.restart()
         // The stashed response from the previous session must not be handed
@@ -191,7 +192,7 @@ final class LineRouterTests: XCTestCase {
     func testSplitterKeepsPartialLineAfterOverflow() {
         var splitter = LineSplitter(maxLineBytes: 8)
         let overflowed = splitter.feed(Array(String(repeating: "x", count: 20).utf8))
-        XCTAssertEqual(overflowed, []) // no newline yet
+        XCTAssertEqual(overflowed, [])  // no newline yet
         let lines = splitter.feed(Array("OK\n".utf8))
         XCTAssertEqual(lines, ["xxOK"])
     }

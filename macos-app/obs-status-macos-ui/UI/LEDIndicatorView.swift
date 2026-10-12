@@ -10,7 +10,7 @@ struct LEDIndicatorView: View {
     @Environment(AppViewModel.self) private var viewModel
     @State private var glowIntensity: Double = 0.0
     @State private var pulsePhase: Double = 0.0
-    
+
     var body: some View {
         ZStack {
             // Large background glow effect
@@ -20,7 +20,7 @@ struct LEDIndicatorView: View {
                 .opacity(glowOpacity)
                 .scaleEffect(glowScale)
                 .animation(.easeInOut(duration: 0.5), value: viewModel.obsRecording)
-            
+
             // Main LED circle
             Circle()
                 .fill(circleFill)
@@ -30,20 +30,20 @@ struct LEDIndicatorView: View {
                     Circle()
                         .strokeBorder(borderColor, style: StrokeStyle(lineWidth: 4))
                 }
-            
+
             // Center icon and status text
             VStack(spacing: 12) {
                 Image(systemName: iconName)
                     .font(.system(size: 64))
                     .foregroundColor(iconColor)
                     .symbolEffect(.pulse, options: .repeating, value: viewModel.obsRecording)
-                
+
                 Text(statusText)
                     .font(.title2.bold())
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                     .padding(.top, 4)
-                
+
                 Text(statusDescription)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -59,33 +59,34 @@ struct LEDIndicatorView: View {
             updateAnimation()
         }
     }
-    
+
     // MARK: - Computed Properties
-    
+
     private var gradient: Color {
         viewModel.obsRecording ? viewModel.recordingLEDColor.color : Color.gray.opacity(0.15)
     }
-    
+
     private var circleFill: Color {
         viewModel.obsRecording ? viewModel.recordingLEDColor.color : Color.gray.opacity(0.25)
     }
-    
+
     private var glowOpacity: Double {
         viewModel.obsRecording ? 0.5 : 0.05
     }
-    
+
     private var glowScale: Double {
         viewModel.obsRecording ? 1.1 : 1.0
     }
-    
+
     private var shadowColor: Color {
         viewModel.obsRecording ? viewModel.recordingLEDColor.color.opacity(0.4) : Color.clear
     }
-    
+
     private var borderColor: Color {
-        viewModel.obsRecording ? viewModel.recordingLEDColor.color.opacity(0.9) : Color.gray.opacity(0.4)
+        viewModel.obsRecording
+            ? viewModel.recordingLEDColor.color.opacity(0.9) : Color.gray.opacity(0.4)
     }
-    
+
     private var iconName: String {
         switch status {
         case .recording:
@@ -100,7 +101,7 @@ struct LEDIndicatorView: View {
             return "circle.dashed"
         }
     }
-    
+
     private var iconColor: Color {
         switch status {
         case .recording:
@@ -113,7 +114,7 @@ struct LEDIndicatorView: View {
             return .secondary
         }
     }
-    
+
     private var statusText: LocalizedStringKey {
         switch status {
         case .recording:
@@ -146,7 +147,7 @@ struct LEDIndicatorView: View {
             return "Connect to your ESP32 device."
         }
     }
-    
+
     private var status: Status {
         switch (viewModel.obsConnected, viewModel.espConnected) {
         case (true, true):
@@ -159,16 +160,16 @@ struct LEDIndicatorView: View {
             return .disconnected
         }
     }
-    
+
     private enum Status {
         case recording, connectingOBS, connectingESP, idle, disconnected
     }
-    
+
     private func updateAnimation() {
         withAnimation(.easeInOut(duration: 0.5)) {
             glowIntensity = viewModel.obsRecording ? 1.0 : 0.0
         }
-        
+
         if viewModel.obsRecording {
             withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                 pulsePhase = 1.0

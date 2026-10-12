@@ -19,12 +19,12 @@ struct ObsStatusMenuBar: Scene {
 
 struct MenuBarIcon: View {
     let viewModel: AppViewModel
-    
+
     var body: some View {
         Image(systemName: menuBarIconName)
             .imageScale(.large)
     }
-    
+
     private var menuBarIconName: String {
         if !viewModel.obsConnected {
             return "circle.slash"
@@ -37,25 +37,25 @@ struct MenuBarIcon: View {
 
 struct MenuBarControls: View {
     @Environment(AppViewModel.self) private var viewModel
-    
+
     var body: some View {
         Group {
             Button("Connect to OBS") {
                 Task { await viewModel.connectOBS() }
             }
             .disabled(viewModel.obsConnected)
-            
+
             Button("Disconnect from OBS") {
                 Task { await viewModel.disconnectOBS() }
             }
             .disabled(!viewModel.obsConnected)
-            
+
             Divider()
-            
+
             Button("Scan for ESP32") {
                 Task { await viewModel.scanDevices() }
             }
-            
+
             Button("Connect to ESP32") {
                 Task { await viewModel.connectESP() }
             }
@@ -70,9 +70,9 @@ struct MenuBarControls: View {
                     viewModel.trustDevice()
                 }
             }
-            
+
             Divider()
-            
+
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }

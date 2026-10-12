@@ -67,7 +67,8 @@ enum ObsCommand: String, CaseIterable {
     /// backs off to a character boundary. The firmware would otherwise keep
     /// only the first 127 bytes of an oversized line.
     static func scene(name: String) -> String {
-        let sanitized = name
+        let sanitized =
+            name
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "\r", with: " ")
         var utf8 = Array(sanitized.prefix(95).utf8)
@@ -75,11 +76,11 @@ enum ObsCommand: String, CaseIterable {
             utf8.removeLast(utf8.count - 121)
             while let last = utf8.last {
                 if last < 0x80 {
-                    break // complete ASCII byte
+                    break  // complete ASCII byte
                 }
                 utf8.removeLast()
                 if last & 0xC0 != 0x80 {
-                    break // removed the lead byte of a split character
+                    break  // removed the lead byte of a split character
                 }
             }
         }

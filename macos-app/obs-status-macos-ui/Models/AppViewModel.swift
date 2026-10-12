@@ -11,7 +11,7 @@ import Observation
 @Observable
 final class AppViewModel {
     // MARK: - State
-    
+
     var obsConnected: Bool = false
     var obsRecording: Bool = false
     var obsConnecting: Bool = false
@@ -19,7 +19,7 @@ final class AppViewModel {
     /// Non-fatal advisory shown in the OBS panel (e.g. plaintext token on
     /// an unencrypted remote connection).
     var obsWarning: String?
-    
+
     var espConnected: Bool = false
     var espConnecting: Bool = false
     var espError: String?
@@ -36,61 +36,67 @@ final class AppViewModel {
     /// previous session (rapid connect/disconnect taps) can tell the link
     /// is now owned by a newer session and stop retrying/tearing it down.
     @ObservationIgnored private var espSession = 0
-    
+
     var availableDevices: [USBDevice] = []
     var selectedDevice: USBDevice?
-    
+
     var errorMessage: String?
     var lastESPResponse: String?
     var espLastSeen: Date?
     var recordingLEDColor: LEDColor = .recordingDefault
     var currentSceneName: String?
-    
+
     // MARK: - Services
-    
+
     @ObservationIgnored private let obsService: OBSWebSocketServiceProtocol
     @ObservationIgnored private let usbService: USBCDCServiceProtocol
     @ObservationIgnored let settings: AppSettings
     @ObservationIgnored private var statusTask: Task<Void, Never>?
 
-    init(obsService: OBSWebSocketServiceProtocol? = nil,
-         usbService: USBCDCServiceProtocol? = nil,
-         settings: AppSettings? = nil) {
+    init(
+        obsService: OBSWebSocketServiceProtocol? = nil,
+        usbService: USBCDCServiceProtocol? = nil,
+        settings: AppSettings? = nil
+    ) {
         self.obsService = obsService ?? OBSWebSocketService()
         self.usbService = usbService ?? USBCDCService()
         self.settings = settings ?? .shared
         self.recordingLEDColor = self.settings.recordingLEDColor
-        
+
         // Listen for OBS state changes
         observeOBSState()
         observeSceneName()
         observeDeviceEvents()
         observeESPEvents()
     }
-    
+
     // MARK: - OBS Connection
-    
+
     func connectOBS() async {
         guard !obsConnected, !obsConnecting else { return }
-        
+
         // Validate configuration
         let config = self.settings.obsConfig
         guard !config.host.isEmpty, (1...65535).contains(config.port) else {
             obsError = String(localized: "Please configure a valid OBS host and port")
             return
         }
-        
+
         // Warn (without blocking) when an unencrypted link would cross the
         // network: the token and recording state would travel in the clear.
         let host = config.host.lowercased()
         let isLocalHost = host == "localhost" || host == "127.0.0.1" || host == "::1"
-        obsWarning = (config.secure || isLocalHost)
+        obsWarning =
+            (config.secure || isLocalHost)
             ? nil
-            : String(localized: "This OBS connection is not encrypted: the token and recording state travel in plaintext. Enable wss if your OBS setup supports it.")
-        
+            : String(
+                localized:
+                    "This OBS connection is not encrypted: the token and recording state travel in plaintext. Enable wss if your OBS setup supports it."
+            )
+
         obsConnecting = true
         obsError = nil
-        
+
         do {
             try await obsService.connect(
                 host: config.host,
@@ -103,10 +109,10 @@ final class AppViewModel {
         } catch {
             obsError = error.localizedDescription
         }
-        
+
         obsConnecting = false
     }
-    
+
     func disconnectOBS() async {
         obsConnecting = false
         obsConnected = false
@@ -114,24 +120,25 @@ final class AppViewModel {
         obsWarning = nil
         obsService.disconnect()
     }
-    
+
     func updateRecordingState(_ state: RecordingState) {
         obsConnected = obsService.isConnected
         obsConnecting = obsService.isReconnecting
         obsRecording = (state == .recording)
-        
+
         // Send command to ESP32 if connected
         _ = Task {
             await sendLEDCommand(state)
         }
     }
-    
+
     // MARK: - ESP32 Connection
-    
+
     func scanDevices() async {
         availableDevices = await usbService.enumerateDevices()
         if let selectedDevice,
-           !availableDevices.contains(where: { $0.path == selectedDevice.path }) {
+            !availableDevices.contains(where: { $0.path == selectedDevice.path })
+        {
             self.selectedDevice = nil
         }
         if selectedDevice == nil, let lastPath = self.settings.lastESPDevicePath {
@@ -147,14 +154,14 @@ final class AppViewModel {
             await connectESP()
         }
     }
-    
+
     func connectESP() async {
         guard let device = selectedDevice else { return }
         guard !espConnected, !espConnecting else { return }
-        
+
         espConnecting = true
         espError = nil
-        
+
         do {
             try await usbService.connect(device)
             espConnected = true
@@ -169,16 +176,16 @@ final class AppViewModel {
 
             // Start periodic status polling
             startStatusPolling()
-            
+
         } catch {
             espError = error.localizedDescription
             refreshDeviceTrust()
             startStatusPolling()
         }
-        
+
         espConnecting = false
     }
-    
+
     func disconnectESP() async {
         espConnected = false
         espConnecting = false
@@ -223,7 +230,8 @@ final class AppViewModel {
             return
         }
         do {
-            let response = try await usbService.sendCommand(ObsCommand.auth(secret: trimmed), to: device)
+            let response = try await usbService.sendCommand(
+                ObsCommand.auth(secret: trimmed), to: device)
             if response == ObsResponse.ok {
                 settings.setDeviceSecret(trimmed, for: device.trustID)
                 espError = nil
@@ -244,9 +252,11 @@ final class AppViewModel {
     /// manual trust prompt from the view model applies.
     private func authenticateOnConnect() async {
         guard espConnected, let device = selectedDevice, !espDeviceTrusted,
-              let stored = settings.deviceSecret(for: device.trustID) else { return }
+            let stored = settings.deviceSecret(for: device.trustID)
+        else { return }
         do {
-            let response = try await usbService.sendCommand(ObsCommand.auth(secret: stored), to: device)
+            let response = try await usbService.sendCommand(
+                ObsCommand.auth(secret: stored), to: device)
             if response == ObsResponse.ok {
                 settings.trustESPDevice(device)
             } else if response == ObsResponse.errorAuth {
@@ -259,7 +269,7 @@ final class AppViewModel {
         }
         refreshDeviceTrust()
     }
-    
+
     // MARK: - LED Control
 
     /// Maximum attempts for a single command before the link is declared
@@ -283,7 +293,7 @@ final class AppViewModel {
         }
         await deliver(commandLine, to: device)
     }
-    
+
     func setRecordingLEDColor(_ color: LEDColor) {
         recordingLEDColor = color
         self.settings.recordingLEDColor = color
@@ -292,7 +302,7 @@ final class AppViewModel {
             await sendLEDCommand(.recording)
         }
     }
-    
+
     /// Sends the active OBS scene name so boards with a display can show it.
     func sendSceneCommand(_ sceneName: String?) async {
         guard espConnected, let device = selectedDevice else { return }
@@ -325,7 +335,8 @@ final class AppViewModel {
                 espLastSeen = Date()
                 errorMessage = nil
                 if response.hasPrefix(ObsResponse.statusPrefix),
-                   response.contains(ObsResponse.statusAuthSupported) {
+                    response.contains(ObsResponse.statusAuthSupported)
+                {
                     espAuthSupported = true
                 }
                 if ObsProtocolUtil.isErrorResponse(response) {
@@ -355,7 +366,8 @@ final class AppViewModel {
         guard espSession == session else { return }
 
         espConnected = false
-        let message = lastError?.localizedDescription
+        let message =
+            lastError?.localizedDescription
             ?? String(localized: "Lost connection to the ESP32")
         espError = message
         errorMessage = message
@@ -372,9 +384,9 @@ final class AppViewModel {
         }
         return false
     }
-    
+
     // MARK: - Private
-    
+
     private func observeOBSState() {
         Task { [weak self] in
             guard let self else { return }
@@ -415,7 +427,7 @@ final class AppViewModel {
             }
         }
     }
-    
+
     /// Re-scan the device list whenever a serial device is plugged in or removed.
     private func observeDeviceEvents() {
         Task { [weak self] in
@@ -425,7 +437,7 @@ final class AppViewModel {
             }
         }
     }
-    
+
     private func startStatusPolling() {
         stopStatusPolling()
         statusTask = Task {
@@ -462,7 +474,7 @@ final class AppViewModel {
             }
         }
     }
-    
+
     private func stopStatusPolling() {
         statusTask?.cancel()
         statusTask = nil

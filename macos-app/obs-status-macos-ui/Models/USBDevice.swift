@@ -14,7 +14,7 @@ struct USBDevice: Identifiable, Codable, Hashable {
     let deviceDescription: String?
     let name: String
     let path: String
-    
+
     nonisolated init(
         vendorID: UInt16,
         productID: UInt16,
@@ -33,7 +33,9 @@ struct USBDevice: Identifiable, Codable, Hashable {
     }
 
     var pickerTitle: String {
-        let label = deviceDescription ?? (name == "Unknown Device" ? String(localized: "Serial device") : name)
+        let label =
+            deviceDescription
+            ?? (name == "Unknown Device" ? String(localized: "Serial device") : name)
         return "\(label) — \(path)"
     }
 
@@ -52,13 +54,13 @@ struct USBDevice: Identifiable, Codable, Hashable {
 extension USBDevice {
     /// Known ESP32 USB vendor IDs for filtering devices
     static let esp32VendorIDs: [UInt16] = [
-        0x303A, // Espressif
-        0x10C4, // Silicon Labs CP210x
-        0x1A86, // CH340/CH9102
-        0x28E9, // STMicroelectronics
-        0x1209, // Freenove
+        0x303A,  // Espressif
+        0x10C4,  // Silicon Labs CP210x
+        0x1A86,  // CH340/CH9102
+        0x28E9,  // STMicroelectronics
+        0x1209,  // Freenove
     ]
-    
+
     static func isESP32Device(_ vendorID: UInt16) -> Bool {
         esp32VendorIDs.contains(vendorID)
     }

@@ -5,8 +5,8 @@
 //
 
 import Foundation
-import os
 import Security
+import os
 
 private enum Key {
     static let bundleID = Bundle.main.bundleIdentifier ?? "com.unknown.obs-status"
@@ -23,31 +23,41 @@ private enum Key {
 @MainActor
 final class AppSettings {
     static let shared = AppSettings()
-    
+
     private let fileURL: URL
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "ObsStatus", category: "Settings")
-    
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "ObsStatus", category: "Settings")
+
     private var _obsConfig: OBSConfig
     private var _recordingLEDColor: LEDColor
     private var _lastESPDevicePath: String?
     private var _trustedESPDevices: [String]
     private var _autoConnect: Bool
-    
+
     var obsConfig: OBSConfig {
         get { _obsConfig }
-        set { _obsConfig = newValue; save() }
+        set {
+            _obsConfig = newValue
+            save()
+        }
     }
-    
+
     var lastESPDevicePath: String? {
         get { _lastESPDevicePath }
-        set { _lastESPDevicePath = newValue; save() }
+        set {
+            _lastESPDevicePath = newValue
+            save()
+        }
     }
 
     /// IDs (`USBDevice.trustID`) of ESP32 devices the user confirmed. Only
     /// trusted devices may drive OBS from unsolicited events (touch tap).
     var trustedESPDevices: [String] {
         get { _trustedESPDevices }
-        set { _trustedESPDevices = newValue; save() }
+        set {
+            _trustedESPDevices = newValue
+            save()
+        }
     }
 
     func isESPDeviceTrusted(_ device: USBDevice) -> Bool {
@@ -62,29 +72,35 @@ final class AppSettings {
 
     var recordingLEDColor: LEDColor {
         get { _recordingLEDColor }
-        set { _recordingLEDColor = newValue; save() }
+        set {
+            _recordingLEDColor = newValue
+            save()
+        }
     }
-    
+
     var autoConnect: Bool {
         get { _autoConnect }
-        set { _autoConnect = newValue; save() }
+        set {
+            _autoConnect = newValue
+            save()
+        }
     }
-    
+
     /// `fileURL` is injectable for tests; the default lives in the user's
     /// Library directory next to the other app state.
     init(fileURL: URL? = nil) {
         let directory = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
         self.fileURL = fileURL ?? directory.appendingPathComponent(Key.settingsFile)
-        
+
         _obsConfig = OBSConfig()
         _recordingLEDColor = .recordingDefault
         _lastESPDevicePath = nil
         _trustedESPDevices = []
         _autoConnect = false
-        
+
         load()
     }
-    
+
     private func load() {
         do {
             let data = try Data(contentsOf: fileURL)
@@ -98,7 +114,9 @@ final class AppSettings {
                     do {
                         savedToken = try loadToken() ?? ""
                     } catch {
-                        logger.error("Unable to load OBS token from Keychain: \(error.localizedDescription, privacy: .public)")
+                        logger.error(
+                            "Unable to load OBS token from Keychain: \(error.localizedDescription, privacy: .public)"
+                        )
                     }
                     _obsConfig = OBSConfig(
                         host: configDict["host"] as? String ?? "localhost",
@@ -108,12 +126,13 @@ final class AppSettings {
                     )
                 }
                 if let colorDict = json[Key.recordingLEDColorKey] as? [String: Int],
-                   let red = colorDict["red"],
-                   let green = colorDict["green"],
-                   let blue = colorDict["blue"],
-                   (0...255).contains(red),
-                   (0...255).contains(green),
-                   (0...255).contains(blue) {
+                    let red = colorDict["red"],
+                    let green = colorDict["green"],
+                    let blue = colorDict["blue"],
+                    (0...255).contains(red),
+                    (0...255).contains(green),
+                    (0...255).contains(blue)
+                {
                     _recordingLEDColor = LEDColor(
                         red: UInt8(red),
                         green: UInt8(green),
@@ -121,12 +140,14 @@ final class AppSettings {
                     )
                 }
                 _lastESPDevicePath = json[Key.espDevicePathKey] as? String
-                _trustedESPDevices = (json[Key.trustedESPDevicesKey] as? [String])?.filter { !$0.isEmpty } ?? []
+                _trustedESPDevices =
+                    (json[Key.trustedESPDevicesKey] as? [String])?.filter { !$0.isEmpty } ?? []
                 _autoConnect = (json[Key.autoConnectKey] as? Bool) ?? false
                 // Legacy migration: rewrite the file to strip any plaintext
                 // "token" entry that older versions persisted there.
                 if json[Key.obsConfigKey] is [String: Any],
-                   (json[Key.obsConfigKey] as? [String: Any])?["token"] is String {
+                    (json[Key.obsConfigKey] as? [String: Any])?["token"] is String
+                {
                     save()
                 }
             }
@@ -136,7 +157,7 @@ final class AppSettings {
             logger.error("Unable to load settings: \(error.localizedDescription, privacy: .public)")
         }
     }
-    
+
     private func save() {
         do {
             var dict: [String: Any] = [
@@ -158,11 +179,13 @@ final class AppSettings {
             if !_trustedESPDevices.isEmpty {
                 dict[Key.trustedESPDevicesKey] = _trustedESPDevices
             }
-            
+
             do {
                 try saveToken(_obsConfig.token)
             } catch {
-                logger.error("Unable to save OBS token to Keychain: \(error.localizedDescription, privacy: .public)")
+                logger.error(
+                    "Unable to save OBS token to Keychain: \(error.localizedDescription, privacy: .public)"
+                )
             }
             let data = try JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys])
             try FileManager.default.createDirectory(
@@ -192,7 +215,8 @@ final class AppSettings {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess, let data = result as? Data,
-              let value = String(data: data, encoding: .utf8) else {
+            let value = String(data: data, encoding: .utf8)
+        else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
         }
         return value
@@ -241,7 +265,9 @@ final class AppSettings {
         do {
             return try keychainLoad(account: Key.espSecretAccountPrefix + trustID)
         } catch {
-            logger.error("Unable to load device secret from Keychain: \(error.localizedDescription, privacy: .public)")
+            logger.error(
+                "Unable to load device secret from Keychain: \(error.localizedDescription, privacy: .public)"
+            )
             return nil
         }
     }
@@ -250,7 +276,9 @@ final class AppSettings {
         do {
             try keychainSave(secret, account: Key.espSecretAccountPrefix + trustID)
         } catch {
-            logger.error("Unable to save device secret to Keychain: \(error.localizedDescription, privacy: .public)")
+            logger.error(
+                "Unable to save device secret to Keychain: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 }

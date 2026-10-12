@@ -9,7 +9,7 @@ import SwiftUI
 @main
 struct ObsStatusApp: App {
     @State private var viewModel = AppViewModel()
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -21,23 +21,25 @@ struct ObsStatusApp: App {
                     Task { await viewModel.connectOBS() }
                 }
                 .disabled(viewModel.obsConnected || viewModel.obsConnecting)
-                
+
                 Button("Disconnect from OBS") {
                     Task { await viewModel.disconnectOBS() }
                 }
                 .disabled(!viewModel.obsConnected && !viewModel.obsConnecting)
-                
+
                 Divider()
-                
+
                 Button("Scan for ESP32") {
                     Task { await viewModel.scanDevices() }
                 }
-                
+
                 Button("Connect to ESP32") {
                     Task { await viewModel.connectESP() }
                 }
-                .disabled(viewModel.espConnected || viewModel.espConnecting || viewModel.selectedDevice == nil)
-                
+                .disabled(
+                    viewModel.espConnected || viewModel.espConnecting
+                        || viewModel.selectedDevice == nil)
+
                 Button("Disconnect from ESP32") {
                     Task { await viewModel.disconnectESP() }
                 }

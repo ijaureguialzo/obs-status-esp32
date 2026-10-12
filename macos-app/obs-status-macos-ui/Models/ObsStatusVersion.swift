@@ -15,9 +15,11 @@ import Foundation
 
 /// Build-time version and build number for the macOS app.
 enum ObsStatusVersion {
-    static let version: String = Bundle.main
+    static let version: String =
+        Bundle.main
         .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
-    static let build: String = Bundle.main
+    static let build: String =
+        Bundle.main
         .object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
 
     /// "1.0.0 (1)"

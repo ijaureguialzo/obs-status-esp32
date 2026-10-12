@@ -10,7 +10,8 @@ final class ObsStatusVersionTests: XCTestCase {
         XCTAssertFalse(ObsStatusVersion.build.isEmpty)
         XCTAssertTrue(ObsStatusVersion.display.contains("("), ObsStatusVersion.display)
         XCTAssertTrue(ObsStatusVersion.display.hasSuffix(")"), ObsStatusVersion.display)
-        XCTAssertEqual(ObsStatusVersion.display,
-                       "\(ObsStatusVersion.version) (\(ObsStatusVersion.build))")
+        XCTAssertEqual(
+            ObsStatusVersion.display,
+            "\(ObsStatusVersion.version) (\(ObsStatusVersion.build))")
     }
 }

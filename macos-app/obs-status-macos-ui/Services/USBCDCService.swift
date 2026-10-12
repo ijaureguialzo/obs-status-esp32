@@ -6,10 +6,11 @@
 //
 
 import Foundation
+
 #if canImport(Darwin)
-import IOKit
-import IOKit.usb
-import IOKit.serial
+    import IOKit
+    import IOKit.usb
+    import IOKit.serial
 #endif
 
 enum USBCDCError: LocalizedError {
@@ -21,7 +22,7 @@ enum USBCDCError: LocalizedError {
     case invalidBaudRate
     /// The port opened but the board never answered the connection handshake.
     case linkNotReady
-    
+
     var errorDescription: String? {
         switch self {
         case .alreadyConnected:
@@ -39,7 +40,8 @@ enum USBCDCError: LocalizedError {
         case .invalidBaudRate:
             return String(localized: "Invalid baud rate configured")
         case .linkNotReady:
-            return String(localized: "The ESP32 did not respond (is it powered on and finished booting?)")
+            return String(
+                localized: "The ESP32 did not respond (is it powered on and finished booting?)")
         }
     }
 }
@@ -288,11 +290,11 @@ actor USBCDCService: USBCDCServiceProtocol {
     private static let connectHandshakeTimeout: Duration = .seconds(3)
     private static let connectHandshakeAttempts = 3
     private var notificationsStarted = false
-#if canImport(Darwin)
-    private var notificationPort: IONotificationPortRef?
-    private var addedIterator: io_iterator_t = 0
-    private var removedIterator: io_iterator_t = 0
-#endif
+    #if canImport(Darwin)
+        private var notificationPort: IONotificationPortRef?
+        private var addedIterator: io_iterator_t = 0
+        private var removedIterator: io_iterator_t = 0
+    #endif
 
     nonisolated var deviceEvents: AsyncStream<Void> {
         broadcaster.stream()
@@ -310,157 +312,170 @@ actor USBCDCService: USBCDCServiceProtocol {
     static func isNativeJTAGPort(_ path: String) -> Bool {
         path.hasPrefix(nativeJTAGPortPrefix)
     }
-    
+
     // MARK: - Public API
-    
+
     func enumerateDevices() async -> [USBDevice] {
         startMonitoring()
-#if canImport(Darwin)
-        return await Task {
-            var devices: [USBDevice] = []
-            var sawJTAGPort = false
+        #if canImport(Darwin)
+            return await Task {
+                var devices: [USBDevice] = []
+                var sawJTAGPort = false
 
-            // Enumerate all BSD serial services: CDC-ACM adapters (CP210x,
-            // CH340, FTDI, ...) and, on most systems, the native USB Serial
-            // JTAG port (/dev/cu.debug-console) as well.
-            var matchingDict: io_object_t = 0
-            if let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) as CFMutableDictionary? {
-                if IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matchingDict) == KERN_SUCCESS,
-                   matchingDict != 0 {
-                    let iterator = matchingDict
+                // Enumerate all BSD serial services: CDC-ACM adapters (CP210x,
+                // CH340, FTDI, ...) and, on most systems, the native USB Serial
+                // JTAG port (/dev/cu.debug-console) as well.
+                var matchingDict: io_object_t = 0
+                if let matching = IOServiceMatching(kIOSerialBSDServiceValue as String)
+                    as CFMutableDictionary?
+                {
+                    if IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matchingDict)
+                        == KERN_SUCCESS,
+                        matchingDict != 0
+                    {
+                        let iterator = matchingDict
 
-                    var service = IOIteratorNext(iterator)
+                        var service = IOIteratorNext(iterator)
 
-                    while service != 0 {
-                        let name = getCFStringProperty(service, key: "name") ?? "Serial device"
-                        let callout = getCFStringProperty(service, key: "IOCalloutDevice")
-                        let serialPath = getCFStringProperty(service, key: "IODialinDevice")
+                        while service != 0 {
+                            let name = getCFStringProperty(service, key: "name") ?? "Serial device"
+                            let callout = getCFStringProperty(service, key: "IOCalloutDevice")
+                            let serialPath = getCFStringProperty(service, key: "IODialinDevice")
 
-                        let usbVendorID: UInt16? = getCFProperty(service, key: kUSBVendorID as CFString)
-                        let usbProductID: UInt16? = getCFProperty(service, key: kUSBProductID as CFString)
-                        let usbDescription: String? = getCFProperty(service, key: kUSBProductString as CFString)
-                        let usbSerialNumber: String? = getCFProperty(service, key: kUSBSerialNumberString as CFString)
+                            let usbVendorID: UInt16? = getCFProperty(
+                                service, key: kUSBVendorID as CFString)
+                            let usbProductID: UInt16? = getCFProperty(
+                                service, key: kUSBProductID as CFString)
+                            let usbDescription: String? = getCFProperty(
+                                service, key: kUSBProductString as CFString)
+                            let usbSerialNumber: String? = getCFProperty(
+                                service, key: kUSBSerialNumberString as CFString)
 
-                        // The picker is for ESP32 boards. Skip unrelated
-                        // serial devices (modems, Bluetooth SPP, ...); the
-                        // native USB Serial JTAG port is always kept, even
-                        // if its vendor lookup fails on some systems.
-                        let isESP32 = (usbVendorID.map(USBDevice.isESP32Device) ?? false)
-                            || (callout.map(Self.isNativeJTAGPort) ?? false)
+                            // The picker is for ESP32 boards. Skip unrelated
+                            // serial devices (modems, Bluetooth SPP, ...); the
+                            // native USB Serial JTAG port is always kept, even
+                            // if its vendor lookup fails on some systems.
+                            let isESP32 =
+                                (usbVendorID.map(USBDevice.isESP32Device) ?? false)
+                                || (callout.map(Self.isNativeJTAGPort) ?? false)
 
-                        let devicePath = callout ?? serialPath
-                        if isESP32, let path = devicePath, isValidSerialPath(path) {
-                            if Self.isNativeJTAGPort(path) {
-                                sawJTAGPort = true
+                            let devicePath = callout ?? serialPath
+                            if isESP32, let path = devicePath, isValidSerialPath(path) {
+                                if Self.isNativeJTAGPort(path) {
+                                    sawJTAGPort = true
+                                }
+                                // Avoid duplicates
+                                let exists = devices.contains { $0.path == path }
+                                if !exists {
+                                    devices.append(
+                                        USBDevice(
+                                            vendorID: usbVendorID ?? 0,
+                                            productID: usbProductID ?? 0,
+                                            serialNumber: usbSerialNumber,
+                                            deviceDescription: usbDescription,
+                                            name: name,
+                                            path: path
+                                        ))
+                                }
                             }
-                            // Avoid duplicates
-                            let exists = devices.contains { $0.path == path }
-                            if !exists {
-                                devices.append(USBDevice(
-                                    vendorID: usbVendorID ?? 0,
-                                    productID: usbProductID ?? 0,
-                                    serialNumber: usbSerialNumber,
-                                    deviceDescription: usbDescription,
+
+                            IOObjectRelease(service)
+                            service = IOIteratorNext(iterator)
+                        }
+
+                        IOObjectRelease(iterator)
+                    }
+                }
+
+                // Fallback for systems whose IOKit enumeration does not surface
+                // the USB Serial JTAG port, even though it exists as a BSD
+                // serial device. macOS names additional boards
+                // cu.debug-console1, cu.debug-console2, ...; pick them all up.
+                if !sawJTAGPort {
+                    let jtagFiles =
+                        ((try? FileManager.default.contentsOfDirectory(atPath: "/dev")) ?? [])
+                        .filter { $0.hasPrefix("cu.debug-console") }
+                        .sorted()
+                    for fileName in jtagFiles {
+                        let path = "/dev/\(fileName)"
+                        guard FileManager.default.fileExists(atPath: path) else { continue }
+                        let name =
+                            fileName == "cu.debug-console"
+                            ? "ESP32-S3 USB Serial JTAG"
+                            : "ESP32 USB Serial JTAG (\(fileName))"
+                        if !devices.contains(where: { $0.path == path }) {
+                            devices.append(
+                                USBDevice(
+                                    vendorID: 0x303A,  // Espressif
+                                    productID: 0x1001,  // USB Serial JTAG
+                                    serialNumber: nil,
+                                    deviceDescription: "USB JTAG/serial debug unit",
                                     name: name,
                                     path: path
                                 ))
-                            }
                         }
-
-                        IOObjectRelease(service)
-                        service = IOIteratorNext(iterator)
-                    }
-
-                    IOObjectRelease(iterator)
-                }
-            }
-
-            // Fallback for systems whose IOKit enumeration does not surface
-            // the USB Serial JTAG port, even though it exists as a BSD
-            // serial device. macOS names additional boards
-            // cu.debug-console1, cu.debug-console2, ...; pick them all up.
-            if !sawJTAGPort {
-                let jtagFiles = ((try? FileManager.default.contentsOfDirectory(atPath: "/dev")) ?? [])
-                    .filter { $0.hasPrefix("cu.debug-console") }
-                    .sorted()
-                for fileName in jtagFiles {
-                    let path = "/dev/\(fileName)"
-                    guard FileManager.default.fileExists(atPath: path) else { continue }
-                    let name = fileName == "cu.debug-console"
-                        ? "ESP32-S3 USB Serial JTAG"
-                        : "ESP32 USB Serial JTAG (\(fileName))"
-                    if !devices.contains(where: { $0.path == path }) {
-                        devices.append(USBDevice(
-                            vendorID: 0x303A, // Espressif
-                            productID: 0x1001, // USB Serial JTAG
-                            serialNumber: nil,
-                            deviceDescription: "USB JTAG/serial debug unit",
-                            name: name,
-                            path: path
-                        ))
                     }
                 }
-            }
 
-            return devices
-        }.value
-#else
-        return []
-#endif
+                return devices
+            }.value
+        #else
+            return []
+        #endif
     }
-    
+
     func connect(_ device: USBDevice) async throws {
         guard fileDescriptor < 0 else {
             throw USBCDCError.alreadyConnected
         }
-        
+
         fileDescriptor = open(device.path, O_RDWR | O_NOCTTY)
         if fileDescriptor < 0 {
             throw USBCDCError.cannotOpen(path: device.path)
         }
-        
+
         var settings = termios()
         guard tcgetattr(fileDescriptor, &settings) == 0 else {
             close(fileDescriptor)
             fileDescriptor = -1
             throw USBCDCError.cannotOpen(path: device.path)
         }
-        
+
         cfsetispeed(&settings, speed_t(B115200))
         cfsetospeed(&settings, speed_t(B115200))
-        
+
         settings.c_cflag |= UInt(CLOCAL | CREAD)
         settings.c_cflag &= ~UInt(PARENB)
         settings.c_cflag &= ~UInt(CSTOPB)
         settings.c_cflag &= ~UInt(CSIZE)
         settings.c_cflag |= UInt(CS8)
-        
+
         settings.c_lflag &= ~UInt(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ISIG | IEXTEN)
         settings.c_lflag &= ~UInt(ECHOK | ECHOCTL | ECHOKE)
-        
+
         settings.c_oflag &= ~UInt(OPOST)
-        
+
         settings.c_cflag &= ~UInt(CRTSCTS)
         settings.c_iflag &= ~UInt(IXON | IXOFF | IXANY)
         settings.c_cc.16 = 0
         settings.c_cc.17 = 1
-        
+
         if tcsetattr(fileDescriptor, TCSANOW, &settings) < 0 {
             close(fileDescriptor)
             fileDescriptor = -1
             throw USBCDCError.cannotOpen(path: device.path)
         }
-        
+
         // Discard whatever accumulated in the kernel queue before we took
         // over the port (firmware boot log, a previous session): the reader
         // must only see data produced by this connection.
         tcflush(fileDescriptor, TCIFLUSH)
-        
+
         connectedDevice = device
         isConnectedFlag = true
         router.restart()
         startReader()
-        
+
         // A freshly opened USB-Serial-JTAG port can take a while before data
         // actually flows (kernel negotiation, or the firmware still booting
         // after power-up / USB re-enumeration — e.g. auto-connect right
@@ -471,15 +486,16 @@ actor USBCDCService: USBCDCServiceProtocol {
         for _ in 1...Self.connectHandshakeAttempts {
             guard isConnectedFlag else { throw USBCDCError.notConnected }
             do {
-                _ = try await sendCommand(ObsCommand.status.lineTerminated, to: device,
-                                          timeout: Self.connectHandshakeTimeout)
+                _ = try await sendCommand(
+                    ObsCommand.status.lineTerminated, to: device,
+                    timeout: Self.connectHandshakeTimeout)
                 return
             } catch {
                 guard isConnectedFlag else { throw error }
                 try? await Task.sleep(for: .seconds(1))
             }
         }
-        
+
         // The port opened but the board never answered: tear the link down
         // and report it instead of leaving a silently broken connection.
         await disconnect()
@@ -501,8 +517,10 @@ actor USBCDCService: USBCDCServiceProtocol {
     func sendCommand(_ command: String, to device: USBDevice) async throws -> String {
         try await sendCommand(command, to: device, timeout: Self.responseTimeout)
     }
-    
-    private func sendCommand(_ command: String, to device: USBDevice, timeout: Duration) async throws -> String {
+
+    private func sendCommand(_ command: String, to device: USBDevice, timeout: Duration)
+        async throws -> String
+    {
         guard fileDescriptor >= 0, connectedDevice?.path == device.path else {
             throw USBCDCError.notConnected
         }
@@ -522,7 +540,8 @@ actor USBCDCService: USBCDCServiceProtocol {
             var offset = 0
             while offset < data.count {
                 guard let baseAddress = buffer.baseAddress else { return false }
-                let written = write(fileDescriptor, baseAddress.advanced(by: offset), data.count - offset)
+                let written = write(
+                    fileDescriptor, baseAddress.advanced(by: offset), data.count - offset)
                 if written < 0 {
                     if errno == EINTR { continue }
                     return false
@@ -568,7 +587,9 @@ actor USBCDCService: USBCDCServiceProtocol {
             // task can still run one or two loops after restart() flips
             // `stopped` back on, and two readers on the same fd would split
             // the byte stream and lose every line.
-            while !router.isStopped && !Task.isCancelled && router.currentReaderGeneration == generation {
+            while !router.isStopped && !Task.isCancelled
+                && router.currentReaderGeneration == generation
+            {
                 let result = poll(&pollFD, 1, 100)
                 if result < 0 {
                     if errno == EINTR { continue }
@@ -595,74 +616,78 @@ actor USBCDCService: USBCDCServiceProtocol {
             }
         }
     }
-    
+
     deinit {
         router.stop()
         readerTask?.cancel()
         if fileDescriptor >= 0 {
             close(fileDescriptor)
         }
-#if canImport(Darwin)
-        if addedIterator != 0 { IOObjectRelease(addedIterator) }
-        if removedIterator != 0 { IOObjectRelease(removedIterator) }
-        if let notificationPort { IONotificationPortDestroy(notificationPort) }
-#endif
+        #if canImport(Darwin)
+            if addedIterator != 0 { IOObjectRelease(addedIterator) }
+            if removedIterator != 0 { IOObjectRelease(removedIterator) }
+            if let notificationPort { IONotificationPortDestroy(notificationPort) }
+        #endif
     }
-    
+
     // MARK: - Device monitoring
-    
+
     private func startMonitoring() {
-#if canImport(Darwin)
-        guard !notificationsStarted else { return }
-        notificationsStarted = true
-        
-        guard let port = IONotificationPortCreate(kIOMainPortDefault) else { return }
-        notificationPort = port
-        IONotificationPortSetDispatchQueue(port, .global(qos: .utility))
-        
-        let refcon = Unmanaged.passUnretained(broadcaster).toOpaque()
-        for notification in [kIOFirstPublishNotification, kIOTerminatedNotification] {
-            guard let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) else { continue }
-            var iterator: io_iterator_t = 0
-            let status = IOServiceAddMatchingNotification(
-                port, notification, matching,
-                Self.deviceChangeCallback, refcon, &iterator
-            )
-            guard status == KERN_SUCCESS else { continue }
-            // Drain the initial batch; the iterator stays armed for future changes.
-            Self.drain(iterator)
-            if notification == kIOFirstPublishNotification {
-                addedIterator = iterator
-            } else {
-                removedIterator = iterator
+        #if canImport(Darwin)
+            guard !notificationsStarted else { return }
+            notificationsStarted = true
+
+            guard let port = IONotificationPortCreate(kIOMainPortDefault) else { return }
+            notificationPort = port
+            IONotificationPortSetDispatchQueue(port, .global(qos: .utility))
+
+            let refcon = Unmanaged.passUnretained(broadcaster).toOpaque()
+            for notification in [kIOFirstPublishNotification, kIOTerminatedNotification] {
+                guard let matching = IOServiceMatching(kIOSerialBSDServiceValue as String) else {
+                    continue
+                }
+                var iterator: io_iterator_t = 0
+                let status = IOServiceAddMatchingNotification(
+                    port, notification, matching,
+                    Self.deviceChangeCallback, refcon, &iterator
+                )
+                guard status == KERN_SUCCESS else { continue }
+                // Drain the initial batch; the iterator stays armed for future changes.
+                Self.drain(iterator)
+                if notification == kIOFirstPublishNotification {
+                    addedIterator = iterator
+                } else {
+                    removedIterator = iterator
+                }
+            }
+        #endif
+    }
+
+    #if canImport(Darwin)
+        private nonisolated static let deviceChangeCallback: IOServiceMatchingCallback = {
+            refcon, iterator in
+            USBCDCService.drain(iterator)
+            guard let refcon else { return }
+            Unmanaged<DeviceEventBroadcaster>.fromOpaque(refcon)
+                .takeUnretainedValue()
+                .broadcast()
+        }
+
+        private nonisolated static func drain(_ iterator: io_iterator_t) {
+            while case let service = IOIteratorNext(iterator), service != 0 {
+                IOObjectRelease(service)
             }
         }
-#endif
-    }
-    
-#if canImport(Darwin)
-    private nonisolated static let deviceChangeCallback: IOServiceMatchingCallback = { refcon, iterator in
-        USBCDCService.drain(iterator)
-        guard let refcon else { return }
-        Unmanaged<DeviceEventBroadcaster>.fromOpaque(refcon)
-            .takeUnretainedValue()
-            .broadcast()
-    }
-    
-    private nonisolated static func drain(_ iterator: io_iterator_t) {
-        while case let service = IOIteratorNext(iterator), service != 0 {
-            IOObjectRelease(service)
-        }
-    }
-#endif
-    
+    #endif
+
     // MARK: - Helpers
-    
+
     private func getCFStringProperty(_ service: io_object_t, key: String) -> String? {
-        let result = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)
+        let result = IORegistryEntryCreateCFProperty(
+            service, key as CFString, kCFAllocatorDefault, 0)
         return result?.takeRetainedValue() as? String
     }
-    
+
     private func getCFProperty<T>(_ service: io_object_t, key: CFString) -> T? {
         let result = IORegistryEntrySearchCFProperty(
             service,
@@ -673,7 +698,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         )
         return result as? T
     }
-    
+
     private func isValidSerialPath(_ path: String) -> Bool {
         let validPrefixes = ["/dev/cu.", "/dev/cu.serial", "/dev/cu.usb"]
         return validPrefixes.contains { path.hasPrefix($0) }

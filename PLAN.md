@@ -268,7 +268,9 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
     `swift format lint --recursive obs-status-macos-ui` (ajustar al formato vigente;
     si el toolchain del runner no trae `swift format`, usar la acción de descarga).
 - **Aceptación:** los jobs de CI fallan ante warnings nuevos.
-- [ ] Hecho (commit: `build: ...`)
+- [x] Hecho (commit: `build: ...`; config `.swift-format` (4 spaces) + formateo completo del
+  código (19 archivos, mecánico), `swift-format lint --strict` limpio en CI + gate
+  `SWIFT_TREAT_WARNINGS_AS_ERRORS=1`; build sin warnings, tests 47/47)
 
 ---
 
@@ -343,5 +345,5 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
-| 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ⬜ | 🚧 en curso |
+| 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ✅ | ✅ completado |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

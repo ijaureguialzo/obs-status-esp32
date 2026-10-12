@@ -124,13 +124,14 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
 
     func toggleRecordPause() async {
         guard isConnected, let webSocket else { return }
-        try? await sendJSON([
-            "op": 6,
-            "d": [
-                "requestType": "ToggleRecordPause",
-                "requestId": UUID().uuidString,
-            ],
-        ], to: webSocket)
+        try? await sendJSON(
+            [
+                "op": 6,
+                "d": [
+                    "requestType": "ToggleRecordPause",
+                    "requestId": UUID().uuidString,
+                ],
+            ], to: webSocket)
     }
 
     private func establishConnection() async throws {
@@ -153,8 +154,9 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         do {
             let greeting = try await receiveJSON(from: newWebSocket)
             guard greeting["op"] as? Int == 0,
-                  let data = greeting["d"] as? [String: Any],
-                  let rpcVersion = data["rpcVersion"] as? Int else {
+                let data = greeting["d"] as? [String: Any],
+                let rpcVersion = data["rpcVersion"] as? Int
+            else {
                 throw OBSWebSocketError.unexpectedMessage
             }
 
@@ -166,8 +168,9 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                 "eventSubscriptions": (1 << 6) | (1 << 2),
             ]
             if let authentication = data["authentication"] as? [String: Any],
-               let salt = authentication["salt"] as? String,
-               let challenge = authentication["challenge"] as? String {
+                let salt = authentication["salt"] as? String,
+                let challenge = authentication["challenge"] as? String
+            {
                 guard !connectionToken.isEmpty else {
                     throw OBSWebSocketError.authenticationFailed
                 }
@@ -188,20 +191,22 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
             isReconnecting = false
             setRecordingState(.unknown)
             setSceneName(nil)
-            try await sendJSON([
-                "op": 6,
-                "d": [
-                    "requestType": "GetRecordStatus",
-                    "requestId": UUID().uuidString,
-                ],
-            ], to: newWebSocket)
-            try await sendJSON([
-                "op": 6,
-                "d": [
-                    "requestType": "GetCurrentProgramScene",
-                    "requestId": UUID().uuidString,
-                ],
-            ], to: newWebSocket)
+            try await sendJSON(
+                [
+                    "op": 6,
+                    "d": [
+                        "requestType": "GetRecordStatus",
+                        "requestId": UUID().uuidString,
+                    ],
+                ], to: newWebSocket)
+            try await sendJSON(
+                [
+                    "op": 6,
+                    "d": [
+                        "requestType": "GetCurrentProgramScene",
+                        "requestId": UUID().uuidString,
+                    ],
+                ], to: newWebSocket)
         } catch {
             closeTransport()
             throw error
@@ -228,18 +233,19 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
     private func keepAliveCheck() async {
         guard isConnected, let webSocket else { return }
         let probeSent = Date()
-        try? await sendJSON([
-            "op": 6,
-            "d": [
-                "requestType": "GetVersion",
-                "requestId": UUID().uuidString,
-            ],
-        ], to: webSocket)
+        try? await sendJSON(
+            [
+                "op": 6,
+                "d": [
+                    "requestType": "GetVersion",
+                    "requestId": UUID().uuidString,
+                ],
+            ], to: webSocket)
 
         let deadline = Date().addingTimeInterval(15)
         while Date() < deadline {
             if let last = lastKeepAliveResponse, last > probeSent {
-                return // healthy
+                return  // healthy
             }
             guard isConnected else { return }
             try? await Task.sleep(for: .seconds(1))
@@ -263,39 +269,44 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
                     continue
                 }
                 if message["op"] as? Int == 7,
-                   let data = message["d"] as? [String: Any],
-                   data["requestType"] as? String == "GetRecordStatus",
-                   let responseData = data["responseData"] as? [String: Any],
-                   let active = responseData["outputActive"] as? Bool {
+                    let data = message["d"] as? [String: Any],
+                    data["requestType"] as? String == "GetRecordStatus",
+                    let responseData = data["responseData"] as? [String: Any],
+                    let active = responseData["outputActive"] as? Bool
+                {
                     let paused = responseData["outputPaused"] as? Bool ?? false
                     setRecordingState(active && !paused ? .recording : .notRecording)
                     continue
                 }
                 if message["op"] as? Int == 7,
-                   let data = message["d"] as? [String: Any],
-                   data["requestType"] as? String == "GetVersion" {
+                    let data = message["d"] as? [String: Any],
+                    data["requestType"] as? String == "GetVersion"
+                {
                     // Keep-alive probe: record the arrival, ignore the payload.
                     lastKeepAliveResponse = Date()
                     continue
                 }
                 if message["op"] as? Int == 7,
-                   let data = message["d"] as? [String: Any],
-                   data["requestType"] as? String == "GetCurrentProgramScene",
-                   let responseData = data["responseData"] as? [String: Any],
-                   let sceneName = responseData["currentProgramSceneName"] as? String {
+                    let data = message["d"] as? [String: Any],
+                    data["requestType"] as? String == "GetCurrentProgramScene",
+                    let responseData = data["responseData"] as? [String: Any],
+                    let sceneName = responseData["currentProgramSceneName"] as? String
+                {
                     setSceneName(sceneName)
                     continue
                 }
                 guard message["op"] as? Int == 5,
-                      let data = message["d"] as? [String: Any],
-                      let eventType = data["eventType"] as? String,
-                      let eventData = data["eventData"] as? [String: Any] else {
+                    let data = message["d"] as? [String: Any],
+                    let eventType = data["eventType"] as? String,
+                    let eventData = data["eventData"] as? [String: Any]
+                else {
                     continue
                 }
                 if eventType == "RecordStateChanged" {
                     setRecordingState(Self.recordingState(from: eventData))
                 } else if eventType == "CurrentProgramSceneChanged",
-                          let sceneName = eventData["sceneName"] as? String {
+                    let sceneName = eventData["sceneName"] as? String
+                {
                     setSceneName(sceneName)
                 }
             } catch {
@@ -322,7 +333,8 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         }
     }
 
-    private func receiveJSON(from webSocket: URLSessionWebSocketTask) async throws -> [String: Any] {
+    private func receiveJSON(from webSocket: URLSessionWebSocketTask) async throws -> [String: Any]
+    {
         let message = try await webSocket.receive()
         let data: Data
         switch message {
@@ -337,12 +349,14 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
             throw OBSWebSocketError.unexpectedMessage
         }
         if json["op"] as? Int == 9 {
-            throw OBSWebSocketError.requestFailed(String(localized: "OBS closed the WebSocket connection"))
+            throw OBSWebSocketError.requestFailed(
+                String(localized: "OBS closed the WebSocket connection"))
         }
         if json["op"] as? Int == 7,
-           let response = json["d"] as? [String: Any],
-           let responseData = response["responseData"] as? [String: Any],
-           let outputActive = responseData["outputActive"] as? Bool {
+            let response = json["d"] as? [String: Any],
+            let responseData = response["responseData"] as? [String: Any],
+            let outputActive = responseData["outputActive"] as? Bool
+        {
             let outputPaused = responseData["outputPaused"] as? Bool ?? false
             setRecordingState(outputActive && !outputPaused ? .recording : .notRecording)
         }
@@ -365,7 +379,8 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         }
     }
 
-    private func sendJSON(_ json: [String: Any], to webSocket: URLSessionWebSocketTask) async throws {
+    private func sendJSON(_ json: [String: Any], to webSocket: URLSessionWebSocketTask) async throws
+    {
         let data = try JSONSerialization.data(withJSONObject: json)
         guard let text = String(data: data, encoding: .utf8) else {
             throw OBSWebSocketError.unexpectedMessage
@@ -398,7 +413,8 @@ final class OBSWebSocketService: OBSWebSocketServiceProtocol {
         }
     }
 
-    private static func authentication(password: String, salt: String, challenge: String) -> String {
+    private static func authentication(password: String, salt: String, challenge: String) -> String
+    {
         let secret = Data(SHA256.hash(data: Data((password + salt).utf8))).base64EncodedString()
         return Data(SHA256.hash(data: Data((secret + challenge).utf8))).base64EncodedString()
     }
