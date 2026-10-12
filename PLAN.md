@@ -257,7 +257,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   4-byte en el decoder, 16 tests nuevos (28→44); `glyph_for`/`draw_glyph` quedan en el controller;
   los builds S3/C6 OK)
 
-### 3.5 ⬜ `build: gate de warnings (CI)`
+### 3.5 ✅ `build: gate de warnings (CI)`
 - **Pasos:**
   - `platformio.ini`: `-Werror` solo para el job de CI es inviable por env compartido;
     mejor: añadir a `ci.yml` un paso `pio run -d esp32-firmware -e <env> -e host-tests`
@@ -268,6 +268,8 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
     `swift format lint --recursive obs-status-macos-ui` (ajustar al formato vigente;
     si el toolchain del runner no trae `swift format`, usar la acción de descarga).
 - **Aceptación:** los jobs de CI fallan ante warnings nuevos.
+  (Firmware: el toolchain ESP-IDF ya compila con `-Werror`, así que no hace
+  falta el grep; la parte Swift sí añadida.)
 - [x] Hecho (commit: `build: ...`; config `.swift-format` (4 spaces) + formateo completo del
   código (19 archivos, mecánico), `swift-format lint --strict` limpio en CI + gate
   `SWIFT_TREAT_WARNINGS_AS_ERRORS=1`; build sin warnings, tests 47/47)
