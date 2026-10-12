@@ -39,8 +39,14 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(SidebarSection.allCases, selection: $selection) { section in
-                Label(section.title, systemImage: section.icon)
-                    .tag(section)
+                HStack {
+                    Label(section.title, systemImage: section.icon)
+                    Spacer()
+                    if let status = connectionStatus(for: section) {
+                        ConnectionStatusIcon(status: status)
+                    }
+                }
+                .tag(section)
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 240)
@@ -79,6 +85,21 @@ struct ContentView: View {
         }
     }
 
+    /// Connection state to show for a sidebar row, if that section tracks
+    /// a connection (the status glyph at the row's trailing edge).
+    private func connectionStatus(for section: SidebarSection) -> ConnectionStatus? {
+        switch section {
+        case .status:
+            return nil
+        case .obsConnection:
+            if viewModel.obsConnecting { return .connecting }
+            return viewModel.obsConnected ? .connected : .disconnected
+        case .esp32Device:
+            if viewModel.espConnecting { return .connecting }
+            return viewModel.espConnected ? .connected : .disconnected
+        }
+    }
+
     @ViewBuilder
     private var detailView: some View {
         switch selection ?? .status {
@@ -93,6 +114,52 @@ struct ContentView: View {
 }
 
 // MARK: - Supporting Views
+
+/// Connection lifecycle as reflected by the sidebar status glyphs. The
+/// symbols and colors mirror the connection status rows in the settings
+/// panels so both places tell the same story.
+private enum ConnectionStatus {
+    case connected
+    case connecting
+    case disconnected
+
+    var symbolName: String {
+        switch self {
+        case .connected: return "checkmark.circle.fill"
+        case .connecting: return "arrow.triangle.2.circlepath"
+        case .disconnected: return "xmark.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .connected: return .green
+        case .connecting: return .orange
+        case .disconnected: return .red
+        }
+    }
+
+    var accessibilityLabel: LocalizedStringKey {
+        switch self {
+        case .connected: return "Connected"
+        case .connecting: return "Connecting"
+        case .disconnected: return "Disconnected"
+        }
+    }
+}
+
+/// Small status glyph at the trailing edge of a sidebar row, so the
+/// connection state stays visible without opening the settings tab.
+private struct ConnectionStatusIcon: View {
+    let status: ConnectionStatus
+
+    var body: some View {
+        Image(systemName: status.symbolName)
+            .foregroundStyle(status.color)
+            .symbolEffect(.pulse, options: .repeating, isActive: status == .connecting)
+            .accessibilityLabel(status.accessibilityLabel)
+    }
+}
 
 private struct RecordingStateBadge: View {
     let state: RecordingState
