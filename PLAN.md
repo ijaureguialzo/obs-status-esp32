@@ -105,7 +105,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 
 ## FASE 2 (P1) — Rendimiento / Robustez
 
-### 2.1 ⬜ `perf(firmware): sdkconfig.defaults con optimización para producción`
+### 2.1 ✅ `perf(firmware): sdkconfig.defaults con optimización para producción`
 - **Objetivo:** hoy NO hay `sdkconfig.defaults`; el `sdkconfig` que PlatformIO genera por
   defecto trae `CONFIG_COMPILER_OPTIMIZATION_DEBUG` (`-O0`) → el firmware entero compila
   en modo debug. En la C6 (single-core, 160 MHz) el redraw con rotación en software de
@@ -124,7 +124,9 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
     para desarrollo en vivo.
 - **Aceptación:** el sdkconfig generado de CI/fresco trae SIZE; `pio run` OK en ambos envs;
   el binario resultante es visiblemente menor que el anterior.
-- [ ] Hecho (commit: `perf(firmware): ...`)
+- [x] Hecho (commit: `perf(firmware): ...`; S3: flash −24% / RAM −25%, C6: flash −24%; env `-debug`
+  con `sdkconfig.defaults.debug` vía pre-script (PIO 6.2 ignora `build_env`); además fix del vendor
+  AXS5106 `i2c_write` sin return que rompía el build `-Werror`)
 
 ### 2.2 ⬜ `fix(firmware): lock de aplicación para las escrituras USB`
 - **Objetivo:** `usb_cdc_send` (app task), `usb_cdc_send_nowait` (touch task) y `ESP_LOG`
@@ -329,6 +331,6 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | Fase | Tareas | Estado |
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
-| 2 (P1) | 2.1 – 2.5 | ⬜ pendiente |
+| 2 (P1) | 2.1 ✅ · 2.2, 2.3, 2.4, 2.5 ⬜ | 🚧 en curso |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

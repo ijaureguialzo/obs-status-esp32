@@ -1,0 +1,10 @@
+# Debug-flavored defaults for the esp32-c6-touch-lcd-1_47-debug environment
+# (selected via build_env: SDKCONFIG_DEFAULTS in platformio.ini).
+#
+# Keep the three base lines in sync with sdkconfig.defaults when it changes.
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# Live development: unoptimized, with assertions.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=
+CONFIG_COMPILER_OPTIMIZATION_DEBUG=y
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_ENABLE=y

@@ -1,0 +1,13 @@
+# Base defaults merged into every generated sdkconfig by PlatformIO's
+# ESP-IDF builder (replaces the toolchain default, which is -O0 debug).
+# Production builds optimize for size: the C6 is single-core and the
+# display redraw (software-rotated 110 KB frame) is the main CPU/flash cost.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+
+# Release firmware: keep the code lean; enable assertions again via a
+# per-environment sdkconfig override for live development builds.
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE=y
+
+# The USB console carries the protocol; keep logs at INFO so DEBUG-level
+# chatter (e.g. "Received command") stays out of the serial stream.
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

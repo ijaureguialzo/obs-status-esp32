@@ -229,13 +229,16 @@ static esp_err_t esp_lcd_touch_axs5106_del(esp_lcd_touch_handle_t tp)
 static esp_err_t touch_axs5106_i2c_write(esp_lcd_touch_handle_t tp, uint8_t reg, uint8_t *data, uint8_t len)
 {
     assert(tp != NULL);
-    // uint8_t buffer[len + 1];
-    // buffer[0] = reg;
-    // for (size_t i = 0; i < len; i++)
-    // {
-    //     buffer[i + 1] = data[i];
-    // }
-    // return i2c_master_transmit(g_dev_handle, &reg, 1, 100);
+    assert(data != NULL);
+    /* The vendor BSP left this body commented out (the AXS5106L needs no
+     * register writes for single-point polling), which fails -Werror=return
+     * type. Implement it like the read path so it is correct if it ever is
+     * called. */
+    esp_err_t ret = i2c_master_transmit(g_dev_handle, &reg, 1, 100);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    return i2c_master_transmit(g_dev_handle, data, len, 100);
 }
 
 static esp_err_t touch_axs5106_i2c_read(esp_lcd_touch_handle_t tp, uint8_t reg, uint8_t *data, uint8_t len)
