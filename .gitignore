@@ -66,3 +66,6 @@ esp32-firmware/dependencies.lock
 # guard: a file appearing here would be picked up by the synchronized group
 # and clash with Models/ObsStatusVersion.swift.
 /macos-app/obs-status-macos-ui/Generated/
+
+# SwiftPM build directories (any package location)
+.build/

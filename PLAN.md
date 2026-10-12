@@ -7,10 +7,13 @@
 > verificación y su commit.
 
 **Fecha del análisis:** 2026-10-12
-**Estado verificado en el momento del análisis:**
-- `swift build --package-path macos-app` → OK, con 1 warning (`Models/ObsStatusVersion.swift` unhandled)
-- `swift test --package-path macos-app` → 16/16 tests OK
-- `pio test -d esp32-firmware -e host-tests` → 26/26 tests OK
+**Estado del plan:** ✅ completado el 2026-10-12 (Fases 1–3 hechas; Fase 4: 4.1–4.4 hechas,
+4.5 cerrada por decisión documentada, 4.6 propuesta pendiente de confirmación).
+**Estado verificado al finalizar:**
+- `swift build --package-path macos-app` → OK, sin warnings (gate `SWIFT_TREAT_WARNINGS_AS_ERRORS` en CI)
+- `swift test --package-path macos-app` → 47/47 tests OK
+- `pio test -d esp32-firmware -e host-tests` → 44/44 tests OK
+- `pio run` S3/C6 OK (firmware −24% de flash con la optimización de 2.1)
 
 ## Componentes
 
@@ -314,18 +317,31 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - [x] Hecho (commit: `chore(macos): ...`; el fallback SwiftPM reutiliza el bundle ID del app →
   Keychain y settings compartidos entre `swift run` y el .app; tests OK)
 
-### 4.5 ⬜ `perf(firmware): micro-optimización de la rotación de frame`
+### 4.5 ⏭️ `perf(firmware): micro-optimización de la rotación de frame` — no realizado (decisión)
 - `redraw_locked()`: precomputar la permutación `out_idx -> in_idx` (tablas estáticas de
   320×172 por orientación) en init, para que el loop de composición sea un solo lookup
   en vez de aritmética/ternarios por píxel.
-- **Aceptación:** `pio run` C6 OK; (si es medible) menor tiempo de redraw.
-- [ ] Hecho
+- **Decisión:** no se implementa. Cada tabla son 55.040 índices `uint16_t` = 110 KB de RAM
+  estática (220 KB las dos); en la C6 (520 KB SRAM, single-core) gastar ~110 KB para
+  ahorrar ~0.1 ms por redraw (ciclo ≥30 ms) es un mal trueque, especialmente justo tras
+  la tarea 2.1, que redujo la RAM estática. El loop actual (un ternario y dos
+  multiplicaciones por píxel, ~0.2 ms en total) es aceptable.
+- [x] Cerrada sin cambio (decisión documentada)
 
-### 4.6 ⬜ `build: release automation (opcional)`
+### 4.6 ⏸️ `build: release automation (opcional)` — propuesto, pendiente de confirmación
 - Workflow de release: tag → artefactos (firmware `.bin` de ambos envs + `.app` ad-hoc)
   + `version.txt` como source de verdad del tag.
-- **Aceptación:** un tag produce un release con binarios.
-- [ ] Hecho
+- **Propuesta concreta** (no implementada; requiere confirmación del usuario):
+  `.github/workflows/release.yml`: `on: push: tags: ['v*']`; jobs:
+  1. `firmware`: `pio run` de `esp32-s3-dev-kit-n8r8` y `esp32-c6-touch-lcd-1_47`
+     (+ `pio ci` o copia de `build/<env>/fw_*.bin` con el nombre del tag); sube los
+     `.bin` como artefactos.
+  2. `app` (macos-latest): `xcodebuild -configuration Release` con
+     `CODE_SIGNING_ALLOWED=NO` (ad-hoc); sube `OBS Status.app.zip`.
+  3. `release`: `softprops/action-gh-release@v2` con los artefactos; la versión del
+     release = contenido de `version.txt`.
+- **Aceptación (si se confirma):** un tag produce un release con binarios.
+- [ ] Hecho (pendiente de confirmación del usuario)
 
 ---
 
@@ -350,4 +366,4 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
 | 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ✅ | ✅ completado |
-| 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 ✅ · 4.4 ✅ · 4.5, 4.6 ⬜ | 🚧 en curso |
+| 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 ✅ · 4.4 ✅ · 4.5 ⏭️ (decisión) · 4.6 ⏸️ (propuesta) | ✅ completado |
