@@ -86,15 +86,16 @@ Requests the current status from the ESP32.
 STATUS\n
 ```
 
-**Response**: `STATUS:LED=<state>|USB=<usbState>|ERROR=<errorCode>|FW=<version>\n`
+**Response**: `STATUS:LED=<state>|USB=<usbState>|ERROR=<errorCode>|FW=<version>|AUTH=<0|1>\n`
 
 Where:
 - `LED`: `ON` / `OFF`
 - `USB`: `CONNECTED` / `DISCONNECTED` (USB host connection state; the ESP32 has no knowledge of OBS)
 - `errorCode`: `0` (none) or error code integer
 - `version`: firmware version (useful for diagnosing protocol mismatches)
+- `AUTH`: `1` when the firmware understands the `AUTH` command (all current builds do); hosts use it to decide whether to offer secret authentication
 
-**Example**: `STATUS:LED=ON|USB=CONNECTED|ERROR=0|FW=1.0.0\n`
+**Example**: `STATUS:LED=ON|USB=CONNECTED|ERROR=0|FW=1.0.0|AUTH=1\n`
 
 ### 3.6 Command: `SCENE:<name>`
 
@@ -116,7 +117,28 @@ accepted (and ignored) so that a single macOS build works with every board.
 **Use case**: the macOS app sends this command whenever OBS reports a
 `CurrentProgramSceneChanged` event or when the ESP32 (re)connects.
 
-## 3.7 Events (ESP32 → macOS)
+## 3.7 Command: `AUTH:<secret>`
+
+Authenticates the host against the device. Each firmware build generates a
+random 16-byte secret (32 lowercase hex chars) on first boot and persists it
+in NVS. The user reads the secret once (boot log / boot screen) and enters
+it in the app.
+
+```
+AUTH:<secret>\n
+```
+
+- Comparison is case-insensitive and constant-time.
+- **Response**: `OK\n` when the secret matches, `ERROR: AUTH_FAILED\n`
+  otherwise. Legacy firmware that predates this command answers
+  `ERROR: UNKNOWN_COMMAND\n`, which hosts treat as "authentication not
+  supported" (manual trust still available).
+- A successful `AUTH` is how the host earns *trust* in the device: only a
+  trusted device's unsolicited `EVENT:*` lines may drive OBS. The secret is
+  the strong gate; a manual one-time confirmation remains as a fallback for
+  legacy firmware.
+
+## 3.8 Events (ESP32 → macOS)
 
 Events are unsolicited lines sent by the ESP32 at any time, interleaved with
 command responses. Every event line starts with the `EVENT:` prefix so the
@@ -130,7 +152,9 @@ EVENT:TOGGLE_PAUSE\n
 
 Sent when the user taps the touch screen of a board with a display. The macOS
 app reacts by invoking the OBS `ToggleRecordPause` request, which pauses or
-resumes the active recording.
+resumes the active recording. The app only honors events from devices the
+user trusted (via `AUTH` or manual confirmation), so a look-alike USB
+device cannot toggle the recording by itself.
 
 Boards without a touch screen never emit events.
 
@@ -141,6 +165,7 @@ Format: `ERROR: <description>\n`
 Examples:
 - `ERROR: UNKNOWN_COMMAND\n` – Command not recognized
 - `ERROR: INVALID_FORMAT\n` – Malformed command
+- `ERROR: AUTH_FAILED\n` – The AUTH secret does not match the device secret
 - `ERROR: BAD_CHECKSUM\n` – (Future: CRC verification failure)
 
 ## 5. State Machine

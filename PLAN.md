@@ -87,7 +87,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - [x] Hecho (commit: `fix(macos): ...`; `USBDevice.trustID` = serial o path, `AppSettings.trustedESPDevices`
   persistido, botón "Trust this device" en panel y barra de menú, 4 tests de regresión)
 
-### 1.4 ⬜ (opcional, extender 1.3) `fix: autenticación real con secreto del dispositivo`
+### 1.4 ✅ `fix: autenticación real con secreto del dispositivo`
 - **Objetivo:** defensa fuerte contra un clon que implemente todo el protocolo.
 - **Diseño:**
   - Firmware: secreto aleatorio persistido en NVS (generado en el primer boot);
@@ -97,7 +97,9 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   - Actualizar `protocol/obs_protocol.h` + `ObsProtocol.swift` + `PROTOCOL_SPEC.md`
     (el check de sync de CI lo cubre).
 - **Nota:** es la versión fuerte; 1.3 ya mitiga el vector práctico. Valorar si se hace ahora.
-- [ ] Hecho (commit: `feat(protocol): ...`)
+- [x] Hecho (commit: `feat(protocol): ...`; `AUTH:<secret>` con secreto NVS aleatorio (32 hex, primero boot),
+  `|AUTH=1` en STATUS, secreto en pantalla de arranque y log, app guarda el secreto en Keychain por
+  trustID, `authenticateDevice()` + replay automático al reconectar, firmware legacy → confianza manual)
 
 ---
 
@@ -326,7 +328,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 
 | Fase | Tareas | Estado |
 |---|---|---|
-| 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 (opt) ⬜ | 🚧 en curso |
+| 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 – 2.5 | ⬜ pendiente |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

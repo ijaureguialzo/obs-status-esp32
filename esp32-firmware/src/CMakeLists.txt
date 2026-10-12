@@ -10,12 +10,14 @@ idf_component_register(
         protocol/protocol_parser.c
         protocol/protocol_message.c
         protocol/protocol_line_buffer.c
+        device_auth.c
     INCLUDE_DIRS
         ../include
         ../../protocol
     REQUIRES
         driver
         nvs_flash
+        esp_common
         esp_rom
         esp_lcd
         esp_driver_rmt

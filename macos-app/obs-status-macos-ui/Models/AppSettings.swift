@@ -17,6 +17,7 @@ private enum Key {
     static let trustedESPDevicesKey = "trustedESPDevices"
     static let autoConnectKey = "autoConnect"
     static let tokenAccount = "obs-websocket-token"
+    static let espSecretAccountPrefix = "esp-device-secret:"
 }
 
 @MainActor
@@ -179,11 +180,11 @@ final class AppSettings {
         }
     }
 
-    private func loadToken() throws -> String? {
+    private func keychainLoad(account: String) throws -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Key.bundleID,
-            kSecAttrAccount as String: Key.tokenAccount,
+            kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
@@ -191,19 +192,19 @@ final class AppSettings {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess, let data = result as? Data,
-              let token = String(data: data, encoding: .utf8) else {
+              let value = String(data: data, encoding: .utf8) else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
         }
-        return token
+        return value
     }
 
-    private func saveToken(_ token: String) throws {
+    private func keychainSave(_ value: String, account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Key.bundleID,
-            kSecAttrAccount as String: Key.tokenAccount,
+            kSecAttrAccount as String: account,
         ]
-        guard !token.isEmpty else {
+        guard !value.isEmpty else {
             let status = SecItemDelete(query as CFDictionary)
             guard status == errSecSuccess || status == errSecItemNotFound else {
                 throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
@@ -211,7 +212,7 @@ final class AppSettings {
             return
         }
 
-        let attributes: [String: Any] = [kSecValueData as String: Data(token.utf8)]
+        let attributes: [String: Any] = [kSecValueData as String: Data(value.utf8)]
         let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {
             var insertQuery = query
@@ -222,6 +223,34 @@ final class AppSettings {
             }
         } else if status != errSecSuccess {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+    }
+
+    private func loadToken() throws -> String? {
+        try keychainLoad(account: Key.tokenAccount)
+    }
+
+    private func saveToken(_ token: String) throws {
+        try keychainSave(token, account: Key.tokenAccount)
+    }
+
+    /// The ESP32 device secret for a trusted device, if the user stored one
+    /// (shown by the board on first pairing, entered in the app, kept here
+    /// like the OBS token). Keyed by the device trust ID.
+    func deviceSecret(for trustID: String) -> String? {
+        do {
+            return try keychainLoad(account: Key.espSecretAccountPrefix + trustID)
+        } catch {
+            logger.error("Unable to load device secret from Keychain: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    func setDeviceSecret(_ secret: String, for trustID: String) {
+        do {
+            try keychainSave(secret, account: Key.espSecretAccountPrefix + trustID)
+        } catch {
+            logger.error("Unable to save device secret to Keychain: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

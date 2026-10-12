@@ -8,6 +8,7 @@ import SwiftUI
 
 struct ESP32ConnectionView: View {
     @Environment(AppViewModel.self) private var viewModel
+    @State private var deviceSecret: String = ""
     
     var body: some View {
         Form {
@@ -65,10 +66,21 @@ struct ESP32ConnectionView: View {
                           systemImage: "exclamationmark.shield.fill")
                         .foregroundColor(.orange)
                         .font(.caption)
-                    Button(String(localized: "Trust this device")) {
+                    if viewModel.espAuthSupported {
+                        SecureField(String(localized: "Device secret"), text: $deviceSecret)
+                        Button(String(localized: "Authenticate")) {
+                            Task {
+                                await viewModel.authenticateDevice(secret: deviceSecret)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    Button(viewModel.espAuthSupported
+                           ? String(localized: "Trust without authentication")
+                           : String(localized: "Trust this device")) {
                         viewModel.trustDevice()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                 } else if viewModel.espConnected, viewModel.espDeviceTrusted {
                     Label(String(localized: "Device trusted"),
                           systemImage: "checkmark.shield.fill")

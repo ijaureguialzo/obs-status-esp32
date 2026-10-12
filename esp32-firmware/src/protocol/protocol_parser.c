@@ -8,6 +8,7 @@
 #include "led_controller.h"
 #include "display_controller.h"
 #include "protocol_message.h"
+#include "device_auth.h"
 #include "obs_protocol.h"
 #include <stdio.h>
 #include <string.h>
@@ -86,11 +87,19 @@ esp_err_t protocol_process(const char *line)
 
             snprintf(s_response_buffer, RESPONSE_BUFFER_SIZE,
                      PROTOCOL_STATUS_FORMAT PROTOCOL_LINE_END, led_state, usb_state, 0,
-                     FIRMWARE_VERSION);
+                     FIRMWARE_VERSION, 1);
 
             usb_cdc_send((const uint8_t *)s_response_buffer, strlen(s_response_buffer));
             return ESP_OK;
         }
+
+        case PROTOCOL_MSG_AUTH:
+            if (device_auth_check(message.secret)) {
+                send_response(PROTOCOL_TXT_OK);
+            } else {
+                send_response(PROTOCOL_TXT_ERROR_AUTH);
+            }
+            return ESP_OK;
 
         case PROTOCOL_MSG_SCENE:
             display_set_scene(message.scene);

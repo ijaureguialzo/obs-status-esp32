@@ -88,13 +88,17 @@ esp32-firmware/
 │   ├── touch/
 │   │   └── touch_controller.c   # AXS5106L touch input (display boards only)
 │   └── protocol/
-│       └── protocol_parser.c    # Command parsing & dispatch
+│       ├── protocol_parser.c    # Command parsing & dispatch
+│       └── protocol_message.c   # Pure command-line parsing
+│   └── device_auth.c            # Per-device shared secret (NVS)
 ├── include/
 │   ├── usb_cdc.h
 │   ├── led_controller.h
 │   ├── display_controller.h
 │   ├── touch_controller.h
-│   └── protocol_parser.h
+│   ├── protocol_parser.h
+│   ├── protocol_message.h
+│   └── device_auth.h
 ├── components/
 │   ├── esp_lcd_jd9853/          # Vendored Waveshare LCD panel driver
 │   └── esp_lcd_touch_axs5106/   # Vendored Waveshare touch driver
@@ -154,6 +158,14 @@ esp_err_t protocol_process(const char *line);
 void protocol_notify_toggle_pause(void);
 ```
 
+#### `device_auth.c/h` – Per-Device Secret
+- Keeps a random 16-byte secret (32 hex chars) in NVS, generated on first
+  boot and immutable afterwards
+- Answers the `AUTH:<secret>` command (case-insensitive, constant-time
+  compare) with `OK` / `ERROR: AUTH_FAILED`
+- Exposes the secret for the boot log / boot screen so the user can enter
+  it in the app on first pairing
+
 #### `display_controller.c/h` – Display Control Layer (display boards only)
 - Initialize the JD9853 LCD panel (SPI) and LEDC backlight
 - Fill the background with the current LED/recording color
@@ -201,9 +213,10 @@ esp_err_t touch_init(void);
 
 ```
 1. Initialize NVS (if needed for config)
-2. Initialize USB CDC
-3. Initialize LED (default: BLINK_SLOW)
-4. Enter main loop:
+2. Load or generate the device auth secret (NVS)
+3. Initialize USB CDC
+4. Initialize LED (default: BLINK_SLOW)
+5. Enter main loop:
    a. Read from USB CDC (blocking, 100ms timeout)
    b. If data received:
       - Buffer into line buffer
@@ -211,6 +224,9 @@ esp_err_t touch_init(void);
       - Send response
    c. If no data for 10 seconds → BLINK_SLOW (timeout)
 ```
+
+The `AUTH` command is dispatched by the protocol parser against the secret
+kept by `device_auth.c` (see the protocol spec, section 3.7).
 
 ## 5. State Machine (ESP32 Side)
 

@@ -25,6 +25,7 @@ protocol_message_result_t protocol_message_parse(const char *line, protocol_mess
     out->blue = 0;
     out->has_color = false;
     out->scene = NULL;
+    out->secret = NULL;
 
     if (strcmp(line, PROTOCOL_TXT_LED_ON) == 0) {
         out->type = PROTOCOL_MSG_LED_ON;
@@ -75,6 +76,16 @@ protocol_message_result_t protocol_message_parse(const char *line, protocol_mess
     if (strncmp(line, PROTOCOL_TXT_SCENE_PREFIX, strlen(PROTOCOL_TXT_SCENE_PREFIX)) == 0) {
         out->type = PROTOCOL_MSG_SCENE;
         out->scene = line + strlen(PROTOCOL_TXT_SCENE_PREFIX);
+        return PROTOCOL_MSG_OK;
+    }
+
+    if (strncmp(line, PROTOCOL_TXT_AUTH_PREFIX, strlen(PROTOCOL_TXT_AUTH_PREFIX)) == 0) {
+        const char *arguments = line + strlen(PROTOCOL_TXT_AUTH_PREFIX);
+        if (arguments[0] == '\0') {
+            return PROTOCOL_MSG_INVALID_FORMAT;
+        }
+        out->type = PROTOCOL_MSG_AUTH;
+        out->secret = arguments;
         return PROTOCOL_MSG_OK;
     }
 

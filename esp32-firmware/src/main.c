@@ -18,6 +18,7 @@
 #include "touch_controller.h"
 #include "protocol_parser.h"
 #include "protocol_line_buffer.h"
+#include "device_auth.h"
 #include "obs_protocol.h"
 
 static const char *TAG = "obs-status";
@@ -52,7 +53,15 @@ static void app_task(void *pv_parameters)
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_TYPE_MISMATCH) {
         ESP_LOGW(TAG, "NVS partition issue, erasing and retrying");
         nvs_flash_erase();
-        nvs_flash_init();
+        ret = nvs_flash_init();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to initialize NVS: %s", esp_err_to_name(ret));
+        }
+    }
+
+    ESP_LOGI(TAG, "Loading device auth secret");
+    if (device_auth_init() != ESP_OK) {
+        ESP_LOGW(TAG, "Device auth unavailable; AUTH commands will fail");
     }
 
     ESP_LOGI(TAG, "Initializing USB Serial JTAG");

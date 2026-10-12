@@ -1112,6 +1112,118 @@
           }
         }
       }
+    },
+    "Device secret": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secreto del dispositivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailuaren sekretua"
+          }
+        }
+      }
+    },
+    "Authenticate": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autenticar"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autentikatzen"
+          }
+        }
+      }
+    },
+    "Trust without authentication": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar sin autenticación"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konfidantzatu autentikaziorik gabe"
+          }
+        }
+      }
+    },
+    "The device rejected the secret": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El dispositivo rechazó el secreto"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailuak sekretua errefusatu du"
+          }
+        }
+      }
+    },
+    "This device does not support authentication": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este dispositivo no admite autenticación"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailu honek ez du autentikazioa onartzen"
+          }
+        }
+      }
+    },
+    "The device rejected the stored secret": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El dispositivo rechazó el secreto guardado"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailuak gordetako sekretua errefusatu du"
+          }
+        }
+      }
+    },
+    "Enter the device secret first": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introduce primero el secreto del dispositivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sartu lehenik gailuaren sekretua"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -36,6 +36,7 @@
 #include "font8x8_basic.h"
 #include "font8x8_ext_latin.h"
 #include "firmware_version.h"
+#include "device_auth.h"
 #include "imu_qmi8658.h"
 
 static const char *TAG = "display";
@@ -502,11 +503,12 @@ esp_err_t display_init(void)
     ESP_LOGI(TAG, "Display initialized (%dx%d)", LCD_H_RES, LCD_V_RES);
     display_set_background(0, 0, 0);
 
-    /* Boot screen: title and version, centered. It is replaced by the first
-     * background/scene pushed by the host (an empty scene blanks it). */
-    char boot[64];
-    snprintf(boot, sizeof(boot), "OBS Status\n\nv%s (%s)",
-             FIRMWARE_VERSION, FIRMWARE_BUILD);
+    /* Boot screen: title, version and the auth secret (the out-of-band way
+     * the user enters it in the app on first pairing). It is replaced by the
+     * first background/scene pushed by the host (an empty scene blanks it). */
+    char boot[128];
+    snprintf(boot, sizeof(boot), "OBS Status\n\nv%s (%s)\n\nAUTH: %s",
+             FIRMWARE_VERSION, FIRMWARE_BUILD, device_auth_secret());
     display_set_scene(boot);
     return ESP_OK;
 }

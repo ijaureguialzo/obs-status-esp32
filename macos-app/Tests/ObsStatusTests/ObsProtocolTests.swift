@@ -41,6 +41,17 @@ final class ObsCommandTests: XCTestCase {
     func testSceneCommandKeepsUTF8() {
         XCTAssertEqual(ObsCommand.scene(name: "Escena 日本語"), "SCENE:Escena 日本語\n")
     }
+
+    func testAuthCommand() {
+        XCTAssertEqual(ObsCommand.auth(secret: "abcd1234ef56abcd1234ef56abcd1234"),
+                       "AUTH:abcd1234ef56abcd1234ef56abcd1234\n")
+    }
+
+    func testAuthResponses() {
+        XCTAssertEqual(ObsResponse.errorAuth, "ERROR: AUTH_FAILED")
+        XCTAssertTrue(ObsResponse.isErrorResponse(ObsResponse.errorAuth))
+        XCTAssertFalse(ObsResponse.isErrorResponse(ObsResponse.ok))
+    }
 }
 
 final class ObsEventTests: XCTestCase {

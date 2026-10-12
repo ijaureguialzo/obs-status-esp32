@@ -27,6 +27,9 @@ final class AppViewModel {
     /// trusted devices may drive OBS from unsolicited events (touch tap), so
     /// a look-alike USB device cannot pause/resume the recording on its own.
     var espDeviceTrusted: Bool = false
+    /// Whether the connected firmware understands the AUTH command (advises
+    /// the UI whether to offer secret authentication or only manual trust).
+    var espAuthSupported: Bool = false
     /// Advisory for the ESP32 panel (e.g. a connected but untrusted device).
     var espWarning: String?
     /// Bumped on every connect/disconnect so in-flight commands from a
@@ -162,6 +165,7 @@ final class AppViewModel {
             await sendLEDCommand(obsService.recordingState)
             await sendSceneCommand(obsService.currentSceneName)
             refreshDeviceTrust()
+            await authenticateOnConnect()
 
             // Start periodic status polling
             startStatusPolling()
@@ -179,6 +183,7 @@ final class AppViewModel {
         espConnected = false
         espConnecting = false
         espDeviceTrusted = false
+        espAuthSupported = false
         espWarning = nil
         espSession &+= 1
         stopStatusPolling()
@@ -198,12 +203,61 @@ final class AppViewModel {
     }
 
     /// Grants trust to the connected device (persisted by serial number or
-    /// path) so its unsolicited events may drive OBS again.
+    /// path) so its unsolicited events may drive OBS again. This is the
+    /// manual fallback for firmware without AUTH support.
     func trustDevice() {
         guard espConnected, let device = selectedDevice else { return }
         settings.trustESPDevice(device)
         espDeviceTrusted = true
         espWarning = nil
+    }
+
+    /// Authenticates with the device secret entered by the user (shown by the
+    /// board on first pairing). A successful AUTH both grants and persists
+    /// trust; the secret is kept in the Keychain like the OBS token.
+    func authenticateDevice(secret: String) async {
+        guard espConnected, let device = selectedDevice else { return }
+        let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            espWarning = String(localized: "Enter the device secret first")
+            return
+        }
+        do {
+            let response = try await usbService.sendCommand(ObsCommand.auth(secret: trimmed), to: device)
+            if response == ObsResponse.ok {
+                settings.setDeviceSecret(trimmed, for: device.trustID)
+                espError = nil
+            } else if response == ObsResponse.errorAuth {
+                espError = String(localized: "The device rejected the secret")
+            } else if ObsResponse.isErrorResponse(response) {
+                espError = String(localized: "This device does not support authentication")
+            }
+        } catch {
+            espError = error.localizedDescription
+        }
+        refreshDeviceTrust()
+    }
+
+    /// After (re)connecting, replay a stored secret if one exists so the user
+    /// is not asked to re-enter it. Legacy firmware answers
+    /// `ERROR: UNKNOWN_COMMAND`; the device then stays untrusted and the
+    /// manual trust prompt from the view model applies.
+    private func authenticateOnConnect() async {
+        guard espConnected, let device = selectedDevice, !espDeviceTrusted,
+              let stored = settings.deviceSecret(for: device.trustID) else { return }
+        do {
+            let response = try await usbService.sendCommand(ObsCommand.auth(secret: stored), to: device)
+            if response == ObsResponse.ok {
+                settings.trustESPDevice(device)
+            } else if response == ObsResponse.errorAuth {
+                espWarning = String(localized: "The device rejected the stored secret")
+            }
+            // Legacy firmware (ERROR: UNKNOWN_COMMAND) keeps the generic
+            // "untrusted" advisory: the manual trust prompt still applies.
+        } catch {
+            // Transient: the manual trust prompt remains available.
+        }
+        refreshDeviceTrust()
     }
     
     // MARK: - LED Control
@@ -270,6 +324,10 @@ final class AppViewModel {
                 lastESPResponse = response
                 espLastSeen = Date()
                 errorMessage = nil
+                if response.hasPrefix(ObsResponse.statusPrefix),
+                   response.contains(ObsResponse.statusAuthSupported) {
+                    espAuthSupported = true
+                }
                 if ObsProtocolUtil.isErrorResponse(response) {
                     espError = response
                 } else {
@@ -391,6 +449,7 @@ final class AppViewModel {
                         await sendLEDCommand(obsService.recordingState)
                         await sendSceneCommand(obsService.currentSceneName)
                         refreshDeviceTrust()
+                        await authenticateOnConnect()
                     } catch {
                         espConnecting = false
                         espError = error.localizedDescription

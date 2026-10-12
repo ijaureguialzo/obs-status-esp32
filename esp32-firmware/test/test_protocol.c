@@ -119,6 +119,18 @@ void test_empty_scene_clears_the_display(void)
     TEST_ASSERT_EQUAL_STRING("", msg.scene);
 }
 
+void test_auth_with_secret(void)
+{
+    TEST_ASSERT_EQUAL(PROTOCOL_MSG_OK, protocol_message_parse("AUTH:abcd1234ef56", &msg));
+    TEST_ASSERT_EQUAL(PROTOCOL_MSG_AUTH, msg.type);
+    TEST_ASSERT_EQUAL_STRING("abcd1234ef56", msg.secret);
+}
+
+void test_auth_empty_is_invalid(void)
+{
+    TEST_ASSERT_EQUAL(PROTOCOL_MSG_INVALID_FORMAT, protocol_message_parse("AUTH:", &msg));
+}
+
 void test_unknown_command(void)
 {
     TEST_ASSERT_EQUAL(PROTOCOL_MSG_UNKNOWN_COMMAND, protocol_message_parse("GARBAGE", &msg));
@@ -274,6 +286,8 @@ int main(void)
     RUN_TEST(test_scene);
     RUN_TEST(test_scene_with_spaces_and_utf8);
     RUN_TEST(test_empty_scene_clears_the_display);
+    RUN_TEST(test_auth_with_secret);
+    RUN_TEST(test_auth_empty_is_invalid);
     RUN_TEST(test_unknown_command);
     RUN_TEST(test_commands_are_case_sensitive);
     RUN_TEST(test_empty_line_is_unknown);

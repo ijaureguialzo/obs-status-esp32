@@ -23,6 +23,7 @@ typedef enum {
     PROTOCOL_MSG_BLINK_SLOW,
     PROTOCOL_MSG_STATUS,
     PROTOCOL_MSG_SCENE,
+    PROTOCOL_MSG_AUTH,
 } protocol_message_type_t;
 
 typedef struct {
@@ -32,6 +33,7 @@ typedef struct {
     uint8_t blue;
     bool has_color;    /* "LED_ON:r,g,b" -> true; bare "LED_ON" -> false */
     const char *scene; /* PROTOCOL_MSG_SCENE: points into the input line */
+    const char *secret; /* PROTOCOL_MSG_AUTH: points into the input line */
 } protocol_message_t;
 
 typedef enum {

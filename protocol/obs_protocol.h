@@ -30,6 +30,7 @@
 #define PROTOCOL_TXT_BLINK_SLOW  "BLINK_SLOW"
 #define PROTOCOL_TXT_STATUS      "STATUS"
 #define PROTOCOL_TXT_SCENE_PREFIX "SCENE:"
+#define PROTOCOL_TXT_AUTH_PREFIX "AUTH:"
 
 // ==========================
 // Event Strings (ESP32 -> macOS, unsolicited)
@@ -44,6 +45,7 @@
 #define PROTOCOL_TXT_OK          "OK"
 #define PROTOCOL_TXT_ERROR_UNKNOWN "ERROR: UNKNOWN_COMMAND"
 #define PROTOCOL_TXT_ERROR_FORMAT  "ERROR: INVALID_FORMAT"
+#define PROTOCOL_TXT_ERROR_AUTH    "ERROR: AUTH_FAILED"
 
 // ==========================
 // Configuration Defaults
@@ -58,8 +60,10 @@
 // Status Response Format
 // ==========================
 
-// Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>|FW=<version>"
-#define PROTOCOL_STATUS_FORMAT "STATUS:LED=%s|USB=%s|ERROR=%d|FW=%s"
+// Format: "STATUS:LED=<state>|USB=<state>|ERROR=<code>|FW=<version>|AUTH=<0|1>"
+// AUTH=1 advertises that the firmware understands the AUTH:<secret>
+// command (every build of current firmware does).
+#define PROTOCOL_STATUS_FORMAT "STATUS:LED=%s|USB=%s|ERROR=%d|FW=%s|AUTH=%d"
 
 // ==========================
 // Firmware Version

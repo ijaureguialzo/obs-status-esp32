@@ -67,6 +67,12 @@ enum ObsCommand: String, CaseIterable {
             .replacingOccurrences(of: "\r", with: " ")
         return "SCENE:\(sanitized)\n"
     }
+
+    /// Proves the host knows the device's shared secret (shown by the board
+    /// on first pairing). The device answers `OK` or `ERROR: AUTH_FAILED`.
+    static func auth(secret: String) -> String {
+        "AUTH:\(secret)\n"
+    }
 }
 
 /// Unsolicited events sent from the ESP32 to the macOS app.
@@ -94,7 +100,11 @@ enum ObsResponse {
     static let errorPrefix = "ERROR:"
     static let errorUnknown = "ERROR: UNKNOWN_COMMAND"
     static let errorInvalidFormat = "ERROR: INVALID_FORMAT"
+    static let errorAuth = "ERROR: AUTH_FAILED"
     static let statusPrefix = "STATUS:"
+    /// The `|AUTH=1` suffix advertised by current firmware in the STATUS
+    /// response: the device understands the AUTH command.
+    static let statusAuthSupported = "|AUTH=1"
 
     /// Whether a line read from the serial port is a command response
     /// (anything else is firmware log output and gets dropped).
