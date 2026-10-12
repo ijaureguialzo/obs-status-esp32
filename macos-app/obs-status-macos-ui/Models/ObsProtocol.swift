@@ -136,11 +136,3 @@ enum ObsResponse {
         response.hasPrefix(errorPrefix)
     }
 }
-
-/// Utility functions for protocol handling
-enum ObsProtocolUtil {
-    /// Check if a response indicates an error
-    static func isErrorResponse(_ response: String) -> Bool {
-        ObsResponse.isErrorResponse(response)
-    }
-}

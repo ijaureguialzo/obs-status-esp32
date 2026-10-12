@@ -124,11 +124,11 @@ final class LEDColorTests: XCTestCase {
     }
 }
 
-final class ObsProtocolUtilTests: XCTestCase {
+final class ObsResponseErrorTests: XCTestCase {
     func testErrorDetection() {
-        XCTAssertTrue(ObsProtocolUtil.isErrorResponse("ERROR: UNKNOWN_COMMAND"))
-        XCTAssertTrue(ObsProtocolUtil.isErrorResponse("ERROR: INVALID_FORMAT"))
-        XCTAssertFalse(ObsProtocolUtil.isErrorResponse("OK"))
-        XCTAssertFalse(ObsProtocolUtil.isErrorResponse("STATUS:LED=ON|USB=CONNECTED|ERROR=0"))
+        XCTAssertTrue(ObsResponse.isErrorResponse("ERROR: UNKNOWN_COMMAND"))
+        XCTAssertTrue(ObsResponse.isErrorResponse("ERROR: INVALID_FORMAT"))
+        XCTAssertFalse(ObsResponse.isErrorResponse("OK"))
+        XCTAssertFalse(ObsResponse.isErrorResponse("STATUS:LED=ON|USB=CONNECTED|ERROR=0"))
     }
 }

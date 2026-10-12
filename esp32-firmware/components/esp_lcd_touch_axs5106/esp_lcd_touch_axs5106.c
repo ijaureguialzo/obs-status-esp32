@@ -34,7 +34,7 @@ static const char *TAG = "esp_lcd_touch_axs5106";
 #define TOUCH_AXS5106_TOUCH_P2_YH_REG (0x0B)
 #define TOUCH_AXS5106_TOUCH_P2_YL_REG (0x0C)
 
-i2c_master_dev_handle_t g_dev_handle;
+static i2c_master_dev_handle_t g_dev_handle;
 
 /*******************************************************************************
  * Function definitions

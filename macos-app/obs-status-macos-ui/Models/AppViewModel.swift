@@ -339,7 +339,7 @@ final class AppViewModel {
                 {
                     espAuthSupported = true
                 }
-                if ObsProtocolUtil.isErrorResponse(response) {
+                if ObsResponse.isErrorResponse(response) {
                     espError = response
                 } else {
                     // The device answered: clear any stale error left over

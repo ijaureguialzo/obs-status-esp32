@@ -52,12 +52,14 @@ struct USBDevice: Identifiable, Codable, Hashable {
 }
 
 extension USBDevice {
-    /// Known ESP32 USB vendor IDs for filtering devices
+    /// Vendor IDs of boards that can run the ESP32 firmware: Espressif
+    /// itself plus the USB-serial adapter chips (CP210x, CH340) and the
+    /// Freenove ESP32 board. ST's ID was dropped: it matched unrelated ST
+    /// "USB Virtual COM Port" devices and filled the picker with noise.
     static let esp32VendorIDs: [UInt16] = [
         0x303A,  // Espressif
         0x10C4,  // Silicon Labs CP210x
         0x1A86,  // CH340/CH9102
-        0x28E9,  // STMicroelectronics
         0x1209,  // Freenove
     ]
 

@@ -291,7 +291,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - **Aceptación:** `swift build` y `swift test` locales y en CI.
 - [x] Hecho (commit: `chore(macos): ...`; tools 6.0 + `swiftLanguageModes: [.v5]`; build/test OK)
 
-### 4.3 ⬜ `chore: micro-limpiezas`
+### 4.3 ✅ `chore: micro-limpiezas`
 - `esp_lcd_touch_axs5106.c` (vendor local): `g_dev_handle` → `static`.
 - `ObsProtocol.swift`: eliminar `ObsProtocolUtil` (duplica `ObsResponse.isErrorResponse`)
   o dejarlo con un único uso; actualizar `AppViewModel` y tests.
@@ -299,7 +299,8 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   como ST-Link).
 - `AGENTS.md`: el título dice "CLAUDE.md" → "AGENTS.md".
 - **Aceptación:** builds y tests en verde.
-- [ ] Hecho
+- [x] Hecho (commit: `chore: ...`; `g_dev_handle` → static; `ObsProtocolUtil` eliminado (usa
+  `ObsResponse`); ST `0x28E9` fuera de `esp32VendorIDs`; título AGENTS.md)
 
 ### 4.4 ⬜ `chore(macos): unificar identidades de settings/Keychain`
 - El bundle ID del build SwiftPM (`com.unknown.obs-status`) difiere del `.app`
@@ -348,4 +349,4 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
 | 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ✅ | ✅ completado |
-| 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 – 4.6 ⬜ | 🚧 en curso |
+| 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 ✅ · 4.4 – 4.6 ⬜ | 🚧 en curso |
