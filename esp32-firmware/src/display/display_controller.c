@@ -35,6 +35,7 @@
 
 #include "font8x8_basic.h"
 #include "font8x8_ext_latin.h"
+#include "display_text.h"
 #include "firmware_version.h"
 #include "device_auth.h"
 #include "imu_qmi8658.h"
@@ -144,30 +145,9 @@ static const char *glyph_for(uint32_t cp)
     return font8x8_basic['?'];
 }
 
-/* Decode UTF-8 into code points; invalid bytes become '?'. */
-static size_t utf8_decode(const char *text, uint32_t *out, size_t max_out)
-{
-    size_t count = 0;
-    for (size_t i = 0; text[i] != '\0' && count < max_out; ) {
-        uint8_t b0 = (uint8_t)text[i];
-        if (b0 < 0x80) {
-            out[count++] = b0;
-            i += 1;
-        } else if ((b0 & 0xE0) == 0xC0 && (uint8_t)text[i + 1] != 0) {
-            out[count++] = ((uint32_t)(b0 & 0x1F) << 6) | ((uint8_t)text[i + 1] & 0x3F);
-            i += 2;
-        } else if ((b0 & 0xF0) == 0xE0 && (uint8_t)text[i + 1] != 0 && (uint8_t)text[i + 2] != 0) {
-            out[count++] = ((uint32_t)(b0 & 0x0F) << 12) |
-                           (((uint8_t)text[i + 1] & 0x3F) << 6) |
-                           ((uint8_t)text[i + 2] & 0x3F);
-            i += 3;
-        } else {
-            out[count++] = '?';
-            i += 1;
-        }
-    }
-    return count;
-}
+/* UTF-8 decoding and word wrap live in display_text.c (host-tested).
+ * Code points outside basic Latin + Latin-1 have no 8x8 glyph and render
+ * as a single '?' cell each (an emoji is one '?', not four). */
 
 static void draw_glyph(uint32_t cp, int cell_x, int cell_y)
 {
@@ -194,82 +174,16 @@ static void layout_text(void)
     memset(s_text_mask, 0, sizeof(s_text_mask));
 
     static uint32_t cps[SCENE_MAX_LEN];
-    size_t len = utf8_decode(s_scene, cps, SCENE_MAX_LEN);
+    size_t len = display_text_utf8_decode(s_scene, cps, SCENE_MAX_LEN);
     if (len == 0) {
         return;
     }
 
-    /* Resulting lines: start offset and length in code points */
-    size_t line_start[TEXT_MAX_LINES];
-    size_t line_len[TEXT_MAX_LINES];
-    int line_count = 0;
-
-    /* Process each newline-delimited segment independently so a '
-' always
-     * breaks the line instead of wrapping into a (blank) glyph. */
-    size_t seg = 0;
-    while (seg <= len && line_count < TEXT_MAX_LINES) {
-        size_t seg_end = seg;
-        while (seg_end < len && cps[seg_end] != '\n') {
-            seg_end++;
-        }
-
-        /* Word-wrap the segment cps[seg..seg_end) */
-        size_t i = seg;
-        size_t cur_start = seg;
-        size_t cur_len = 0;
-        while (i < seg_end && line_count < TEXT_MAX_LINES) {
-            size_t word_start = i;
-            while (i < seg_end && cps[i] != ' ') {
-                i++;
-            }
-            size_t word_len = i - word_start;
-            while (i < seg_end && cps[i] == ' ') {
-                i++;
-            }
-
-            if (word_len > TEXT_COLS) {
-                /* Hard-split words longer than a full line */
-                if (cur_len > 0) {
-                    line_start[line_count] = cur_start;
-                    line_len[line_count] = cur_len;
-                    line_count++;
-                }
-                while (word_len > TEXT_COLS && line_count < TEXT_MAX_LINES) {
-                    line_start[line_count] = word_start;
-                    line_len[line_count] = TEXT_COLS;
-                    line_count++;
-                    word_start += TEXT_COLS;
-                    word_len -= TEXT_COLS;
-                }
-                cur_start = word_start;
-                cur_len = (word_start < seg_end) ? word_len : 0;
-            } else if (cur_len == 0) {
-                cur_start = word_start;
-                cur_len = word_len;
-            } else if (cur_len + 1 + word_len <= TEXT_COLS) {
-                cur_len += 1 + word_len;
-            } else if (line_count < TEXT_MAX_LINES) {
-                line_start[line_count] = cur_start;
-                line_len[line_count] = cur_len;
-                line_count++;
-                cur_start = word_start;
-                cur_len = word_len;
-            } else {
-                break; /* line budget exhausted; drop the rest of the word */
-            }
-        }
-        if (line_count < TEXT_MAX_LINES &&
-            (cur_len > 0 || seg_end < len)) {
-            /* An empty segment (from a '\n\n' or spaces) yields a blank
-             * line; a trailing newline at the end of the text does not. */
-            line_start[line_count] = cur_start;
-            line_len[line_count] = cur_len;
-            line_count++;
-        }
-
-        seg = seg_end + 1; /* skip the newline (or run past the end) */
-    }
+    /* Word wrap, explicit newlines and hard splits (host-tested in
+     * test/test_display.c); the result is a list of lines in code points. */
+    static display_text_layout_t layout;
+    display_text_layout(cps, len, TEXT_COLS, TEXT_MAX_LINES, &layout);
+    int line_count = layout.line_count;
 
     if (line_count == 0) {
         return;
@@ -277,10 +191,10 @@ static void layout_text(void)
 
     int origin_y = (LCD_V_RES - line_count * CELL_SIZE) / 2;
     for (int line = 0; line < line_count; line++) {
-        int cell_x = (LCD_H_RES - (int)line_len[line] * CELL_SIZE) / 2;
+        int cell_x = (LCD_H_RES - (int)layout.line_len[line] * CELL_SIZE) / 2;
         int cell_y = origin_y + line * CELL_SIZE;
-        for (size_t j = 0; j < line_len[line]; j++) {
-            draw_glyph(cps[line_start[line] + j], cell_x + (int)j * CELL_SIZE, cell_y);
+        for (size_t j = 0; j < layout.line_len[line]; j++) {
+            draw_glyph(cps[layout.line_start[line] + j], cell_x + (int)j * CELL_SIZE, cell_y);
         }
     }
 }

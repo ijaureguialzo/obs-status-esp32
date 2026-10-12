@@ -84,6 +84,7 @@ esp32-firmware/
 │   │   └── led_controller.c     # LED control (WS2812 via RMT)
 │   ├── display/
 │   │   ├── display_controller.c # LCD control (JD9853 via esp_lcd, display boards only)
+│   │   ├── display_text.c       # Pure UTF-8 decode + word wrap (host-tested)
 │   │   └── font8x8_basic.h      # Public domain 8x8 bitmap font
 │   ├── touch/
 │   │   └── touch_controller.c   # AXS5106L touch input (display boards only)
@@ -169,9 +170,12 @@ void protocol_notify_toggle_pause(void);
 #### `display_controller.c/h` – Display Control Layer (display boards only)
 - Initialize the JD9853 LCD panel (SPI) and LEDC backlight
 - Fill the background with the current LED/recording color
-- Render the active OBS scene name: UTF-8 decoded (basic Latin + Latin-1
-  supplement, so accents render correctly), wrapped on word boundaries,
-  each line centered, automatic contrast color
+- Render the active OBS scene name: UTF-8 decoded (1- to 4-byte
+  sequences; code points outside the 8x8 font's basic Latin + Latin-1
+  supplement render as '?' cells, so an emoji is one '?' cell), wrapped on
+  word boundaries, each line centered, automatic contrast color. The
+  decode/wrap logic lives in the dependency-free `display_text.c` and is
+  covered by the host tests (test_protocol.c).
 - Auto-rotate between the two landscape orientations (USB right / USB
   left) by polling the QMI8658A accelerometer; portrait or flat readings
   keep the current orientation

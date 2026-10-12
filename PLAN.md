@@ -238,7 +238,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - [x] Hecho (commit: `fix(macos): ...`; prefijo `cu.debug-console` + fallback por glob de `/dev`; dos
   puertos enumerados; `swift build`/`swift test` OK)
 
-### 3.4 ⬜ `test(firmware): layout de texto y UTF-8 del display como módulo host-testable`
+### 3.4 ✅ `test(firmware): layout de texto y UTF-8 del display como módulo host-testable`
 - **Objetivo:** `layout_text`/`utf8_decode` (word-wrap, centrado, multi-línea) viven
   dentro de `display_controller.c` (con dependencias ESP) y no se prueban. Además,
   `utf8_decode` no soporta secuencias de 4 bytes (un emoji imprime "????").
@@ -253,7 +253,9 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
     palabras largas, líneas explícitas `\n`, centrado, 2-byte/3-byte/4-byte UTF-8, bytes
     inválidos → `'?'`.
 - **Aceptación:** `pio test -e host-tests` verde; `pio run` C6 OK.
-- [ ] Hecho (commit: `test(firmware): ...`)
+- [x] Hecho (commit: `test(firmware): ...`; extraído `display_text` (decode+layout puros), soporte
+  4-byte en el decoder, 16 tests nuevos (28→44); `glyph_for`/`draw_glyph` quedan en el controller;
+  los builds S3/C6 OK)
 
 ### 3.5 ⬜ `build: gate de warnings (CI)`
 - **Pasos:**
@@ -341,5 +343,5 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
-| 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4, 3.5 ⬜ | 🚧 en curso |
+| 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ⬜ | 🚧 en curso |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

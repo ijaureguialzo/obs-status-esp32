@@ -4,6 +4,7 @@ idf_component_register(
         usb/usb_cdc.c
         led/led_controller.c
         display/display_controller.c
+        display/display_text.c
         touch/touch_controller.c
         board/board_i2c.c
         imu/imu_qmi8658.c

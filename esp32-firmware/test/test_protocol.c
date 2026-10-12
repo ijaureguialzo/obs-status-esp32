@@ -1,8 +1,9 @@
 /**
  * @file test_protocol.c
- * @brief Host-side unit tests for the dependency-free protocol modules:
+ * @brief Host-side unit tests for the dependency-free firmware modules:
  *        - protocol_message: text command parsing
  *        - protocol_line_buffer: byte stream line assembly
+ *        - display_text: UTF-8 decoding and text layout
  *
  * Run with: pio test -e host-tests -d esp32-firmware
  *
@@ -15,10 +16,12 @@
 
 #include "protocol_message.h"
 #include "protocol_line_buffer.h"
+#include "display_text.h"
 
 #include <string.h>
 
 #include "../src/protocol/protocol_message.c"
+#include "../src/display/display_text.c"
 #include "../src/protocol/protocol_line_buffer.c"
 
 /* ==============================
@@ -268,6 +271,185 @@ void test_null_arguments_are_ignored(void)
     TEST_ASSERT_EQUAL(0, line_count);
 }
 
+/* ==============================
+ * display_text_utf8_decode
+ * ============================== */
+
+/* ==============================
+ * display_text_utf8_decode
+ * ============================== */
+
+void test_utf8_ascii(void)
+{
+    uint32_t cps[8];
+    size_t n = display_text_utf8_decode("ABC", cps, 8);
+    TEST_ASSERT_EQUAL(3, n);
+    TEST_ASSERT_EQUAL(0x41, cps[0]);
+    TEST_ASSERT_EQUAL(0x42, cps[1]);
+    TEST_ASSERT_EQUAL(0x43, cps[2]);
+}
+
+void test_utf8_two_byte(void)
+{
+    uint8_t bytes[] = { 0xC3, 0xA9, 0 }; /* "é" */
+    uint32_t cps[4];
+    size_t n = display_text_utf8_decode((const char *)bytes, cps, 4);
+    TEST_ASSERT_EQUAL(1, n);
+    TEST_ASSERT_EQUAL(0xE9, cps[0]);
+}
+
+void test_utf8_three_byte(void)
+{
+    uint8_t bytes[] = { 0xE6, 0x97, 0xA5, 0 }; /* "日" */
+    uint32_t cps[4];
+    size_t n = display_text_utf8_decode((const char *)bytes, cps, 4);
+    TEST_ASSERT_EQUAL(1, n);
+    TEST_ASSERT_EQUAL(0x65E5, cps[0]);
+}
+
+void test_utf8_four_byte_is_one_code_point(void)
+{
+    /* "🎥" (cinema camera): before the fix each of the four bytes
+     * produced a '?'; now the whole sequence is one code point. */
+    uint8_t bytes[] = { 0xF0, 0x9F, 0x8E, 0xA5, 0 };
+    uint32_t cps[8];
+    size_t n = display_text_utf8_decode((const char *)bytes, cps, 8);
+    TEST_ASSERT_EQUAL(1, n);
+    TEST_ASSERT_EQUAL(0x1F3A5, cps[0]);
+}
+
+void test_utf8_invalid_byte_is_question_mark(void)
+{
+    uint8_t bytes[] = { 0xFF, 0x41, 0 };
+    uint32_t cps[4];
+    size_t n = display_text_utf8_decode((const char *)bytes, cps, 4);
+    TEST_ASSERT_EQUAL(2, n);
+    TEST_ASSERT_EQUAL(0x3F, cps[0]); /* '?' */
+    TEST_ASSERT_EQUAL(0x41, cps[1]);
+}
+
+void test_utf8_truncated_four_byte_is_replaced(void)
+{
+    uint8_t bytes[] = { 0xF0, 0x9F, 0 }; /* NUL in the middle */
+    uint32_t cps[4];
+    size_t n = display_text_utf8_decode((const char *)bytes, cps, 4);
+    TEST_ASSERT_EQUAL(2, n); /* F0 and the dangling 9F: one '?' each */
+    TEST_ASSERT_EQUAL(0x3F, cps[0]);
+    TEST_ASSERT_EQUAL(0x3F, cps[1]);
+}
+
+void test_utf8_respects_max_out(void)
+{
+    uint32_t cps[2];
+    size_t n = display_text_utf8_decode("ABCD", cps, 2);
+    TEST_ASSERT_EQUAL(2, n);
+    TEST_ASSERT_EQUAL(0x41, cps[0]);
+    TEST_ASSERT_EQUAL(0x42, cps[1]);
+}
+
+/* ==============================
+ * display_text_layout
+ * ============================== */
+
+static size_t to_cps(const char *text, uint32_t *cps, size_t max)
+{
+    return display_text_utf8_decode(text, cps, max);
+}
+
+static display_text_layout_t layout_of(const char *text, int cols, int max_lines)
+{
+    uint32_t cps[64];
+    display_text_layout_t layout;
+    size_t len = to_cps(text, cps, 64);
+    display_text_layout(cps, len, cols, max_lines, &layout);
+    return layout;
+}
+
+void test_layout_empty_text(void)
+{
+    display_text_layout_t layout = layout_of("", 20, 10);
+    TEST_ASSERT_EQUAL(0, layout.line_count);
+}
+
+void test_layout_short_word_single_line(void)
+{
+    display_text_layout_t layout = layout_of("hi", 20, 10);
+    TEST_ASSERT_EQUAL(1, layout.line_count);
+    TEST_ASSERT_EQUAL(0, layout.line_start[0]);
+    TEST_ASSERT_EQUAL(2, layout.line_len[0]);
+}
+
+void test_layout_word_wrap_on_space(void)
+{
+    /* 5 columns: "aaaaa bb" -> "aaaaa" / "bb" */
+    display_text_layout_t layout = layout_of("aaaaa bb", 5, 10);
+    TEST_ASSERT_EQUAL(2, layout.line_count);
+    TEST_ASSERT_EQUAL(0, layout.line_start[0]);
+    TEST_ASSERT_EQUAL(5, layout.line_len[0]);
+    TEST_ASSERT_EQUAL(6, layout.line_start[1]);
+    TEST_ASSERT_EQUAL(2, layout.line_len[1]);
+}
+
+void test_layout_explicit_newline_breaks_lines(void)
+{
+    display_text_layout_t layout = layout_of("ab\ncd", 20, 10);
+    TEST_ASSERT_EQUAL(2, layout.line_count);
+    TEST_ASSERT_EQUAL(0, layout.line_start[0]);
+    TEST_ASSERT_EQUAL(2, layout.line_len[0]);
+    TEST_ASSERT_EQUAL(3, layout.line_start[1]);
+    TEST_ASSERT_EQUAL(2, layout.line_len[1]);
+}
+
+void test_layout_trailing_newline_adds_no_line(void)
+{
+    display_text_layout_t layout = layout_of("ab\n", 20, 10);
+    TEST_ASSERT_EQUAL(1, layout.line_count);
+    TEST_ASSERT_EQUAL(2, layout.line_len[0]);
+}
+
+void test_layout_double_newline_yields_blank_line(void)
+{
+    display_text_layout_t layout = layout_of("ab\n\ncd", 20, 10);
+    TEST_ASSERT_EQUAL(3, layout.line_count);
+    TEST_ASSERT_EQUAL(2, layout.line_len[0]);
+    TEST_ASSERT_EQUAL(0, layout.line_len[1]); /* blank */
+    TEST_ASSERT_EQUAL(2, layout.line_len[2]);
+}
+
+void test_layout_hard_splits_oversized_word(void)
+{
+    /* 30 'a' on a 20-column screen -> 20 + 10 */
+    display_text_layout_t layout = layout_of(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 20, 10);
+    TEST_ASSERT_EQUAL(2, layout.line_count);
+    TEST_ASSERT_EQUAL(0, layout.line_start[0]);
+    TEST_ASSERT_EQUAL(20, layout.line_len[0]);
+    TEST_ASSERT_EQUAL(20, layout.line_start[1]);
+    TEST_ASSERT_EQUAL(10, layout.line_len[1]);
+}
+
+void test_layout_stops_at_line_budget(void)
+{
+    /* 1 column: one word per line, at most 3 lines kept */
+    display_text_layout_t layout = layout_of("a b c d", 1, 3);
+    TEST_ASSERT_EQUAL(3, layout.line_count);
+    for (int i = 0; i < 3; i++) {
+        TEST_ASSERT_EQUAL(1, layout.line_len[i]);
+    }
+}
+
+void test_layout_multibyte_text_wraps_per_code_point(void)
+{
+    /* "日本語" is three code points (9 UTF-8 bytes); a 2-column screen
+     * must wrap by code point, not by byte. */
+    display_text_layout_t layout = layout_of("\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E", 2, 10);
+    TEST_ASSERT_EQUAL(2, layout.line_count);
+    TEST_ASSERT_EQUAL(0, layout.line_start[0]);
+    TEST_ASSERT_EQUAL(2, layout.line_len[0]);
+    TEST_ASSERT_EQUAL(2, layout.line_start[1]);
+    TEST_ASSERT_EQUAL(1, layout.line_len[1]);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -301,6 +483,23 @@ int main(void)
     RUN_TEST(test_oversized_line_is_truncated_and_flushed);
     RUN_TEST(test_buffer_reset_discards_partial_line);
     RUN_TEST(test_null_arguments_are_ignored);
+
+    RUN_TEST(test_utf8_ascii);
+    RUN_TEST(test_utf8_two_byte);
+    RUN_TEST(test_utf8_three_byte);
+    RUN_TEST(test_utf8_four_byte_is_one_code_point);
+    RUN_TEST(test_utf8_invalid_byte_is_question_mark);
+    RUN_TEST(test_utf8_truncated_four_byte_is_replaced);
+    RUN_TEST(test_utf8_respects_max_out);
+    RUN_TEST(test_layout_empty_text);
+    RUN_TEST(test_layout_short_word_single_line);
+    RUN_TEST(test_layout_word_wrap_on_space);
+    RUN_TEST(test_layout_explicit_newline_breaks_lines);
+    RUN_TEST(test_layout_trailing_newline_adds_no_line);
+    RUN_TEST(test_layout_double_newline_yields_blank_line);
+    RUN_TEST(test_layout_hard_splits_oversized_word);
+    RUN_TEST(test_layout_stops_at_line_budget);
+    RUN_TEST(test_layout_multibyte_text_wraps_per_code_point);
 
     return UNITY_END();
 }
