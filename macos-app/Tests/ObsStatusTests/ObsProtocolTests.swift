@@ -42,6 +42,31 @@ final class ObsCommandTests: XCTestCase {
         XCTAssertEqual(ObsCommand.scene(name: "Escena 日本語"), "SCENE:Escena 日本語\n")
     }
 
+    func testSceneNameIsTruncatedToTheDisplayBudget() {
+        let longName = String(repeating: "a", count: 200)
+        XCTAssertEqual(ObsCommand.scene(name: longName), "SCENE:\(String(repeating: "a", count: 95))\n")
+    }
+
+    func testSceneNameAtTheBudgetIsUnchanged() {
+        let exact = String(repeating: "b", count: 95)
+        XCTAssertEqual(ObsCommand.scene(name: exact), "SCENE:\(exact)\n")
+    }
+
+    func testMultibyteSceneFitsTheWireBudgetOnACharacterBoundary() {
+        // 95 CJK characters are 285 bytes (> 121); the result must fit the
+        // 121-byte line budget, end on a character boundary, and stay valid
+        // UTF-8 (no U+FFFD).
+        let cjk = String(repeating: "日", count: 95)
+        let command = ObsCommand.scene(name: cjk)
+        let payload = command.dropFirst("SCENE:".count).dropLast() // strip prefix + newline
+        let payloadBytes = Array(payload.utf8)
+        XCTAssertLessThanOrEqual(payloadBytes.count, 121)
+        XCTAssertFalse(String(payload).contains("\u{FFFD}"))
+        // 121 is not a multiple of 3, so one boundary back: 120 bytes = 40 chars
+        XCTAssertEqual(payloadBytes.count, 120)
+        XCTAssertEqual(String(payload), String(repeating: "日", count: 40))
+    }
+
     func testAuthCommand() {
         XCTAssertEqual(ObsCommand.auth(secret: "abcd1234ef56abcd1234ef56abcd1234"),
                        "AUTH:abcd1234ef56abcd1234ef56abcd1234\n")

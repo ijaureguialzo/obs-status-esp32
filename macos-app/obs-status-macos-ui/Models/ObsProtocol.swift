@@ -60,12 +60,30 @@ enum ObsCommand: String, CaseIterable {
     }
 
     /// Tells the ESP32 which OBS scene is active so boards with a display
-    /// can show its name. Newlines and carriage returns are stripped.
+    /// can show its name. Newlines and carriage returns are stripped and the
+    /// name is truncated to fit both firmware limits deterministically:
+    /// 95 characters (`s_scene[96]` including NUL) and 121 UTF-8 bytes
+    /// (`SCENE:` + name must fit the 127-byte protocol line); the byte cut
+    /// backs off to a character boundary. The firmware would otherwise keep
+    /// only the first 127 bytes of an oversized line.
     static func scene(name: String) -> String {
         let sanitized = name
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "\r", with: " ")
-        return "SCENE:\(sanitized)\n"
+        var utf8 = Array(sanitized.prefix(95).utf8)
+        if utf8.count > 121 {
+            utf8.removeLast(utf8.count - 121)
+            while let last = utf8.last {
+                if last < 0x80 {
+                    break // complete ASCII byte
+                }
+                utf8.removeLast()
+                if last & 0xC0 != 0x80 {
+                    break // removed the lead byte of a split character
+                }
+            }
+        }
+        return "SCENE:\(String(decoding: utf8, as: UTF8.self))\n"
     }
 
     /// Proves the host knows the device's shared secret (shown by the board

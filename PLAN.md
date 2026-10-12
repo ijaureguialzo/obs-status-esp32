@@ -148,7 +148,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   driver IDF: `write_bytes` atómico por llamada, el console escribe por caracteres; chequeo del 2º
   `nvs_flash_init` ya hecho en 1.4)
 
-### 2.3 ⬜ `feat(firmware): truncado determinista de SCENE (host) + doc en el protocolo`
+### 2.3 ✅ `feat(firmware): truncado determinista de SCENE (host) + doc en el protocolo`
 - **Objetivo:** el host envía `SCENE:<nombre>` sin límite; el firmware trunca a 127 chars
   (line buffer) y la pantalla muestra ≤96. El parser ya es estricto ante basura (los
   comandos cortos no pueden "acertar" por truncado), pero conviene que el truncado sea
@@ -162,7 +162,8 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - **Archivos:** `Models/ObsProtocol.swift`, `Tests/ObsStatusTests/ObsProtocolTests.swift`,
   `specs/02-protocol/PROTOCOL_SPEC.md`
 - **Aceptación:** tests nuevos pasan; `check_protocol_sync.sh` sigue en verde.
-- [ ] Hecho (commit: `feat(protocol): ...`)
+- [x] Hecho (commit: `fix(app): ...`; truncado 95 chars / 121 bytes con corte en frontera de
+  carácter; test multi-byte CJK 95→40 chars; doc en PROTOCOL_SPEC)
 
 ### 2.4 ⬜ `test(macos): tests de LineRouter y del flujo de comandos de USBCDCService`
 - **Objetivo:** `LineRouter` (y `DeviceEventBroadcaster`) es la parte de mayor riesgo de
@@ -333,6 +334,6 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | Fase | Tareas | Estado |
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
-| 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3, 2.4, 2.5 ⬜ | 🚧 en curso |
+| 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4, 2.5 ⬜ | 🚧 en curso |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

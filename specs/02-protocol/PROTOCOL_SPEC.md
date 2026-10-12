@@ -107,8 +107,12 @@ SCENE:<name>\n
 ```
 
 - `<name>` is free text (UTF-8). Newlines and carriage returns are not allowed
-  and must be stripped by the sender. Names longer than the remaining line
-  budget (`PROTOCOL_MAX_LINE_LENGTH`) are truncated by the firmware.
+  and must be stripped by the sender. The macOS app truncates names to 95
+  characters / 121 UTF-8 bytes (display `s_scene[96]` budget and the 127-byte
+  protocol line, whichever is tighter for multi-byte text). Firmware side: any
+  input line longer than `PROTOCOL_MAX_LINE_LENGTH` (128) keeps only its first
+  127 bytes, which still parses as a scene and is displayed truncated; senders
+  should pre-truncate as above rather than rely on that side effect.
 - An empty name (`SCENE:\n`) clears the displayed scene.
 
 **Response**: `OK\n` on success. On boards without a display the command is
