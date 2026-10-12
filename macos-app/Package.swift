@@ -22,7 +22,16 @@ let package = Package(
         .executableTarget(
             name: "ObsStatus",
             path: "obs-status-macos-ui",
-            exclude: ["Resources/Info.plist"],
+            // The checked-in ObsStatusVersion.swift reads the version from the
+            // app bundle's Info.plist (the Xcode build path, see the pbxproj's
+            // synchronized folder). The SwiftPM build gets the same values
+            // from the VersionGenerator plugin's generated file instead, so
+            // the checked-in copy is excluded here (silences the "unhandled
+            // file" warning; without it the two definitions would collide).
+            exclude: [
+                "Resources/Info.plist",
+                "Models/ObsStatusVersion.swift",
+            ],
             sources: [
                 "App/ObsStatusApp.swift",
                 "App/ObsStatusMenuBar.swift",

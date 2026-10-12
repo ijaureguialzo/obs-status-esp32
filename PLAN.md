@@ -204,7 +204,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 
 ## FASE 3 (P2) — Calidad / DX
 
-### 3.1 ⬜ `chore(macos): silenciar warning de SwiftPM sobre ObsStatusVersion.swift`
+### 3.1 ✅ `chore(macos): silenciar warning de SwiftPM sobre ObsStatusVersion.swift`
 - **Objetivo:** `swift build` avisa "found 1 file(s) which are unhandled: Models/ObsStatusVersion.swift".
   El Xcode project sí usa ese archivo (lee la versión del Info.plist a runtime); SwiftPM
   usa el `ObsStatusVersion.swift` **generado** por el plugin `VersionGenerator`. Las dos
@@ -215,7 +215,8 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   - Comentario en el `Models/ObsStatusVersion.swift` y en `Package.swift` explicando la
     dualidad (Xcode: Info.plist; SwiftPM: plugin) para que no "arreglen" la otra mitad.
 - **Aceptación:** `swift build` sin warnings.
-- [ ] Hecho (commit: `chore(macos): ...`)
+- [x] Hecho (commit: `chore(macos): ...`; `swift build` sin warnings, tests 47/47; verificado que el
+  pbxproj usa un synchronized root group, que incluye los `.xcstrings` automáticamente)
 
 ### 3.2 ⬜ `build: targets de test/verificación en Makefile`
 - **Archivos:** `Makefile`
@@ -339,5 +340,5 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
-| 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
+| 3 (P2) | 3.1 ✅ · 3.2 – 3.5 ⬜ | 🚧 en curso |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |
