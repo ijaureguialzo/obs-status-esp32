@@ -21,6 +21,9 @@ final class FakeUSBCDCService: USBCDCServiceProtocol, @unchecked Sendable {
     var connectShouldSucceed = true
     /// Result returned by every sendCommand call.
     var nextCommandResult: Result<String, Error> = .success("OK")
+    /// Makes sendCommand wait a moment and then fail with a read timeout,
+    /// so tests can drive a disconnect while a command is in flight.
+    var slowFail = false
     private(set) var sentCommands: [String] = []
     private(set) var connectCount = 0
     private(set) var disconnectCount = 0
@@ -75,6 +78,10 @@ final class FakeUSBCDCService: USBCDCServiceProtocol, @unchecked Sendable {
 
     func sendCommand(_ command: String, to device: USBDevice) async throws -> String {
         lock.withLock { sentCommands.append(command) }
+        if slowFail {
+            try? await Task.sleep(for: .milliseconds(150))
+            throw USBCDCError.readFailed(error: 0)
+        }
         return try nextCommandResult.get()
     }
 }
@@ -256,5 +263,135 @@ final class AppViewModelTests: XCTestCase {
         await pump()
         XCTAssertEqual(obs.togglePauseCount, 0)
         try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    // MARK: - Command delivery: retries and session lifecycle
+
+    /// Connects the view model to the fake device so `deliver` works.
+    @MainActor
+    private func connectViewModel(_ viewModel: AppViewModel) {
+        viewModel.selectedDevice = Self.device
+        viewModel.espConnected = true
+    }
+
+    /// The OBS streams yield their current state once on subscription, and
+    /// the view model pushes every yield to the ESP32; with the fake set to
+    /// fail that would end the session before the test starts. Settle the
+    /// initial yields with a healthy fake first, then tests switch the fake
+    /// to the mode under test and assert relative counts.
+    @MainActor
+    private func settleViewModel(
+        _ viewModel: AppViewModel,
+        usb: FakeUSBCDCService
+    ) async {
+        usb.nextCommandResult = .success("OK")
+        connectViewModel(viewModel)
+        await pump(150)
+    }
+
+    @MainActor
+    func testSuccessfulCommandKeepsTheSession() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let baseline = usb.sentCommands.count
+        usb.nextCommandResult = .success("STATUS:LED=0,POWER=OFF,ORIENTATION=UP,SCENE=")
+
+        await viewModel.queryESPStatus()
+
+        XCTAssertEqual(usb.sentCommands.count, baseline + 1)
+        XCTAssertEqual(usb.sentCommands.last, "STATUS\n")
+        XCTAssertTrue(viewModel.espConnected)
+        XCTAssertNil(viewModel.espError)
+    }
+
+    @MainActor
+    func testTransientTimeoutsAreRetriedUntilSuccess() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let baseline = usb.sentCommands.count
+
+        // First attempt times out, the retry succeeds.
+        usb.nextCommandResult = .failure(USBCDCError.readFailed(error: 0))
+        let inFlight = Task { await viewModel.queryESPStatus() }
+        await pump(50)
+        usb.nextCommandResult = .success("STATUS:LED=1,POWER=ON,ORIENTATION=UP,SCENE=Live")
+        await inFlight.value
+
+        XCTAssertEqual(usb.sentCommands.count, baseline + 2)
+        XCTAssertTrue(viewModel.espConnected)
+        XCTAssertNil(viewModel.espError)
+    }
+
+    @MainActor
+    func testExhaustedRetriesEndTheSession() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let baseline = usb.sentCommands.count
+        let disconnectBaseline = usb.disconnectCount
+        usb.nextCommandResult = .failure(USBCDCError.readFailed(error: 0))
+
+        await viewModel.queryESPStatus()
+
+        XCTAssertEqual(usb.sentCommands.count, baseline + 3, "Three attempts, all failed")
+        XCTAssertFalse(viewModel.espConnected)
+        XCTAssertNotNil(viewModel.espError)
+        XCTAssertEqual(usb.disconnectCount, disconnectBaseline + 1)
+    }
+
+    @MainActor
+    func testWriteFailuresAreNotRetried() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let baseline = usb.sentCommands.count
+        usb.nextCommandResult = .failure(USBCDCError.writeFailed(error: 5))
+
+        await viewModel.queryESPStatus()
+
+        XCTAssertEqual(usb.sentCommands.count, baseline + 1, "Non-transient failures must not be retried")
+        XCTAssertFalse(viewModel.espConnected)
+    }
+
+    @MainActor
+    func testWellFormedErrorResponseIsSurfacedNotRetried() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let baseline = usb.sentCommands.count
+        usb.nextCommandResult = .success("ERROR: NOT_CONNECTED")
+
+        await viewModel.queryESPStatus()
+
+        XCTAssertEqual(usb.sentCommands.count, baseline + 1, "The device answered: the link is healthy")
+        XCTAssertTrue(viewModel.espConnected)
+        XCTAssertEqual(viewModel.espError, "ERROR: NOT_CONNECTED")
+    }
+
+    @MainActor
+    func testDisconnectWhileCommandInFlightPreventsTearDown() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let disconnectBaseline = usb.disconnectCount
+        usb.slowFail = true // fails after 150ms, long after the disconnect below
+
+        let inflight = Task { await viewModel.queryESPStatus() }
+        try await Task.sleep(for: .milliseconds(50))
+        await viewModel.disconnectESP()
+        await inflight.value
+
+        // The stale in-flight failure must not tear the session down a second
+        // time (that would double the disconnect calls).
+        XCTAssertFalse(viewModel.espConnected)
+        XCTAssertEqual(usb.disconnectCount, disconnectBaseline + 1, "Teardown must happen exactly once")
     }
 }

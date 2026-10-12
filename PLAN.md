@@ -186,7 +186,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   testeable) y usado en el reader; 13 tests nuevos: stashing, stale discard, timeout por id,
   stop/restart, eventos, logs basura, splitting CRLF/overflow; `swift test` 41/41)
 
-### 2.5 ⬜ `test(macos): tests de AppViewModel (retries, sesión, confianza)`
+### 2.5 ✅ `test(macos): tests de AppViewModel (retries, sesión, confianza)`
 - **Objetivo:** cubrir `deliver()` (reintentos ante timeout transitorio, fallo definitivo
   desconecta, `ERROR:` de bien formado NO se reintenta, sesión obsoleta no rompe el link
   nuevo) y la confianza de la tarea 1.3.
@@ -196,7 +196,9 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
     `AppSettings.shared` es singleton: parametrizar `init(fileURL:)` para tests.
   - Nuevo `Tests/ObsStatusTests/AppViewModelTests.swift` con los casos de arriba.
 - **Aceptación:** `swift test` verde.
-- [ ] Hecho (commit: `test(macos): ...`)
+- [x] Hecho (commit: `test(macos): ...`; 6 tests nuevos de entrega/reintento/sesión sobre `deliver`
+  (éxito, retry transitorio, agotamiento→disconnect, fallo de write no reintentable, `ERROR:` sin
+  retry, disconnect durante in-flight → teardown único); `swift test` 47/47
 
 ---
 
@@ -336,6 +338,6 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | Fase | Tareas | Estado |
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
-| 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ⬜ | 🚧 en curso |
+| 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |
