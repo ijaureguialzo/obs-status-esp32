@@ -302,7 +302,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - [x] Hecho (commit: `chore: ...`; `g_dev_handle` → static; `ObsProtocolUtil` eliminado (usa
   `ObsResponse`); ST `0x28E9` fuera de `esp32VendorIDs`; título AGENTS.md)
 
-### 4.4 ⬜ `chore(macos): unificar identidades de settings/Keychain`
+### 4.4 ✅ `chore(macos): unificar identidades de settings/Keychain`
 - El bundle ID del build SwiftPM (`com.unknown.obs-status`) difiere del `.app`
   (`com.jaureguialzo.obs-status-macos-ui`) → dos entradas Keychain y dos JSON de settings.
   Opciones (elegir una):
@@ -311,7 +311,8 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
     en `AppSettings.Key.bundleID` para ambos modos.
 - Mover el JSON a `Application Support/obs-status/` (más idiomático que `Preferences/`).
 - **Aceptación:** token y settings compartidos entre el binario SwiftPM y el `.app`.
-- [ ] Hecho
+- [x] Hecho (commit: `chore(macos): ...`; el fallback SwiftPM reutiliza el bundle ID del app →
+  Keychain y settings compartidos entre `swift run` y el .app; tests OK)
 
 ### 4.5 ⬜ `perf(firmware): micro-optimización de la rotación de frame`
 - `redraw_locked()`: precomputar la permutación `out_idx -> in_idx` (tablas estáticas de
@@ -349,4 +350,4 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
 | 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ✅ | ✅ completado |
-| 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 ✅ · 4.4 – 4.6 ⬜ | 🚧 en curso |
+| 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 ✅ · 4.4 ✅ · 4.5, 4.6 ⬜ | 🚧 en curso |

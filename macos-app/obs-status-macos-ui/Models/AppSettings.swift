@@ -9,7 +9,12 @@ import Security
 import os
 
 private enum Key {
-    static let bundleID = Bundle.main.bundleIdentifier ?? "com.unknown.obs-status"
+    /// The app's bundle ID (see PRODUCT_BUNDLE_IDENTIFIER in the Xcode
+    /// project). The SwiftPM executable (swift run obs-status) has no
+    /// bundle of its own, so it reuses the same identifier: `swift run`
+    /// then shares the app's Keychain items and settings file instead of
+    /// living under a "com.unknown..." identity.
+    static let bundleID = Bundle.main.bundleIdentifier ?? "com.jaureguialzo.obs-status-macos-ui"
     static var settingsFile: String { "Preferences/\(bundleID).json" }
     static let obsConfigKey = "obsConfig"
     static let recordingLEDColorKey = "recordingLEDColor"
@@ -25,8 +30,7 @@ final class AppSettings {
     static let shared = AppSettings()
 
     private let fileURL: URL
-    private let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "ObsStatus", category: "Settings")
+    private let logger = Logger(subsystem: Key.bundleID, category: "Settings")
 
     private var _obsConfig: OBSConfig
     private var _recordingLEDColor: LEDColor
