@@ -60,6 +60,16 @@ struct MenuBarControls: View {
                 Task { await viewModel.connectESP() }
             }
             .disabled(viewModel.espConnected || viewModel.selectedDevice == nil)
+
+            if viewModel.espConnected && !viewModel.espDeviceTrusted {
+                Divider()
+                Text(String(localized: "Device untrusted"))
+                    .foregroundColor(.orange)
+                    .font(.caption)
+                Button(String(localized: "Trust this device")) {
+                    viewModel.trustDevice()
+                }
+            }
             
             Divider()
             

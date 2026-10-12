@@ -23,6 +23,12 @@ final class AppViewModel {
     var espConnected: Bool = false
     var espConnecting: Bool = false
     var espError: String?
+    /// Whether the connected device was explicitly trusted by the user. Only
+    /// trusted devices may drive OBS from unsolicited events (touch tap), so
+    /// a look-alike USB device cannot pause/resume the recording on its own.
+    var espDeviceTrusted: Bool = false
+    /// Advisory for the ESP32 panel (e.g. a connected but untrusted device).
+    var espWarning: String?
     /// Bumped on every connect/disconnect so in-flight commands from a
     /// previous session (rapid connect/disconnect taps) can tell the link
     /// is now owned by a newer session and stop retrying/tearing it down.
@@ -155,12 +161,14 @@ final class AppViewModel {
             self.settings.lastESPDevicePath = device.path
             await sendLEDCommand(obsService.recordingState)
             await sendSceneCommand(obsService.currentSceneName)
+            refreshDeviceTrust()
 
             // Start periodic status polling
             startStatusPolling()
             
         } catch {
             espError = error.localizedDescription
+            refreshDeviceTrust()
             startStatusPolling()
         }
         
@@ -170,9 +178,32 @@ final class AppViewModel {
     func disconnectESP() async {
         espConnected = false
         espConnecting = false
+        espDeviceTrusted = false
+        espWarning = nil
         espSession &+= 1
         stopStatusPolling()
         await usbService.disconnect()
+    }
+
+    /// Re-derives the trust state for the connected device and shows an
+    /// advisory while it is not trusted (its events are ignored). Internal
+    /// (not private) so tests can drive it after a device swap.
+    func refreshDeviceTrust() {
+        espDeviceTrusted = selectedDevice.map { settings.isESPDeviceTrusted($0) } ?? false
+        if espConnected && !espDeviceTrusted {
+            espWarning = String(localized: "Device untrusted: screen taps won't control OBS")
+        } else {
+            espWarning = nil
+        }
+    }
+
+    /// Grants trust to the connected device (persisted by serial number or
+    /// path) so its unsolicited events may drive OBS again.
+    func trustDevice() {
+        guard espConnected, let device = selectedDevice else { return }
+        settings.trustESPDevice(device)
+        espDeviceTrusted = true
+        espWarning = nil
     }
     
     // MARK: - LED Control
@@ -310,11 +341,14 @@ final class AppViewModel {
     }
 
     /// React to unsolicited ESP32 events (e.g. a tap on the touch screen
-    /// asks OBS to pause/resume the recording).
+    /// asks OBS to pause/resume the recording). Events from a device the user
+    /// has not trusted are dropped: a look-alike USB device must not be able
+    /// to toggle the OBS recording on its own.
     private func observeESPEvents() {
         Task { [weak self] in
             guard let self else { return }
             for await line in usbService.events {
+                guard espDeviceTrusted else { continue }
                 guard let event = ObsEvent.parse(line) else { continue }
                 switch event {
                 case .togglePause:
@@ -356,6 +390,7 @@ final class AppViewModel {
                         espSession &+= 1
                         await sendLEDCommand(obsService.recordingState)
                         await sendSceneCommand(obsService.currentSceneName)
+                        refreshDeviceTrust()
                     } catch {
                         espConnecting = false
                         espError = error.localizedDescription

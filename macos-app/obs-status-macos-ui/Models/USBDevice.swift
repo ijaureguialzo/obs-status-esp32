@@ -36,6 +36,17 @@ struct USBDevice: Identifiable, Codable, Hashable {
         let label = deviceDescription ?? (name == "Unknown Device" ? String(localized: "Serial device") : name)
         return "\(label) — \(path)"
     }
+
+    /// Stable identity used by the device trust store: the USB serial number
+    /// when the board reports one, falling back to the BSD path. A clone of
+    /// the board that does not report the same serial number will not inherit
+    /// the trust granted to the original.
+    var trustID: String {
+        if let serialNumber {
+            return "sn:\(serialNumber)"
+        }
+        return "path:\(path)"
+    }
 }
 
 extension USBDevice {

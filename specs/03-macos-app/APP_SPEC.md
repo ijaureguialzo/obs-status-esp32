@@ -82,6 +82,10 @@ enum RecordingState {
 - Send commands (text-based, `\n` terminated)
 - Read newline-terminated responses with a two-second timeout
 - Handle disconnection and reconnection
+- Gate unsolicited device events (touch tap) behind explicit user trust, so a
+  look-alike USB device cannot toggle the OBS recording by itself: the app
+  remembers trusted devices by USB serial number (falling back to the BSD path)
+  and shows a "trust this device" prompt for new ones
 
 **API**:
 ```swift
@@ -150,6 +154,7 @@ Stored values:
 - Last selected ESP32 device
 - Auto-connect preferences
 - Recording LED RGB color
+- Trusted ESP32 devices (serial number / path IDs)
 
 ## 6. macOS Integration
 

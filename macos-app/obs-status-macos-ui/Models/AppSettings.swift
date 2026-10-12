@@ -14,6 +14,7 @@ private enum Key {
     static let obsConfigKey = "obsConfig"
     static let recordingLEDColorKey = "recordingLEDColor"
     static let espDevicePathKey = "lastESPDevicePath"
+    static let trustedESPDevicesKey = "trustedESPDevices"
     static let autoConnectKey = "autoConnect"
     static let tokenAccount = "obs-websocket-token"
 }
@@ -28,6 +29,7 @@ final class AppSettings {
     private var _obsConfig: OBSConfig
     private var _recordingLEDColor: LEDColor
     private var _lastESPDevicePath: String?
+    private var _trustedESPDevices: [String]
     private var _autoConnect: Bool
     
     var obsConfig: OBSConfig {
@@ -40,6 +42,23 @@ final class AppSettings {
         set { _lastESPDevicePath = newValue; save() }
     }
 
+    /// IDs (`USBDevice.trustID`) of ESP32 devices the user confirmed. Only
+    /// trusted devices may drive OBS from unsolicited events (touch tap).
+    var trustedESPDevices: [String] {
+        get { _trustedESPDevices }
+        set { _trustedESPDevices = newValue; save() }
+    }
+
+    func isESPDeviceTrusted(_ device: USBDevice) -> Bool {
+        _trustedESPDevices.contains(device.trustID)
+    }
+
+    func trustESPDevice(_ device: USBDevice) {
+        guard !_trustedESPDevices.contains(device.trustID) else { return }
+        _trustedESPDevices.append(device.trustID)
+        save()
+    }
+
     var recordingLEDColor: LEDColor {
         get { _recordingLEDColor }
         set { _recordingLEDColor = newValue; save() }
@@ -50,13 +69,16 @@ final class AppSettings {
         set { _autoConnect = newValue; save() }
     }
     
-    private init() {
+    /// `fileURL` is injectable for tests; the default lives in the user's
+    /// Library directory next to the other app state.
+    init(fileURL: URL? = nil) {
         let directory = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
-        fileURL = directory.appendingPathComponent(Key.settingsFile)
+        self.fileURL = fileURL ?? directory.appendingPathComponent(Key.settingsFile)
         
         _obsConfig = OBSConfig()
         _recordingLEDColor = .recordingDefault
         _lastESPDevicePath = nil
+        _trustedESPDevices = []
         _autoConnect = false
         
         load()
@@ -98,6 +120,7 @@ final class AppSettings {
                     )
                 }
                 _lastESPDevicePath = json[Key.espDevicePathKey] as? String
+                _trustedESPDevices = (json[Key.trustedESPDevicesKey] as? [String])?.filter { !$0.isEmpty } ?? []
                 _autoConnect = (json[Key.autoConnectKey] as? Bool) ?? false
                 // Legacy migration: rewrite the file to strip any plaintext
                 // "token" entry that older versions persisted there.
@@ -130,6 +153,9 @@ final class AppSettings {
             ]
             if let lastESPDevicePath = _lastESPDevicePath {
                 dict[Key.espDevicePathKey] = lastESPDevicePath
+            }
+            if !_trustedESPDevices.isEmpty {
+                dict[Key.trustedESPDevicesKey] = _trustedESPDevices
             }
             
             do {

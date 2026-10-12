@@ -59,6 +59,22 @@ struct ESP32ConnectionView: View {
                         .foregroundColor(.red)
                         .font(.caption)
                 }
+
+                if viewModel.espConnected, !viewModel.espDeviceTrusted {
+                    Label(viewModel.espWarning ?? String(localized: "Device untrusted"),
+                          systemImage: "exclamationmark.shield.fill")
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                    Button(String(localized: "Trust this device")) {
+                        viewModel.trustDevice()
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else if viewModel.espConnected, viewModel.espDeviceTrusted {
+                    Label(String(localized: "Device trusted"),
+                          systemImage: "checkmark.shield.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                }
             }
 
             Section("Recording LED Color") {

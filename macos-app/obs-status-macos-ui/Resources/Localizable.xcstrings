@@ -1048,6 +1048,70 @@
           }
         }
       }
+    },
+    "Device untrusted": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivo no confiable"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailua ez da konfiantzazkoa"
+          }
+        }
+      }
+    },
+    "Device trusted": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivo confiable"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailua konfiantzazkoa da"
+          }
+        }
+      }
+    },
+    "Trust this device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar en este dispositivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konfidantzatu gailu honi"
+          }
+        }
+      }
+    },
+    "Device untrusted: screen taps won't control OBS": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivo no confiable: los toques en pantalla no controlarán OBS"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gailua ez da konfiantzazkoa: pantailako ukitzeek ez dute OBS kontrolatuko"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -62,7 +62,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - **Aceptación:** los jobs de firmware usan caché en runs consecutivos.
 - [x] Hecho (commit: `build: ...`; pin `platformio==6.2.0`, la versión local en uso)
 
-### 1.3 ✅/⬜ `fix(macos): no procesar eventos del ESP32 sin confirmación del usuario`
+### 1.3 ✅ `fix(macos): no procesar eventos del ESP32 sin confirmación del usuario`
 - **Objetivo (seguridad):** hoy, un dispositivo USB malicioso que clone VID Espressif
   (`0x303A`) y coincida con `lastESPDevicePath` se conecta solo (`autoConnect`) y sus líneas
   `EVENT:TOGGLE_PAUSE` pausarían/reanudarían la grabación de OBS sin intervención del usuario.
@@ -84,7 +84,8 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - **Aceptación:** con un dispositivo "nuevo" (path distinto al confianza), los eventos
   se ignoran y se muestra el aviso; tras confirmar, funcionan. Tests de `AppViewModel`
   con el fake de la tarea 3.2.
-- [ ] Hecho (commit: `fix(macos): ...`)
+- [x] Hecho (commit: `fix(macos): ...`; `USBDevice.trustID` = serial o path, `AppSettings.trustedESPDevices`
+  persistido, botón "Trust this device" en panel y barra de menú, 4 tests de regresión)
 
 ### 1.4 ⬜ (opcional, extender 1.3) `fix: autenticación real con secreto del dispositivo`
 - **Objetivo:** defensa fuerte contra un clon que implemente todo el protocolo.
@@ -325,7 +326,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 
 | Fase | Tareas | Estado |
 |---|---|---|
-| 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3, 1.4 (opt) ⬜ | 🚧 en curso |
+| 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 (opt) ⬜ | 🚧 en curso |
 | 2 (P1) | 2.1 – 2.5 | ⬜ pendiente |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |
