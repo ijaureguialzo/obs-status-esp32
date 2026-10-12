@@ -283,13 +283,13 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   `#if __has_include(...)` con valores de fallback (`1.0.0`/`1`). Así `protocol/obs_protocol.h`
   (que lo incluye) compila en cualquier contexto, incluso un checkout sin build previo.
 - **Aceptación:** compila `protocol_message.c` en host con la cabecera generada borrada.
-- [ ] Hecho
+- [x] Hecho (commit: `fix(firmware): ...`; `__has_include` con fallback 1.0.0/1; build OK)
 
 ### 4.2 ⬜ `chore(macos): modernizar swift-tools-version`
 - `Package.swift`: `// swift-tools-version: 6.0` + `swiftLanguageMode: .v5` en el target
   (conserva la semánta 5 y evita una avalancha de cambios de concurrencia estricta).
 - **Aceptación:** `swift build` y `swift test` locales y en CI.
-- [ ] Hecho
+- [x] Hecho (commit: `chore(macos): ...`; tools 6.0 + `swiftLanguageModes: [.v5]`; build/test OK)
 
 ### 4.3 ⬜ `chore: micro-limpiezas`
 - `esp_lcd_touch_axs5106.c` (vendor local): `g_dev_handle` → `static`.
@@ -348,4 +348,4 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
 | 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ✅ | ✅ completado |
-| 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |
+| 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 – 4.6 ⬜ | 🚧 en curso |

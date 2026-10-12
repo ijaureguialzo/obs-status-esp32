@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 
 import PackageDescription
 
@@ -59,5 +59,9 @@ let package = Package(
             name: "VersionGenerator",
             capability: .buildTool
         )
-    ]
+    ],
+    // The code predates Swift 6's strict concurrency; keep the Swift 5
+    // language mode for now (the tools version only unlocks manifest/API
+    // features, it does not force the new checking).
+    swiftLanguageModes: [.v5]
 )
