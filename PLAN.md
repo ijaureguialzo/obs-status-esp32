@@ -165,7 +165,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - [x] Hecho (commit: `fix(app): ...`; truncado 95 chars / 121 bytes con corte en frontera de
   carácter; test multi-byte CJK 95→40 chars; doc en PROTOCOL_SPEC)
 
-### 2.4 ⬜ `test(macos): tests de LineRouter y del flujo de comandos de USBCDCService`
+### 2.4 ✅ `test(macos): tests de LineRouter y del flujo de comandos de USBCDCService`
 - **Objetivo:** `LineRouter` (y `DeviceEventBroadcaster`) es la parte de mayor riesgo de
   la app (races: respuesta stash vs `registerPending`, discard stale, timeout,
   generaciones de reader) y **no tiene ningún test**.
@@ -182,7 +182,9 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   - (Opcional) `USBCDCServiceTests.swift` con un par de "dispositivos" falsos vía
     `pipe()`/socketpair para el loop de reader.
 - **Aceptación:** `swift test` verde con los nuevos tests.
-- [ ] Hecho (commit: `test(macos): ...`)
+- [x] Hecho (commit: `test(macos): ...`; `LineRouter` internal; extraído `LineSplitter` (mutating,
+  testeable) y usado en el reader; 13 tests nuevos: stashing, stale discard, timeout por id,
+  stop/restart, eventos, logs basura, splitting CRLF/overflow; `swift test` 41/41)
 
 ### 2.5 ⬜ `test(macos): tests de AppViewModel (retries, sesión, confianza)`
 - **Objetivo:** cubrir `deliver()` (reintentos ante timeout transitorio, fallo definitivo
@@ -334,6 +336,6 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | Fase | Tareas | Estado |
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
-| 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4, 2.5 ⬜ | 🚧 en curso |
+| 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ⬜ | 🚧 en curso |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

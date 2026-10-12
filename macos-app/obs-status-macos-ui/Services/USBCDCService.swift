@@ -84,11 +84,51 @@ private final class DeviceEventBroadcaster: @unchecked Sendable {
     }
 }
 
+/// Splits a raw byte stream into newline-terminated lines. Internal (not
+/// private) so the reader loop's buffering rules can be tested: carriage
+/// returns are skipped, an oversized line (no newline within maxLineBytes)
+/// is discarded to resynchronize on the next newline.
+struct LineSplitter {
+    private var buffer: [UInt8] = []
+    private let maxLineBytes: Int
+
+    init(maxLineBytes: Int = 1024) {
+        self.maxLineBytes = maxLineBytes
+        buffer.reserveCapacity(256)
+    }
+
+    /// Feeds raw bytes and returns the lines that completed.
+    mutating func feed(_ bytes: some Collection<UInt8>) -> [String] {
+        var lines: [String] = []
+        for byte in bytes {
+            if byte == 0x0A {
+                if !buffer.isEmpty {
+                    let line = String(decoding: buffer, as: UTF8.self)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !line.isEmpty {
+                        lines.append(line)
+                    }
+                }
+                buffer.removeAll(keepingCapacity: true)
+            } else if byte != 0x0D {
+                if buffer.count < maxLineBytes {
+                    buffer.append(byte)
+                } else {
+                    // Overflowing line: discard and resync on next newline
+                    buffer.removeAll(keepingCapacity: true)
+                }
+            }
+        }
+        return lines
+    }
+}
+
 /// Routes lines read from the serial port by the detached reader loop:
 /// lines starting with the event prefix are broadcast to event subscribers,
 /// any other line completes the pending command response. Lock-based so the
-/// reader thread and the actor can both use it safely.
-private final class LineRouter: @unchecked Sendable {
+/// reader thread and the actor can both use it safely. Internal (not
+/// private) so the routing rules can be tested directly.
+class LineRouter: @unchecked Sendable {
     private let lock = NSLock()
     private var pendingID: UUID?
     private var pendingContinuation: CheckedContinuation<String, Error>?
@@ -501,8 +541,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         let router = router
         let generation = router.readerGenerationToken()
         readerTask = Task.detached(priority: .utility) {
-            var buffer: [UInt8] = []
-            buffer.reserveCapacity(256)
+            var splitter = LineSplitter()
             var chunk = [UInt8](repeating: 0, count: 256)
             var pollFD = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
 
@@ -532,22 +571,8 @@ actor USBCDCService: USBCDCServiceProtocol {
                     break
                 }
 
-                for byte in chunk.prefix(bytesRead) {
-                    if byte == 0x0A {
-                        let line = String(decoding: buffer, as: UTF8.self)
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-                        buffer.removeAll(keepingCapacity: true)
-                        if !line.isEmpty {
-                            router.handleLine(line)
-                        }
-                    } else if byte != 0x0D {
-                        if buffer.count < 1024 {
-                            buffer.append(byte)
-                        } else {
-                            // Overflowing line: discard and resync on next newline
-                            buffer.removeAll(keepingCapacity: true)
-                        }
-                    }
+                for line in splitter.feed(chunk.prefix(bytesRead)) {
+                    router.handleLine(line)
                 }
             }
         }
