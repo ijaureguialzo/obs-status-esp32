@@ -52,7 +52,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - **Aceptación:** el job de CI de macOS compila sin errores de code signing.
 - [x] Hecho (commit: `build: ...`)
 
-### 1.2 ✅/⬜ `build: cachear PlatformIO en CI y pin de versión`
+### 1.2 ✅ `build: cachear PlatformIO en CI y pin de versión`
 - **Objetivo:** evitar re-descargas de la toolchain en cada run (~1.5 GB × 2 matrix jobs) y
   evitar deriva de la versión de PlatformIO Core.
 - **Archivos:** `.github/workflows/ci.yml`
@@ -60,7 +60,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   - `pip install platformio==<versión actual del proyecto>` (consultar la versión en uso local: `pio --version`).
   - `actions/cache@v4` sobre `~/.platformio` (key: `pio-${{ runner.os }}-${{ hashFiles('esp32-firmware/platformio.ini') }}` + ref).
 - **Aceptación:** los jobs de firmware usan caché en runs consecutivos.
-- [ ] Hecho (commit: `build: ...`)
+- [x] Hecho (commit: `build: ...`; pin `platformio==6.2.0`, la versión local en uso)
 
 ### 1.3 ✅/⬜ `fix(macos): no procesar eventos del ESP32 sin confirmación del usuario`
 - **Objetivo (seguridad):** hoy, un dispositivo USB malicioso que clone VID Espressif
@@ -325,7 +325,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 
 | Fase | Tareas | Estado |
 |---|---|---|
-| 1 (P0) | 1.1 ✅ · 1.2, 1.3, 1.4 (opt) ⬜ | 🚧 en curso |
+| 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3, 1.4 (opt) ⬜ | 🚧 en curso |
 | 2 (P1) | 2.1 – 2.5 | ⬜ pendiente |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

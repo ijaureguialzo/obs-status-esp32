@@ -23,8 +23,18 @@ jobs:
         env: [ esp32-s3-dev-kit-n8r8, esp32-c6-touch-lcd-1_47 ]
     steps:
       - uses: actions/checkout@v4
-      - name: Install PlatformIO Core
-        run: pip install platformio
+      # The platform (espressif32@7.1.3) downloads the ESP-IDF toolchains on
+      # first use; caching ~/.platformio keeps re-runs from re-downloading
+      # them on every matrix job.
+      - name: Cache PlatformIO platform/toolchains
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-core6.2.0-${{ hashFiles('esp32-firmware/platformio.ini', 'esp32-firmware/boards/**') }}
+          restore-keys: |
+            pio-${{ runner.OS }}-core6.2.0-
+      - name: Install PlatformIO Core (pinned to the version in use)
+        run: pip install platformio==6.2.0
       - name: Build firmware
         run: pio run -d esp32-firmware -e ${{ matrix.env }}
       - name: Protocol unit tests (host)
