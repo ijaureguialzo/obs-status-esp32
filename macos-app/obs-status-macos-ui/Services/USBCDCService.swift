@@ -302,8 +302,14 @@ actor USBCDCService: USBCDCServiceProtocol {
         router.eventStream()
     }
 
-    /// BSD path of the first native USB Serial JTAG port (ESP32-S3/C6).
-    static let nativeJTAGPortPath = "/dev/cu.debug-console"
+    /// BSD path prefix of the native USB Serial JTAG port (ESP32-S3/C6).
+    /// macOS assigns /dev/cu.debug-console, then /dev/cu.debug-console1,
+    /// /dev/cu.debug-console2, ... for each additional board.
+    static let nativeJTAGPortPrefix = "/dev/cu.debug-console"
+
+    static func isNativeJTAGPort(_ path: String) -> Bool {
+        path.hasPrefix(nativeJTAGPortPrefix)
+    }
     
     // MARK: - Public API
     
@@ -340,11 +346,11 @@ actor USBCDCService: USBCDCServiceProtocol {
                         // native USB Serial JTAG port is always kept, even
                         // if its vendor lookup fails on some systems.
                         let isESP32 = (usbVendorID.map(USBDevice.isESP32Device) ?? false)
-                            || (callout == Self.nativeJTAGPortPath)
+                            || (callout.map(Self.isNativeJTAGPort) ?? false)
 
                         let devicePath = callout ?? serialPath
                         if isESP32, let path = devicePath, isValidSerialPath(path) {
-                            if path == Self.nativeJTAGPortPath {
+                            if Self.isNativeJTAGPort(path) {
                                 sawJTAGPort = true
                             }
                             // Avoid duplicates
@@ -371,17 +377,29 @@ actor USBCDCService: USBCDCServiceProtocol {
 
             // Fallback for systems whose IOKit enumeration does not surface
             // the USB Serial JTAG port, even though it exists as a BSD
-            // serial device.
-            let jtagPath = Self.nativeJTAGPortPath
-            if !sawJTAGPort, FileManager.default.fileExists(atPath: jtagPath) {
-                devices.append(USBDevice(
-                    vendorID: 0x303A, // Espressif
-                    productID: 0x1001, // USB Serial JTAG
-                    serialNumber: nil,
-                    deviceDescription: "USB JTAG/serial debug unit",
-                    name: "ESP32-S3 USB Serial JTAG",
-                    path: jtagPath
-                ))
+            // serial device. macOS names additional boards
+            // cu.debug-console1, cu.debug-console2, ...; pick them all up.
+            if !sawJTAGPort {
+                let jtagFiles = ((try? FileManager.default.contentsOfDirectory(atPath: "/dev")) ?? [])
+                    .filter { $0.hasPrefix("cu.debug-console") }
+                    .sorted()
+                for fileName in jtagFiles {
+                    let path = "/dev/\(fileName)"
+                    guard FileManager.default.fileExists(atPath: path) else { continue }
+                    let name = fileName == "cu.debug-console"
+                        ? "ESP32-S3 USB Serial JTAG"
+                        : "ESP32 USB Serial JTAG (\(fileName))"
+                    if !devices.contains(where: { $0.path == path }) {
+                        devices.append(USBDevice(
+                            vendorID: 0x303A, // Espressif
+                            productID: 0x1001, // USB Serial JTAG
+                            serialNumber: nil,
+                            deviceDescription: "USB JTAG/serial debug unit",
+                            name: name,
+                            path: path
+                        ))
+                    }
+                }
             }
 
             return devices

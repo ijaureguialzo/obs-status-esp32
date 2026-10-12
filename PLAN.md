@@ -227,7 +227,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - **Aceptación:** `make test` y `make check` locales pasan.
 - [x] Hecho (commit: `build: ...`; `check`/`test`/`check-all` + `firmware-debug`; `make check` local OK)
 
-### 3.3 ⬜ `fix(macos): enumerar todos los puertos USB Serial JTAG`
+### 3.3 ✅ `fix(macos): enumerar todos los puertos USB Serial JTAG`
 - **Objetivo:** con dos placas conectadas, el fallback solo añade `/dev/cu.debug-console`
   (el primero); el segundo (`/dev/cu.debug-console1`, ...) puede faltar.
 - **Pasos:**
@@ -340,5 +340,5 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
-| 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 – 3.5 ⬜ | 🚧 en curso |
+| 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4, 3.5 ⬜ | 🚧 en curso |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |
