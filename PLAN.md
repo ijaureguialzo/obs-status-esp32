@@ -218,14 +218,14 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 - [x] Hecho (commit: `chore(macos): ...`; `swift build` sin warnings, tests 47/47; verificado que el
   pbxproj usa un synchronized root group, que incluye los `.xcstrings` automáticamente)
 
-### 3.2 ⬜ `build: targets de test/verificación en Makefile`
+### 3.2 ✅ `build: targets de test/verificación en Makefile`
 - **Archivos:** `Makefile`
 - **Pasos:**
   - `test:` → `swift test --package-path macos-app` + `pio test -d esp32-firmware -e host-tests` + `bash scripts/check_protocol_sync.sh`
   - `check:` → `test` + los 2 `pio run` + `swift build` (todo el conjunto).
   - Actualizar `help`.
 - **Aceptación:** `make test` y `make check` locales pasan.
-- [ ] Hecho (commit: `build: ...`)
+- [x] Hecho (commit: `build: ...`; `check`/`test`/`check-all` + `firmware-debug`; `make check` local OK)
 
 ### 3.3 ⬜ `fix(macos): enumerar todos los puertos USB Serial JTAG`
 - **Objetivo:** con dos placas conectadas, el fallback solo añade `/dev/cu.debug-console`
@@ -340,5 +340,5 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
-| 3 (P2) | 3.1 ✅ · 3.2 – 3.5 ⬜ | 🚧 en curso |
+| 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 – 3.5 ⬜ | 🚧 en curso |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

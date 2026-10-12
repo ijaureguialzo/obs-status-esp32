@@ -12,12 +12,15 @@ APP_NAME ?= OBS Status
 #   esp32-c6-touch-lcd-1_47    Waveshare ESP32-C6-Touch-LCD-1.47 (touch LCD)
 BOARD ?= esp32-s3-dev-kit-n8r8
 
-.PHONY: all firmware firmware-s3 firmware-c6 install install-s3 install-c6 macos macos-release install-macos help
+.PHONY: all firmware firmware-s3 firmware-c6 firmware-debug install install-s3 install-c6 monitor macos macos-release install-macos check test check-all help
 
 all: firmware macos
 
 firmware:
 	$(PIO) run -d esp32-firmware -e $(BOARD)
+
+firmware-debug:
+	$(PIO) run -d esp32-firmware -e esp32-c6-touch-lcd-1_47-debug
 
 firmware-s3:
 	$(PIO) run -d esp32-firmware -e esp32-s3-dev-kit-n8r8
@@ -40,6 +43,21 @@ monitor:
 macos:
 	$(SWIFT) build --package-path macos-app
 
+# Verification targets (the same checks CI runs, minus the macOS-specific
+# ones that need Xcode). `check` is the fast loop; `check-all` adds the
+# slower full firmware builds.
+check:
+	bash scripts/check_protocol_sync.sh
+	$(PIO) test -d esp32-firmware -e host-tests
+	$(SWIFT) test --package-path macos-app
+
+test: check
+
+check-all: check
+	$(PIO) run -d esp32-firmware -e esp32-s3-dev-kit-n8r8
+	$(PIO) run -d esp32-firmware -e esp32-c6-touch-lcd-1_47
+	cd macos-app && $(XCODEBUILD) -scheme obs-status-macos-ui -configuration Debug build
+
 macos-release:
 	cd macos-app && $(XCODEBUILD) -scheme obs-status-macos-ui -configuration Release build -derivedDataPath .derived
 
@@ -57,6 +75,8 @@ help:
 		'  make macos-release  Build the macOS app as a Release .app bundle.' \
 		'  make install-macos  Build Release and install it in /Applications.' \
 		'  make monitor     Show serial console.' \
+		'  make check       Protocol sync + firmware host tests + Swift tests.' \
+		'  make check-all   check + full firmware builds + Xcode build.' \
 		'' \
 		'Board shortcuts:' \
 		'  make firmware-s3 / install-s3  ESP32-S3-DevKit N8R8 (LED only).' \
