@@ -235,7 +235,8 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
     (p. ej. `FileManager.default.contentsOfDirectory` sobre `/dev/cu` filtrando por prefijo)
     y añadir cada uno.
 - **Aceptación:** con dos dispositivos JTAG, ambos aparecen.
-- [ ] Hecho (commit: `fix(macos): ...`)
+- [x] Hecho (commit: `fix(macos): ...`; prefijo `cu.debug-console` + fallback por glob de `/dev`; dos
+  puertos enumerados; `swift build`/`swift test` OK)
 
 ### 3.4 ⬜ `test(firmware): layout de texto y UTF-8 del display como módulo host-testable`
 - **Objetivo:** `layout_text`/`utf8_decode` (word-wrap, centrado, multi-línea) viven
