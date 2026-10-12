@@ -128,7 +128,7 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   con `sdkconfig.defaults.debug` vía pre-script (PIO 6.2 ignora `build_env`); además fix del vendor
   AXS5106 `i2c_write` sin return que rompía el build `-Werror`)
 
-### 2.2 ⬜ `fix(firmware): lock de aplicación para las escrituras USB`
+### 2.2 ✅ `fix(firmware): lock de aplicación para las escrituras USB`
 - **Objetivo:** `usb_cdc_send` (app task), `usb_cdc_send_nowait` (touch task) y `ESP_LOG`
   (cualquier task) llaman a `usb_serial_jtag_write_bytes`. La app **descarta** cualquier
   línea malformada: si un log se intercala dentro de una respuesta de protocolo, el host
@@ -144,7 +144,9 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
   - `main.c`: chequear el `ret` del segundo `nvs_flash_init()` (nítido de robustez).
 - **Archivos:** `esp32-firmware/src/usb/usb_cdc.c`, `esp32-firmware/src/main.c`
 - **Aceptación:** `pio run` OK en ambos envs; comentarios explicando por qué existe el lock.
-- [ ] Hecho (commit: `fix(firmware): ...`)
+- [x] Hecho (commit: `fix(firmware): ...`; mutex `s_tx_lock` en `usb_cdc_send`/`send_nowait`; verificado en el
+  driver IDF: `write_bytes` atómico por llamada, el console escribe por caracteres; chequeo del 2º
+  `nvs_flash_init` ya hecho en 1.4)
 
 ### 2.3 ⬜ `feat(firmware): truncado determinista de SCENE (host) + doc en el protocolo`
 - **Objetivo:** el host envía `SCENE:<nombre>` sin límite; el firmware trunca a 127 chars
@@ -331,6 +333,6 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | Fase | Tareas | Estado |
 |---|---|---|
 | 1 (P0) | 1.1 ✅ · 1.2 ✅ · 1.3 ✅ · 1.4 ✅ | ✅ completa |
-| 2 (P1) | 2.1 ✅ · 2.2, 2.3, 2.4, 2.5 ⬜ | 🚧 en curso |
+| 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3, 2.4, 2.5 ⬜ | 🚧 en curso |
 | 3 (P2) | 3.1 – 3.5 | ⬜ pendiente |
 | 4 (P3) | 4.1 – 4.6 | ⬜ pendiente |

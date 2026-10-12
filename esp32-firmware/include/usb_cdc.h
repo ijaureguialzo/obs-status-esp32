@@ -17,6 +17,15 @@ extern "C" {
 #endif
 
 esp_err_t usb_cdc_init(void);
+/**
+ * @brief Blocking write of a whole frame (command responses)
+ *
+ * The entire call is serialized with other protocol writers (app task,
+ * touch task) by an internal TX lock, so one response cannot be
+ * interleaved with another protocol write. Can still return ESP_FAIL if
+ * the host stops draining (host asleep); the host then times out and
+ * retries the command.
+ */
 esp_err_t usb_cdc_send(const uint8_t *data, size_t len);
 /**
  * @brief Non-blocking variant of usb_cdc_send
