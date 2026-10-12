@@ -6,11 +6,20 @@
 import SwiftUI
 
 struct ObsStatusMenuBar: Scene {
-    @Environment(AppViewModel.self) private var viewModel
+    // Injected explicitly rather than read from the environment: a *Scene*
+    // struct's @Environment property wrappers resolve from the app-level
+    // environment, not from the scene's own .environment() modifier (that
+    // one only reaches the scene's content views). Reading
+    // @Environment(AppViewModel.self) here crashed at launch with
+    // "No Observable" the moment the menu bar label was built.
+    let viewModel: AppViewModel
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarControls()
+            // Passed explicitly (not via the scene environment) so the menu
+            // content does not depend on the scene-level .environment() being
+            // delivered to its views.
+            MenuBarControls(viewModel: viewModel)
         } label: {
             MenuBarIcon(viewModel: viewModel)
         }
@@ -36,7 +45,7 @@ struct MenuBarIcon: View {
 }
 
 struct MenuBarControls: View {
-    @Environment(AppViewModel.self) private var viewModel
+    let viewModel: AppViewModel
 
     var body: some View {
         Group {
