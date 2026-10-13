@@ -41,6 +41,7 @@ let package = Package(
                 "UI/LEDIndicatorView.swift",
                 "Services/OBSWebSocketService.swift",
                 "Services/USBCDCService.swift",
+                "Services/ESP32LogService.swift",
                 "Models/AppViewModel.swift",
                 "Models/OBSConfig.swift",
                 "Models/USBDevice.swift",

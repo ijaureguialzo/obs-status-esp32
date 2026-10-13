@@ -34,6 +34,11 @@ The app opens with a single window with two tabs or sections:
 - **Connect/Disconnect** button for ESP32
 - **Status indicator**: Green (connected), Red (disconnected)
 - **Last seen** timestamp
+- **Event log**: Records everything that happens on the ESP32 serial link
+  (commands sent, lines received, unsolicited events, connection lifecycle) in a
+  classic syslog file. **Start/Stop Logging** button; the running session shows
+  the file name, the event count and the last recorded event, plus a
+  "Show in Finder" action (see 4.4)
 - **Recording LED color picker**: Selects any RGB color sent to the ESP32 while recording
 
 #### Visual Recording Indicator
@@ -86,6 +91,9 @@ enum RecordingState {
   look-alike USB device cannot toggle the OBS recording by itself: the app
   remembers trusted devices by USB serial number (falling back to the BSD path)
   and shows a "trust this device" prompt for new ones
+- Emit communication log events (`SerialLogEntry`) for everything that happens
+  on the link — commands sent (secrets redacted), lines received, and
+  connection lifecycle changes — for the event log service
 
 **API**:
 ```swift
@@ -120,6 +128,30 @@ the current OBS recording state is sent again.
 LED-on and LED-off commands are acknowledged by a newline-terminated response.
 The service uses a two-second response timeout and serializes access to the
 selected USB device.
+
+### 4.4 ESP32 Event Log Service
+
+`ESP32LogService` records the communication events reported by the USB CDC
+service into a local file, in classic syslog line format (RFC 3164):
+
+    <PRI>MMM dd hh:mm:ss HOSTNAME obs-status[PID]: MESSAGE
+
+(`PRI` = facility `local7` * 8 + severity, with syslog severities
+`debug`/`info`/`notice`/`warning`/`error`.)
+
+- **Session-per-start**: every `start()` creates a **new** file in
+  `~/Library/Application Support/OBS Status/`, named `esp32-<date>_<time>.log`
+  from the session's start timestamp (e.g. `esp32-2025-10-13_14-32-05.log`);
+  a numeric suffix breaks ties when two sessions start within the same second,
+  so sessions can never collide or overwrite each other. `stop()` seals the
+  file; the UI keeps its URL so the user can reveal it in Finder.
+- **What is recorded**: port open/close, the connect handshake, every command
+  sent (with the AUTH secret redacted), every line received (responses, events
+  and stray firmware log output, each with an appropriate severity), timeouts,
+  write failures, and link loss (device unplugged).
+- `AppViewModel` pipes the USB service's `logEvents` stream into the active
+  session and mirrors the state (active flag, file URL, event count, last
+  message) for the UI.
 
 ## 5. App State Management
 
@@ -191,6 +223,7 @@ macos-app/
 │   ├── Services/
 │   │   ├── OBSWebSocketService.swift   # OBS WebSocket v5 client
 │   │   ├── USBCDCService.swift         # USB serial communication
+│   │   └── ESP32LogService.swift       # Communication event log (syslog format)
 │   ├── Models/
 │   │   ├── OBSConfig.swift             # OBS connection config
 │   │   ├── USBDevice.swift             # USB device model

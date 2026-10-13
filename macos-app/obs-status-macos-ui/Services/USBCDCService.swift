@@ -52,6 +52,10 @@ protocol USBCDCServiceProtocol: Sendable {
     /// Unsolicited lines sent by the ESP32 (lines starting with `EVENT:`),
     /// e.g. a tap on the touch screen asking to toggle the recording pause.
     nonisolated var events: AsyncStream<String> { get }
+    /// Communication events for the event log: everything that happens on
+    /// the serial link (commands, responses, unsolicited lines, connection
+    /// lifecycle), each with a syslog severity. See `ESP32LogService`.
+    nonisolated var logEvents: AsyncStream<SerialLogEntry> { get }
     func enumerateDevices() async -> [USBDevice]
     func connect(_ device: USBDevice) async throws
     func disconnect() async
@@ -82,6 +86,36 @@ private final class DeviceEventBroadcaster: @unchecked Sendable {
         let current = lock.withLock { Array(continuations.values) }
         for continuation in current {
             continuation.yield()
+        }
+    }
+}
+
+/// Broadcasts communication log entries to any number of stream subscribers.
+/// Log points sit both on the actor and on the detached reader task, so
+/// access is lock-based and the type is usable from outside the actor
+/// (same pattern as `DeviceEventBroadcaster`).
+private final class LogEventBroadcaster: @unchecked Sendable {
+    private nonisolated let lock = NSLock()
+    private nonisolated(unsafe) var continuations:
+        [UUID: AsyncStream<SerialLogEntry>.Continuation] = [:]
+
+    nonisolated init() {}
+
+    nonisolated func stream() -> AsyncStream<SerialLogEntry> {
+        AsyncStream { continuation in
+            let id = UUID()
+            lock.withLock { continuations[id] = continuation }
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                self.lock.withLock { self.continuations[id] = nil }
+            }
+        }
+    }
+
+    nonisolated func broadcast(_ entry: SerialLogEntry) {
+        let current = lock.withLock { Array(continuations.values) }
+        for continuation in current {
+            continuation.yield(entry)
         }
     }
 }
@@ -280,6 +314,7 @@ actor USBCDCService: USBCDCServiceProtocol {
     private var connectedDevice: USBDevice?
     private var isConnectedFlag: Bool = false
     private let broadcaster = DeviceEventBroadcaster()
+    private let logBroadcaster = LogEventBroadcaster()
     private let router = LineRouter()
     private var readerTask: Task<Void, Never>?
 
@@ -302,6 +337,37 @@ actor USBCDCService: USBCDCServiceProtocol {
 
     nonisolated var events: AsyncStream<String> {
         router.eventStream()
+    }
+
+    nonisolated var logEvents: AsyncStream<SerialLogEntry> {
+        logBroadcaster.stream()
+    }
+
+    /// Emits one communication event to the log subscribers; a no-op when
+    /// nobody is subscribed (i.e. the user is not recording the event log).
+    private nonisolated func emitLog(_ severity: SyslogSeverity, _ message: String) {
+        logBroadcaster.broadcast(SerialLogEntry(severity, message: message))
+    }
+
+    /// Severity for a line read from the device: explicit errors stand out,
+    /// unsolicited events are notable, everything else (routine OK/STATUS
+    /// responses, stray firmware log output) is debug noise. `nonisolated`
+    /// because the detached reader task (a nonisolated context) calls it.
+    nonisolated private static func incomingSeverity(for line: String) -> SyslogSeverity {
+        if line.hasPrefix(ObsResponse.errorPrefix) { return .warning }
+        if line.hasPrefix(ObsEvent.linePrefix) { return .info }
+        return .debug
+    }
+
+    /// AUTH commands carry the pairing secret; the secret must never be
+    /// written to the event log file. `nonisolated` so it can be called from
+    /// any context (the tests call it directly).
+    nonisolated static func redactedForLog(_ command: String) -> String {
+        let line = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        if line.hasPrefix(ObsCommand.authPrefix) {
+            return ObsCommand.authPrefix + "[redacted]"
+        }
+        return line
     }
 
     /// BSD path prefix of the native USB Serial JTAG port (ESP32-S3/C6).
@@ -429,8 +495,11 @@ actor USBCDCService: USBCDCServiceProtocol {
             throw USBCDCError.alreadyConnected
         }
 
+        emitLog(.info, "Connecting to \(device.path)")
+
         fileDescriptor = open(device.path, O_RDWR | O_NOCTTY)
         if fileDescriptor < 0 {
+            emitLog(.error, "Cannot open serial port \(device.path)")
             throw USBCDCError.cannotOpen(path: device.path)
         }
 
@@ -438,6 +507,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         guard tcgetattr(fileDescriptor, &settings) == 0 else {
             close(fileDescriptor)
             fileDescriptor = -1
+            emitLog(.error, "Cannot configure serial port \(device.path)")
             throw USBCDCError.cannotOpen(path: device.path)
         }
 
@@ -463,6 +533,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         if tcsetattr(fileDescriptor, TCSANOW, &settings) < 0 {
             close(fileDescriptor)
             fileDescriptor = -1
+            emitLog(.error, "Cannot configure serial port \(device.path)")
             throw USBCDCError.cannotOpen(path: device.path)
         }
 
@@ -475,6 +546,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         isConnectedFlag = true
         router.restart()
         startReader()
+        emitLog(.info, "Serial port \(device.path) opened")
 
         // A freshly opened USB-Serial-JTAG port can take a while before data
         // actually flows (kernel negotiation, or the firmware still booting
@@ -486,9 +558,10 @@ actor USBCDCService: USBCDCServiceProtocol {
         for _ in 1...Self.connectHandshakeAttempts {
             guard isConnectedFlag else { throw USBCDCError.notConnected }
             do {
-                _ = try await sendCommand(
+                let response = try await sendCommand(
                     ObsCommand.status.lineTerminated, to: device,
                     timeout: Self.connectHandshakeTimeout)
+                emitLog(.notice, "ESP32 link established: \(response)")
                 return
             } catch {
                 guard isConnectedFlag else { throw error }
@@ -498,6 +571,7 @@ actor USBCDCService: USBCDCServiceProtocol {
 
         // The port opened but the board never answered: tear the link down
         // and report it instead of leaving a silently broken connection.
+        emitLog(.error, "ESP32 did not answer the STATUS handshake; link torn down")
         await disconnect()
         throw USBCDCError.linkNotReady
     }
@@ -507,6 +581,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         readerTask?.cancel()
         readerTask = nil
         if fileDescriptor >= 0 {
+            emitLog(.info, "Serial port \(connectedDevice?.path ?? "unknown") closed")
             close(fileDescriptor)
             fileDescriptor = -1
         }
@@ -536,6 +611,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         router.discardStaleResponse()
 
         let data = Data(command.utf8)
+        let redacted = Self.redactedForLog(command)
         let writeResult = data.withUnsafeBytes { buffer in
             var offset = 0
             while offset < data.count {
@@ -551,20 +627,35 @@ actor USBCDCService: USBCDCServiceProtocol {
             }
             return true
         }
-        guard writeResult else { throw USBCDCError.writeFailed(error: errno) }
+        guard writeResult else {
+            emitLog(.error, "Write of '\(redacted)' failed (errno \(errno))")
+            throw USBCDCError.writeFailed(error: errno)
+        }
+        emitLog(.debug, "→ \(redacted)")
 
         // The reader loop completes the pending response with the next
         // non-event line; arm a timeout so callers never hang forever. A
         // response that arrives before the pending is armed below is stashed
         // by the router and consumed immediately, which closes the race
-        // between the write and the arming.
+        // between the write and the arming. The reader logs the arriving
+        // response itself, so only the failure modes are logged here.
         let id = UUID()
-        return try await withCheckedThrowingContinuation { continuation in
-            router.registerPending(id: id, continuation: continuation)
-            Task { [router] in
-                try? await Task.sleep(for: timeout)
-                router.timeout(id: id)
+        do {
+            return try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<String, Error>) in
+                router.registerPending(id: id, continuation: continuation)
+                Task { [router] in
+                    try? await Task.sleep(for: timeout)
+                    router.timeout(id: id)
+                }
             }
+        } catch {
+            if let usbError = error as? USBCDCError, case .readFailed(0) = usbError {
+                emitLog(.warning, "No response to '\(redacted)' (timed out)")
+            } else {
+                emitLog(.error, "Command '\(redacted)' failed: \(error.localizedDescription)")
+            }
+            throw error
         }
     }
 
@@ -576,6 +667,7 @@ actor USBCDCService: USBCDCServiceProtocol {
     private func startReader() {
         let fd = fileDescriptor
         let router = router
+        let logBroadcaster = logBroadcaster
         let generation = router.readerGenerationToken()
         readerTask = Task.detached(priority: .utility) {
             var splitter = LineSplitter()
@@ -597,7 +689,16 @@ actor USBCDCService: USBCDCServiceProtocol {
                 }
                 if result == 0 { continue }
                 if pollFD.revents & Int16(POLLIN) == 0 {
-                    if pollFD.revents & Int16(POLLERR | POLLHUP | POLLNVAL) != 0 { break }
+                    if pollFD.revents & Int16(POLLERR | POLLHUP | POLLNVAL) != 0 {
+                        // A clean shutdown stops the router first, so only an
+                        // unexpected hang-up (device pulled) is an event.
+                        if !router.isStopped {
+                            logBroadcaster.broadcast(
+                                SerialLogEntry(
+                                    .warning, message: "Serial link lost (device unplugged?)"))
+                        }
+                        break
+                    }
                     continue
                 }
 
@@ -607,10 +708,24 @@ actor USBCDCService: USBCDCServiceProtocol {
                 }
                 if bytesRead <= 0 {
                     if bytesRead < 0 && errno == EINTR { continue }
+                    if !router.isStopped {
+                        if bytesRead < 0 {
+                            logBroadcaster.broadcast(
+                                SerialLogEntry(
+                                    .error,
+                                    message: "Read from the serial port failed (errno \(errno))"))
+                        } else {
+                            logBroadcaster.broadcast(
+                                SerialLogEntry(
+                                    .warning, message: "Serial link lost (device unplugged?)"))
+                        }
+                    }
                     break
                 }
 
                 for line in splitter.feed(chunk.prefix(bytesRead)) {
+                    logBroadcaster.broadcast(
+                        SerialLogEntry(Self.incomingSeverity(for: line), message: "← \(line)"))
                     router.handleLine(line)
                 }
             }

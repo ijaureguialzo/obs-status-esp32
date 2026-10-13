@@ -4,6 +4,7 @@
 //  Includes device picker, connection controls, and status display.
 //
 
+import AppKit
 import SwiftUI
 
 struct ESP32ConnectionView: View {
@@ -101,6 +102,69 @@ struct ESP32ConnectionView: View {
                 }
             }
 
+            Section(String(localized: "Event Log")) {
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(
+                            systemName: viewModel.espLogActive
+                                ? "record.circle.fill" : "circle.dashed"
+                        )
+                        .foregroundColor(viewModel.espLogActive ? .red : .secondary)
+
+                        Text(
+                            viewModel.espLogActive
+                                ? LocalizedStringKey("Logging events")
+                                : LocalizedStringKey("Logging stopped")
+                        )
+                    }
+
+                    Spacer()
+                    logToggleButton
+                }
+
+                if let url = viewModel.espLogFileURL {
+                    LabeledContent(String(localized: "File")) {
+                        Text(url.lastPathComponent)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    LabeledContent(String(localized: "Events")) {
+                        Text("\(viewModel.espLogEventCount)")
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    if let lastMessage = viewModel.espLogLastMessage {
+                        LabeledContent(String(localized: "Last event")) {
+                            Text(lastMessage)
+                                .font(.system(.caption, design: .monospaced))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                    }
+                    Button(String(localized: "Show in Finder")) {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                    .buttonStyle(.bordered)
+                } else if !viewModel.espLogActive {
+                    Text(
+                        String(
+                            localized:
+                                "Start logging to record everything that happens on the ESP32 link (commands, responses, and events). Each session is saved as a new file in Application Support."
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
+                if let error = viewModel.espLogError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+            }
+
             Section("Recording LED Color") {
                 ColorPicker(
                     "Color",
@@ -170,6 +234,21 @@ struct ESP32ConnectionView: View {
         )
         .buttonStyle(.borderedProminent)
         .controlSize(.regular)
+    }
+
+    private var logToggleButton: some View {
+        Button {
+            Task { await viewModel.toggleESPLog() }
+        } label: {
+            Label(
+                viewModel.espLogActive
+                    ? LocalizedStringKey("Stop Logging") : LocalizedStringKey("Start Logging"),
+                systemImage: viewModel.espLogActive ? "stop.circle.fill" : "play.circle.fill"
+            )
+            .frame(minWidth: 90)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(viewModel.espLogActive ? .red : .accentColor)
     }
 
     // MARK: - Actions

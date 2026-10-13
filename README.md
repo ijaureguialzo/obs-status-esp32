@@ -34,6 +34,7 @@ Both boards use their native USB Serial JTAG peripheral, so a single USB-C cable
 | macOS App (UI)  | ✅ Done | Complete SwiftUI with all panels            |
 | macOS WebSocket | ✅ Done | OBS WebSocket v5 client using URLSession    |
 | macOS USB CDC   | ✅ Done | IOKit-based serial port enumeration/control |
+| macOS Event Log | ✅ Done | ESP32 communication events in syslog-format session files |
 | ESP32 Firmware  | ✅ Done | Full implementation with all modules        |
 | Protocol Parser | ✅ Done | Text command parsing and dispatch           |
 | LED Controller  | ✅ Done | WS2812 RGB LED via RMT + dedicated blink task |
@@ -72,7 +73,8 @@ obs-status-esp32/
 │   │   │   └── LEDIndicatorView.swift      # Visual recording indicator
 │   │   ├── Services/
 │   │   │   ├── OBSWebSocketService.swift   # OBS WebSocket v5 client
-│   │   │   └── USBCDCService.swift         # USB serial via IOKit
+│   │   │   ├── USBCDCService.swift         # USB serial via IOKit
+│   │   │   └── ESP32LogService.swift       # Communication event log (syslog format)
 │   │   ├── Models/
 │   │   │   ├── AppViewModel.swift          # Central state manager
 │   │   │   ├── OBSConfig.swift             # OBS config model

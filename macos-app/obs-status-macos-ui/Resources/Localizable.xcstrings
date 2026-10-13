@@ -1224,6 +1224,198 @@
           }
         }
       }
+    },
+    "Event Log": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registro de eventos"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gertaeren erregistroa"
+          }
+        }
+      }
+    },
+    "Logging events": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registrando eventos"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gertaerak erregistratzen"
+          }
+        }
+      }
+    },
+    "Logging stopped": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registro de eventos parado"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gertaeren erregistroa geldita"
+          }
+        }
+      }
+    },
+    "Start Logging": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar registro"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hasi erregistroa"
+          }
+        }
+      }
+    },
+    "Stop Logging": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parar registro"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelditu erregistroa"
+          }
+        }
+      }
+    },
+    "File": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fitxategia"
+          }
+        }
+      }
+    },
+    "Events": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eventos"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gertaerak"
+          }
+        }
+      }
+    },
+    "Last event": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Último evento"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Azken gertaera"
+          }
+        }
+      }
+    },
+    "Show in Finder": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar en Finder"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erakutsi Finder-en"
+          }
+        }
+      }
+    },
+    "Cannot create the event log file: %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede crear el archivo de registro: %@"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ezin da erregistro-fitxategia sortu: %@"
+          }
+        }
+      }
+    },
+    "The event log is already running": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El registro de eventos ya está en marcha"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gertaeren erregistroa dagoeneko martxan dago"
+          }
+        }
+      }
+    },
+    "Start logging to record everything that happens on the ESP32 link (commands, responses, and events). Each session is saved as a new file in Application Support.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia el registro para anotar todo lo que ocurre en la conexión con el ESP32 (comandos, respuestas y eventos). Cada sesión se guarda como un archivo nuevo en Application Support."
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hasi erregistroa ESP32ko lotunean gertatzen den guztia idatzitzeko (komandoak, erantzunak eta gertaerak). Sesio bakoitza Application Support-eko fitxategi berri gisa gordetzen da."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

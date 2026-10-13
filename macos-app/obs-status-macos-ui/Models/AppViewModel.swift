@@ -46,21 +46,37 @@ final class AppViewModel {
     var recordingLEDColor: LEDColor = .recordingDefault
     var currentSceneName: String?
 
+    /// Whether the ESP32 communication event log is currently being written.
+    var espLogActive: Bool = false
+    /// File of the current (or most recent) logging session, so the UI can
+    /// show the name and offer "reveal in Finder".
+    var espLogFileURL: URL?
+    /// Number of link events recorded in the current session.
+    var espLogEventCount: Int = 0
+    /// Message of the most recently recorded link event (live proof that the
+    /// log is capturing traffic).
+    var espLogLastMessage: String?
+    /// File-level failure from start/stop (shown in the event log section).
+    var espLogError: String?
+
     // MARK: - Services
 
     @ObservationIgnored private let obsService: OBSWebSocketServiceProtocol
     @ObservationIgnored private let usbService: USBCDCServiceProtocol
     @ObservationIgnored let settings: AppSettings
     @ObservationIgnored private var statusTask: Task<Void, Never>?
+    @ObservationIgnored private let espLogService: ESP32LogService
 
     init(
         obsService: OBSWebSocketServiceProtocol? = nil,
         usbService: USBCDCServiceProtocol? = nil,
-        settings: AppSettings? = nil
+        settings: AppSettings? = nil,
+        espLogService: ESP32LogService? = nil
     ) {
         self.obsService = obsService ?? OBSWebSocketService()
         self.usbService = usbService ?? USBCDCService()
         self.settings = settings ?? .shared
+        self.espLogService = espLogService ?? ESP32LogService()
         self.recordingLEDColor = self.settings.recordingLEDColor
 
         // Listen for OBS state changes
@@ -68,6 +84,7 @@ final class AppViewModel {
         observeSceneName()
         observeDeviceEvents()
         observeESPEvents()
+        observeESPLogEvents()
     }
 
     // MARK: - OBS Connection
@@ -270,6 +287,41 @@ final class AppViewModel {
         refreshDeviceTrust()
     }
 
+    // MARK: - ESP32 Event Log
+
+    /// Toggles the communication event log. Each start opens a freshly
+    /// named file (named after the start date and time), so no two sessions
+    /// can collide; the stop just seals the current file.
+    func toggleESPLog() async {
+        if espLogActive {
+            await stopESPLog()
+        } else {
+            await startESPLog()
+        }
+    }
+
+    func startESPLog() async {
+        guard !espLogActive else { return }
+        espLogError = nil
+        do {
+            let url = try await espLogService.start()
+            espLogActive = true
+            espLogFileURL = url
+            espLogEventCount = 0
+            espLogLastMessage = nil
+        } catch {
+            espLogError = error.localizedDescription
+        }
+    }
+
+    func stopESPLog() async {
+        guard espLogActive else { return }
+        await espLogService.stop()
+        espLogActive = false
+        // The file URL and the event count are kept so the user can still
+        // reveal the just-finished session in Finder.
+    }
+
     // MARK: - LED Control
 
     /// Maximum attempts for a single command before the link is declared
@@ -434,6 +486,22 @@ final class AppViewModel {
             guard let self else { return }
             for await _ in usbService.deviceEvents {
                 await scanDevices()
+            }
+        }
+    }
+
+    /// Forwards every communication event reported by the USB service to the
+    /// event log while the user is recording. The subscription itself is
+    /// constant and cheap (the broadcaster drops entries when the log is off);
+    /// only `espLogActive` gates the actual file write.
+    private func observeESPLogEvents() {
+        Task { [weak self] in
+            guard let self else { return }
+            for await entry in usbService.logEvents {
+                guard espLogActive else { continue }
+                await espLogService.log(entry)
+                espLogEventCount += 1
+                espLogLastMessage = entry.message
             }
         }
     }

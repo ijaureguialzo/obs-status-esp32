@@ -87,10 +87,16 @@ enum ObsCommand: String, CaseIterable {
         return "SCENE:\(String(decoding: utf8, as: UTF8.self))\n"
     }
 
+    /// Prefix shared by the AUTH command; also used to redact the secret
+    /// in the communication event log (the secret must never hit the file).
+    /// `nonisolated` because the log redaction (a nonisolated context)
+    /// reads it.
+    nonisolated static let authPrefix = "AUTH:"
+
     /// Proves the host knows the device's shared secret (shown by the board
     /// on first pairing). The device answers `OK` or `ERROR: AUTH_FAILED`.
     static func auth(secret: String) -> String {
-        "AUTH:\(secret)\n"
+        "\(authPrefix)\(secret)\n"
     }
 }
 
@@ -101,7 +107,9 @@ enum ObsEvent: String {
     case togglePause = "EVENT:TOGGLE_PAUSE"
 
     /// Prefix shared by every event line; used to route incoming lines.
-    static let linePrefix = "EVENT:"
+    /// `nonisolated` because the log severity classification (a nonisolated
+    /// context) reads it.
+    nonisolated static let linePrefix = "EVENT:"
 
     static func parse(_ line: String) -> ObsEvent? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -116,7 +124,9 @@ enum ObsEvent: String {
 /// every literal defined in the C header exists here.
 enum ObsResponse {
     static let ok = "OK"
-    static let errorPrefix = "ERROR:"
+    /// `nonisolated` because the log severity classification (a nonisolated
+    /// context) reads it.
+    nonisolated static let errorPrefix = "ERROR:"
     static let errorUnknown = "ERROR: UNKNOWN_COMMAND"
     static let errorInvalidFormat = "ERROR: INVALID_FORMAT"
     static let errorAuth = "ERROR: AUTH_FAILED"

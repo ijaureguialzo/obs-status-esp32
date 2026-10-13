@@ -18,6 +18,7 @@ final class FakeUSBCDCService: USBCDCServiceProtocol, @unchecked Sendable {
     private let lock = NSLock()
     private var eventContinuations: [UUID: AsyncStream<String>.Continuation] = [:]
     private var deviceContinuations: [UUID: AsyncStream<Void>.Continuation] = [:]
+    private var logContinuations: [UUID: AsyncStream<SerialLogEntry>.Continuation] = [:]
 
     var connectShouldSucceed = true
     /// Result returned by every sendCommand call.
@@ -51,6 +52,17 @@ final class FakeUSBCDCService: USBCDCServiceProtocol, @unchecked Sendable {
         }
     }
 
+    var logEvents: AsyncStream<SerialLogEntry> {
+        AsyncStream { continuation in
+            let id = UUID()
+            lock.withLock { logContinuations[id] = continuation }
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                self.lock.withLock { self.logContinuations[id] = nil }
+            }
+        }
+    }
+
     /// Test hook: deliver an unsolicited line to every event subscriber.
     func emitEvent(_ line: String) {
         let subscribers = lock.withLock { Array(eventContinuations.values) }
@@ -63,6 +75,14 @@ final class FakeUSBCDCService: USBCDCServiceProtocol, @unchecked Sendable {
         let subscribers = lock.withLock { Array(deviceContinuations.values) }
         for continuation in subscribers {
             continuation.yield()
+        }
+    }
+
+    /// Test hook: deliver a communication log entry to every subscriber.
+    func emitLogEvent(severity: SyslogSeverity, message: String) {
+        let subscribers = lock.withLock { Array(logContinuations.values) }
+        for continuation in subscribers {
+            continuation.yield(SerialLogEntry(severity, message: message))
         }
     }
 
@@ -407,5 +427,87 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.espConnected)
         XCTAssertEqual(
             usb.disconnectCount, disconnectBaseline + 1, "Teardown must happen exactly once")
+    }
+
+    // MARK: - Event log pipe
+
+    private static func makeLogDirectory() throws -> URL {
+        let directory = URL.temporaryDirectory.appendingPathComponent(
+            "obs-status-test-logs-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    @MainActor
+    private func makeViewModelWithLogDirectory(
+        usb: FakeUSBCDCService,
+        obs: FakeOBSWebSocketService
+    ) async throws -> (AppViewModel, URL) {
+        let logDirectory = try Self.makeLogDirectory()
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: logDirectory)
+        }
+        let viewModel = AppViewModel(
+            obsService: obs,
+            usbService: usb,
+            settings: Self.makeSettings(),
+            espLogService: ESP32LogService(directory: logDirectory)
+        )
+        await pump()  // let observeESPLogEvents() subscribe
+        return (viewModel, logDirectory)
+    }
+
+    @MainActor
+    func testLogEventsAreWrittenToTheFileWhileRecording() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let (viewModel, logDirectory) =
+            try await makeViewModelWithLogDirectory(usb: usb, obs: obs)
+
+        // Not recording yet: the pipe must swallow events (no file, no count).
+        usb.emitLogEvent(severity: .info, message: "BEFORE_START")
+        await pump()
+        XCTAssertFalse(viewModel.espLogActive)
+        XCTAssertEqual(viewModel.espLogEventCount, 0)
+        XCTAssertTrue(
+            (try? FileManager.default.contentsOfDirectory(atPath: logDirectory.path))?.isEmpty
+                == true,
+            "No file may exist while the log is not running")
+
+        await viewModel.startESPLog()
+        XCTAssertTrue(viewModel.espLogActive)
+        let url = try XCTUnwrap(viewModel.espLogFileURL)
+        XCTAssertTrue(url.path.hasPrefix(logDirectory.path))
+        XCTAssertFalse(url.lastPathComponent.isEmpty)
+
+        usb.emitLogEvent(severity: .warning, message: "NO_RESPONSE_TEST")
+        await pump()
+        XCTAssertEqual(viewModel.espLogEventCount, 1)
+        XCTAssertEqual(viewModel.espLogLastMessage, "NO_RESPONSE_TEST")
+
+        let content = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(
+            content.contains("NO_RESPONSE_TEST"),
+            "The recorded event must reach the session file: \(content)")
+
+        await viewModel.stopESPLog()
+        XCTAssertFalse(viewModel.espLogActive)
+        // The sealed file stays referenced so the user can reveal it.
+        XCTAssertEqual(viewModel.espLogFileURL, url)
+    }
+
+    @MainActor
+    func testLogToggleStartsAndStops() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let (viewModel, _) = try await makeViewModelWithLogDirectory(usb: usb, obs: obs)
+
+        XCTAssertFalse(viewModel.espLogActive)
+        await viewModel.toggleESPLog()
+        XCTAssertTrue(viewModel.espLogActive)
+        XCTAssertNotNil(viewModel.espLogFileURL)
+        await viewModel.toggleESPLog()
+        XCTAssertFalse(viewModel.espLogActive)
     }
 }
