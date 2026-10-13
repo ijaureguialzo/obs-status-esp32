@@ -36,6 +36,11 @@ final class AppViewModel {
     /// previous session (rapid connect/disconnect taps) can tell the link
     /// is now owned by a newer session and stop retrying/tearing it down.
     @ObservationIgnored private var espSession = 0
+    /// Last LED command sent, remembered per ESP32 session. OBS replays the
+    /// recording state on every websocket reconnect, which used to duplicate
+    /// LED commands; the session key keeps the (re)connect replay from being
+    /// deduplicated (the board may have reset and lost its LED state).
+    @ObservationIgnored private var lastSentLEDCommand: (line: String, session: Int)?
 
     var availableDevices: [USBDevice] = []
     var selectedDevice: USBDevice?
@@ -204,6 +209,9 @@ final class AppViewModel {
     }
 
     func disconnectESP() async {
+        // Idempotent: a stray (double) tap must not bump the session, stop
+        // the status polling, or race a link that is already gone.
+        guard espConnected else { return }
         espConnected = false
         espConnecting = false
         espDeviceTrusted = false
@@ -343,6 +351,14 @@ final class AppViewModel {
             // recording color forever.
             commandLine = ObsCommand.blinkSlow.lineTerminated
         }
+
+        // A replay of the same state (OBS re-emits it on every websocket
+        // reconnect) does not change the board: skip it. The color is part
+        // of the line, so a color change still goes through.
+        if lastSentLEDCommand?.line == commandLine, lastSentLEDCommand?.session == espSession {
+            return
+        }
+        lastSentLEDCommand = (commandLine, espSession)
         await deliver(commandLine, to: device)
     }
 
@@ -418,6 +434,18 @@ final class AppViewModel {
         guard espSession == session else { return }
 
         espConnected = false
+
+        // `notConnected` is the service saying "there is no link": a
+        // concurrent disconnect (a UI tap, a sibling command's teardown)
+        // already closed the port, or the device went away. There is
+        // nothing left to tear down and the device is not at fault, so just
+        // sync the state and let the status-polling loop reconnect. Treating
+        // it as a link death (error text + disconnect() call) turned benign
+        // races into visible connection drops.
+        if let usbError = lastError as? USBCDCError, case .notConnected = usbError {
+            return
+        }
+
         let message =
             lastError?.localizedDescription
             ?? String(localized: "Lost connection to the ESP32")

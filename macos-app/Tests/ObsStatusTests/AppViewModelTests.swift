@@ -407,6 +407,75 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.espError, "ERROR: NOT_CONNECTED")
     }
 
+    /// `notConnected` means the service has no link (a concurrent disconnect
+    /// closed the port, or the device went away): the view model must sync
+    /// its state but must not call disconnect() again or surface an error —
+    // the status-polling loop owns the reconnection and its messaging.
+    @MainActor
+    func testNotConnectedFailureSyncsStateWithoutTearingDown() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let disconnectBaseline = usb.disconnectCount
+        usb.nextCommandResult = .failure(USBCDCError.notConnected)
+
+        await viewModel.queryESPStatus()
+
+        XCTAssertFalse(
+            viewModel.espConnected, "The view model must sync the disconnected state")
+        XCTAssertEqual(
+            usb.disconnectCount, disconnectBaseline,
+            "notConnected must not call disconnect() again")
+        XCTAssertNil(
+            viewModel.espError, "notConnected is not the device's fault; no error may be surfaced")
+    }
+
+    /// A stray (double) tap on Disconnect must be a no-op when the link is
+    /// already gone: no service call, no session bump, no polling restart.
+    @MainActor
+    func testDisconnectIsIdempotent() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+
+        viewModel.espConnected = false  // already disconnected
+        let baseline = usb.disconnectCount
+        await viewModel.disconnectESP()
+
+        XCTAssertEqual(
+            usb.disconnectCount, baseline,
+            "No disconnect call when already disconnected")
+    }
+
+    /// A replay of the same recording state (OBS re-emits it on every
+    /// websocket reconnect) must not re-send the same LED command; a state
+    /// change does.
+    @MainActor
+    func testUnchangedRecordingStateIsNotResent() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+
+        obs.setRecordingState(.notRecording)
+        await pump(100)
+        let afterFirst = usb.sentCommands.count
+        obs.setRecordingState(.notRecording)  // replay: must be deduplicated
+        await pump(100)
+        XCTAssertEqual(
+            usb.sentCommands.count, afterFirst,
+            "A replay of the same state must not re-send the LED command")
+
+        obs.setRecordingState(.recording)  // a change: must be sent
+        await pump(100)
+        XCTAssertEqual(usb.sentCommands.count, afterFirst + 1)
+    }
+
     @MainActor
     func testDisconnectWhileCommandInFlightPreventsTearDown() async throws {
         let usb = FakeUSBCDCService()

@@ -146,6 +146,35 @@ final class LineRouterTests: XCTestCase {
         }
     }
 
+    /// A pending command that survives to restart() must be failed and
+    /// cleared: otherwise its armed slot would reject every new command of
+    /// the restarted session (notConnected) and its continuation would hang.
+    func testRestartFailsAndClearsAStalePendingCommand() async {
+        let router = makeRouter()
+        let id = UUID()
+        let stale = Task { () -> String? in
+            do {
+                return try await pendingResult(router, id: id)
+            } catch {
+                guard case USBCDCError.notConnected = error else {
+                    return "unexpected: \(error)"
+                }
+                return nil
+            }
+        }
+        await waitForPending(router)
+        router.restart()
+        let result = await stale.value
+        XCTAssertNil(result, "The stale pending must fail with notConnected, got \(result ?? "OK")")
+        XCTAssertFalse(router.hasPending, "The pending slot must be cleared by restart()")
+        // And a new command may arm freely after the restart.
+        let newOutcome = Task { try? await pendingResult(router, id: UUID()) }
+        await waitForPending(router)
+        router.handleLine("OK")
+        let newResult = await newOutcome.value
+        XCTAssertEqual(newResult, "OK")
+    }
+
     func testRestartClearsStashAndAllowsNewSessions() async {
         let router = makeRouter()
         router.handleLine("OK")  // stashed

@@ -283,13 +283,21 @@ class LineRouter: @unchecked Sendable {
         pending?.resume(throwing: USBCDCError.readFailed(error: 0))
     }
 
-    /// Arms the router for a new connection.
+    /// Arms the router for a new connection. A pending command left over
+    /// from the previous session is failed with `notConnected` and cleared:
+    /// its continuation must not survive the restart (it would reject every
+    /// new command, and its answer belongs to the dead session).
     func restart() {
-        lock.withLock {
+        let pending = lock.withLock {
             stopped = false
             stashedResponse = nil
             readerGeneration &+= 1
+            let continuation = pendingContinuation
+            pendingContinuation = nil
+            pendingID = nil
+            return continuation
         }
+        pending?.resume(throwing: USBCDCError.notConnected)
     }
 
     /// Stops the reader loop and fails any pending command.
@@ -491,8 +499,22 @@ actor USBCDCService: USBCDCServiceProtocol {
     }
 
     func connect(_ device: USBDevice) async throws {
-        guard fileDescriptor < 0 else {
-            throw USBCDCError.alreadyConnected
+        if fileDescriptor >= 0 {
+            if connectedDevice?.path == device.path {
+                // Already connected to this device (a racing connect, a
+                // desynced state flag, a poll tick right after a command
+                // failure): re-verify the live link instead of failing with
+                // `alreadyConnected` or closing and reopening the port —
+                // the close toggles DTR/RTS, which can reset the board.
+                emitLog(
+                    .info,
+                    "Serial port \(device.path) already open; re-verifying the link")
+                return try await verifyLink(device)
+            }
+            // A different device was selected while the old link is still
+            // open: close it first so exactly one link exists.
+            emitLog(.info, "Switching from \(connectedDevice?.path ?? "unknown") to \(device.path)")
+            await disconnect()
         }
 
         emitLog(.info, "Connecting to \(device.path)")
@@ -548,13 +570,17 @@ actor USBCDCService: USBCDCServiceProtocol {
         startReader()
         emitLog(.info, "Serial port \(device.path) opened")
 
-        // A freshly opened USB-Serial-JTAG port can take a while before data
-        // actually flows (kernel negotiation, or the firmware still booting
-        // after power-up / USB re-enumeration — e.g. auto-connect right
-        // after plugging the board). Verify the link with a STATUS handshake
-        // instead of declaring success on open(): otherwise the caller sees
-        // a working connection whose first commands then time out one by
-        // one and error messages linger.
+        return try await verifyLink(device)
+    }
+
+    /// Verifies the link with a STATUS handshake (a freshly opened
+    /// USB-Serial-JTAG port can take a while before data actually flows —
+    /// kernel negotiation, or the firmware still booting after power-up /
+    /// USB re-enumeration — so declaring success on open() would leave a
+    /// connection whose first commands time out one by one; the same check
+    /// re-confirms an already-open link on a racing connect). If the board
+    /// never answers, tears the link down and reports `linkNotReady`.
+    private func verifyLink(_ device: USBDevice) async throws {
         for _ in 1...Self.connectHandshakeAttempts {
             guard isConnectedFlag else { throw USBCDCError.notConnected }
             do {
@@ -569,7 +595,7 @@ actor USBCDCService: USBCDCServiceProtocol {
             }
         }
 
-        // The port opened but the board never answered: tear the link down
+        // The port is open but the board never answered: tear the link down
         // and report it instead of leaving a silently broken connection.
         emitLog(.error, "ESP32 did not answer the STATUS handshake; link torn down")
         await disconnect()
@@ -596,14 +622,31 @@ actor USBCDCService: USBCDCServiceProtocol {
     private func sendCommand(_ command: String, to device: USBDevice, timeout: Duration)
         async throws -> String
     {
+        let redacted = Self.redactedForLog(command)
+
         guard fileDescriptor >= 0, connectedDevice?.path == device.path else {
+            // Previously invisible in the event log: these are the most
+            // common failures under rapid connect/disconnect, and they
+            // left no trace, making sessions uninterpretable.
+            if fileDescriptor < 0 {
+                emitLog(.error, "Command '\(redacted)' not sent: the serial port is closed")
+            } else {
+                emitLog(
+                    .error,
+                    "Command '\(redacted)' not sent: the open port belongs to a different device")
+            }
             throw USBCDCError.notConnected
         }
 
         // Serialize commands: wait for any in-flight command to complete
         while router.hasPending {
             try await Task.sleep(for: .milliseconds(10))
-            guard fileDescriptor >= 0 else { throw USBCDCError.notConnected }
+            guard fileDescriptor >= 0 else {
+                emitLog(
+                    .error,
+                    "Command '\(redacted)' not sent: the port was closed while the link was busy")
+                throw USBCDCError.notConnected
+            }
         }
 
         // Drop any stale response from a previously timed-out command so it
@@ -611,7 +654,6 @@ actor USBCDCService: USBCDCServiceProtocol {
         router.discardStaleResponse()
 
         let data = Data(command.utf8)
-        let redacted = Self.redactedForLog(command)
         let writeResult = data.withUnsafeBytes { buffer in
             var offset = 0
             while offset < data.count {
