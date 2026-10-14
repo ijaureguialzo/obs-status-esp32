@@ -43,7 +43,7 @@ jobs:
 
   macos-app:
     name: macOS app
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       # swift-format ships with the Xcode toolchain on the runner; the
