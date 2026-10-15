@@ -80,6 +80,13 @@ struct ESP32ConnectionView: View {
                         Button(String(localized: "Authenticate")) {
                             Task {
                                 await viewModel.authenticateDevice(secret: deviceSecret)
+                                // On success the untrusted branch (and the
+                                // field) goes away; clear it so a stale
+                                // secret is not offered later. On failure
+                                // keep the text for a retry.
+                                if viewModel.espDeviceTrusted {
+                                    deviceSecret = ""
+                                }
                             }
                         }
                         .buttonStyle(.borderedProminent)

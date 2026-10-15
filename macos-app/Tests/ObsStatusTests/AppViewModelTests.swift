@@ -258,6 +258,64 @@ final class AppViewModelTests: XCTestCase {
         try? FileManager.default.removeItem(at: fileURL)
     }
 
+    /// The manual AUTH path must flip the panel to the trusted state right
+    /// away (persisting the trust entry), not only after a reconnect.
+    @MainActor
+    func testAuthenticateWithValidSecretTrustsImmediately() async throws {
+        let fileURL = URL.temporaryDirectory.appendingPathComponent(
+            "obs-status-test-\(UUID().uuidString).json")
+        let settings = AppSettings(fileURL: fileURL)
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: settings)
+
+        viewModel.selectedDevice = Self.device
+        viewModel.espConnected = true
+        await pump()  // settle the initial OBS stream yields
+
+        usb.nextCommandResult = .success("OK")
+        await viewModel.authenticateDevice(secret: "abcd1234")
+
+        // The state must change in place: trusted, no advisory.
+        XCTAssertTrue(viewModel.espDeviceTrusted)
+        XCTAssertNil(viewModel.espWarning)
+
+        // And the trust is persisted like the secret was.
+        let reloaded = AppSettings(fileURL: fileURL)
+        XCTAssertTrue(reloaded.isESPDeviceTrusted(Self.device))
+
+        // Its events drive OBS again.
+        usb.emitEvent("EVENT:TOGGLE_PAUSE")
+        await pump()
+        XCTAssertEqual(obs.togglePauseCount, 1)
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    @MainActor
+    func testAuthenticateWithWrongSecretDoesNotTrust() async throws {
+        let fileURL = URL.temporaryDirectory.appendingPathComponent(
+            "obs-status-test-\(UUID().uuidString).json")
+        let settings = AppSettings(fileURL: fileURL)
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: settings)
+
+        viewModel.selectedDevice = Self.device
+        viewModel.espConnected = true
+        await pump()
+
+        usb.nextCommandResult = .success("ERROR: AUTH_FAILED")
+        await viewModel.authenticateDevice(secret: "wrong-secret")
+
+        XCTAssertFalse(viewModel.espDeviceTrusted)
+        XCTAssertNotNil(viewModel.espError, "The rejection must be surfaced")
+
+        // No trust entry may be persisted for a failed AUTH.
+        let reloaded = AppSettings(fileURL: fileURL)
+        XCTAssertFalse(reloaded.isESPDeviceTrusted(Self.device))
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
     @MainActor
     func testCloneWithoutSerialDoesNotInheritTrust() async throws {
         let fileURL = URL.temporaryDirectory.appendingPathComponent(

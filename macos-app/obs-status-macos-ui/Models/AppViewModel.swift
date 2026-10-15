@@ -269,6 +269,11 @@ final class AppViewModel {
             let response = try await usbService.sendCommand(
                 ObsCommand.auth(secret: trimmed), to: device)
             if response == ObsResponse.ok {
+                // A successful AUTH grants trust (persisted by the device
+                // identity) as well as storing the secret; without the
+                // trust entry the panel would keep showing the untrusted
+                // state until a reconnect triggered the replay path.
+                settings.trustESPDevice(device)
                 settings.setDeviceSecret(trimmed, for: device.trustID)
                 espError = nil
             } else if response == ObsResponse.errorAuth {
