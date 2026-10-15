@@ -121,12 +121,15 @@ accepted (and ignored) so that a single macOS build works with every board.
 **Use case**: the macOS app sends this command whenever OBS reports a
 `CurrentProgramSceneChanged` event or when the ESP32 (re)connects.
 
-## 3.7 Command: `AUTH:<secret>`
+### 3.7 Command: `AUTH:<secret>`
 
 Authenticates the host against the device. Each firmware build generates a
-random 16-byte secret (32 lowercase hex chars) on first boot and persists it
-in NVS. The user reads the secret once (boot log / boot screen) and enters
-it in the app.
+random 4-byte secret (8 lowercase hex chars; the length is the firmware
+constant `DEVICE_AUTH_SECRET_LEN`) on first boot and persists it in NVS. The
+user reads the secret once (boot log / boot screen, or on demand with
+`SHOW_SECRET`) and enters it in the app. If the constant changes between
+firmware versions, the device regenerates the secret and a one-time
+re-authentication is needed.
 
 ```
 AUTH:<secret>\n
@@ -139,10 +142,11 @@ AUTH:<secret>\n
   supported" (manual trust still available).
 - A successful `AUTH` is how the host earns *trust* in the device: only a
   trusted device's unsolicited `EVENT:*` lines may drive OBS. The secret is
-  the strong gate; a manual one-time confirmation remains as a fallback for
-  legacy firmware.
+  the primary gate (kept short on purpose so it is easy to read and type,
+  not a high-entropy credential); a manual one-time confirmation remains as
+  a fallback for legacy firmware.
 
-## 3.8 Command: `SHOW_SECRET`
+### 3.8 Command: `SHOW_SECRET`
 
 Asks the board to (re)show its stored authentication secret on the screen.
 
@@ -164,13 +168,13 @@ the host replaces as soon as it pushes the first scene. This command lets
 the user read the secret again at any time (e.g. when pairing the same board
 with a new Mac and the secret has to be re-entered).
 
-## 3.9 Events (ESP32 → macOS)
+### 3.9 Events (ESP32 → macOS)
 
 Events are unsolicited lines sent by the ESP32 at any time, interleaved with
 command responses. Every event line starts with the `EVENT:` prefix so the
 host can tell it apart from a command response.
 
-### Event: `EVENT:TOGGLE_PAUSE`
+#### Event: `EVENT:TOGGLE_PAUSE`
 
 ```
 EVENT:TOGGLE_PAUSE\n

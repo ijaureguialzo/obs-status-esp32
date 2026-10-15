@@ -163,8 +163,10 @@ void protocol_notify_toggle_pause(void);
 ```
 
 #### `device_auth.c/h` – Per-Device Secret
-- Keeps a random 16-byte secret (32 hex chars) in NVS, generated on first
-  boot and immutable afterwards
+- Keeps a random 4-byte secret (`DEVICE_AUTH_SECRET_LEN` = 8 lowercase hex
+  chars, a single constant to re-size) in NVS, generated on first boot and
+  regenerated when the stored value no longer matches that length (so a
+  length change in a future build migrates cleanly)
 - Answers the `AUTH:<secret>` command (case-insensitive, constant-time
   compare) with `OK` / `ERROR: AUTH_FAILED`
 - Exposes the secret for the boot log / boot screen, and for the on-demand
