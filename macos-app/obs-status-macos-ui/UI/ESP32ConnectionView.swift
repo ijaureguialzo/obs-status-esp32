@@ -76,7 +76,11 @@ struct ESP32ConnectionView: View {
                     .foregroundColor(.orange)
                     .font(.caption)
                     if viewModel.espAuthSupported {
-                        SecureField(String(localized: "Device secret"), text: $deviceSecret)
+                        SecureField(
+                            String(localized: "Device secret"),
+                            text: $deviceSecret,
+                            prompt: Text("ad5dba82")
+                        )
                         Button(String(localized: "Authenticate")) {
                             Task {
                                 await viewModel.authenticateDevice(secret: deviceSecret)
