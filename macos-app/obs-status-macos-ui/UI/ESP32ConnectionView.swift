@@ -79,7 +79,7 @@ struct ESP32ConnectionView: View {
                         SecureField(
                             String(localized: "Device secret"),
                             text: $deviceSecret,
-                            prompt: Text("ad5dba82")
+                            prompt: Text("Example: ad5dba82")
                         )
                         Button(String(localized: "Authenticate")) {
                             Task {

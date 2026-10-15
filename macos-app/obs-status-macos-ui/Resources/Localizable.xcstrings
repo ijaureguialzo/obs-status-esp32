@@ -1161,6 +1161,22 @@
         }
       }
     },
+    "Example: ad5dba82": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ejemplo: ad5dba82"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adibidea: ad5dba82"
+          }
+        }
+      }
+    },
     "Authenticate": {
       "localizations": {
         "es": {
