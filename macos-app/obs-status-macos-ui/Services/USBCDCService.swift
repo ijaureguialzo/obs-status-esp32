@@ -334,7 +334,11 @@ actor USBCDCService: USBCDCServiceProtocol {
     private static let connectHandshakeAttempts = 3
     private var notificationsStarted = false
     #if canImport(Darwin)
-        private var notificationPort: IONotificationPortRef?
+        // nonisolated(unsafe): read back only in the (nonisolated) deinit to
+        // destroy the IOKit notification port. That is the sole nonisolated
+        // accessor and runs while the actor is tearing down, so there is no
+        // concurrent access; the type itself is a non-Sendable C pointer.
+        private nonisolated(unsafe) var notificationPort: IONotificationPortRef?
         private var addedIterator: io_iterator_t = 0
         private var removedIterator: io_iterator_t = 0
     #endif

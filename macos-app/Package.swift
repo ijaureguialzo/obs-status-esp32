@@ -61,8 +61,9 @@ let package = Package(
             capability: .buildTool
         )
     ],
-    // The code predates Swift 6's strict concurrency; keep the Swift 5
-    // language mode for now (the tools version only unlocks manifest/API
-    // features, it does not force the new checking).
-    swiftLanguageModes: [.v5]
+    // Swift 6 language mode: the codebase is written for strict concurrency
+    // checking (built with Swift 6.4 / Xcode 27). The tools version gates
+    // manifest features; this opts the sources into the Swift 6 runtime
+    // concurrency rules.
+    swiftLanguageModes: [.v6]
 )

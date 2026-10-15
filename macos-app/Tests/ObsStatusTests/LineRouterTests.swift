@@ -17,8 +17,9 @@ final class LineRouterTests: XCTestCase {
     }
 
     /// Arms a pending command and resolves to the line (or error) that
-    /// completes it.
-    private func pendingResult(
+    /// completes it. `static` (no instance state) so the `Task` closures
+    /// below can call it without capturing the non-Sendable test-case self.
+    private static func pendingResult(
         _ router: LineRouter,
         id: UUID
     ) async throws -> String {
@@ -49,7 +50,7 @@ final class LineRouterTests: XCTestCase {
     func testEventLinesDoNotCompleteAPendingCommand() async {
         let router = makeRouter()
         let id = UUID()
-        let response = Task { try? await pendingResult(router, id: id) }
+        let response = Task { try? await Self.pendingResult(router, id: id) }
         await waitForPending(router)
         router.handleLine("EVENT:TOGGLE_PAUSE")
         router.handleLine("OK")
@@ -60,14 +61,14 @@ final class LineRouterTests: XCTestCase {
     func testResponseArrivingBeforePendingIsStashed() async {
         let router = makeRouter()
         router.handleLine("OK")  // no pending command: must be stashed
-        let result = try? await pendingResult(router, id: UUID())
+        let result = try? await Self.pendingResult(router, id: UUID())
         XCTAssertEqual(result, "OK")
     }
 
     func testPendingCompletesWithTheNextWellFormedResponse() async {
         let router = makeRouter()
         let id = UUID()
-        let response = Task { try? await pendingResult(router, id: id) }
+        let response = Task { try? await Self.pendingResult(router, id: id) }
         await waitForPending(router)
         let line = "STATUS:LED=1,POWER=ON,ORIENTATION=UP,SCENE=Live|AUTH=1"
         router.handleLine(line)
@@ -78,7 +79,7 @@ final class LineRouterTests: XCTestCase {
     func testFirmwareLogLinesAreDroppedInsteadOfMisdelivered() async {
         let router = makeRouter()
         let id = UUID()
-        let response = Task { try? await pendingResult(router, id: id) }
+        let response = Task { try? await Self.pendingResult(router, id: id) }
         await waitForPending(router)
         router.handleLine("I (1234) app: Tap detected - toggling record pause")
         let stillArmed = router.hasPending
@@ -93,7 +94,7 @@ final class LineRouterTests: XCTestCase {
         router.handleLine("OK")  // stashed
         router.discardStaleResponse()
         let id = UUID()
-        let response = Task { try? await pendingResult(router, id: id) }
+        let response = Task { try? await Self.pendingResult(router, id: id) }
         await waitForPending(router)
         let stillArmed = router.hasPending
         XCTAssertTrue(stillArmed)  // the stale response was dropped
@@ -105,10 +106,10 @@ final class LineRouterTests: XCTestCase {
     func testTimeoutFailsTheMatchingPendingCommand() async {
         let router = makeRouter()
         let id = UUID()
-        let outcome = Task { try? await pendingResult(router, id: id) }
+        let outcome = Task { try? await Self.pendingResult(router, id: id) }
         await waitForPending(router)
         router.timeout(id: id)
-        await outcome.value
+        _ = await outcome.value
         let hasPending = router.hasPending
         XCTAssertFalse(hasPending)
     }
@@ -116,13 +117,13 @@ final class LineRouterTests: XCTestCase {
     func testTimeoutWithAnotherIDLeavesThePendingCommand() async {
         let router = makeRouter()
         let id = UUID()
-        let outcome = Task { try? await pendingResult(router, id: id) }
+        let outcome = Task { try? await Self.pendingResult(router, id: id) }
         await waitForPending(router)
         router.timeout(id: UUID())  // a different command timed out
         let stillArmed = router.hasPending
         XCTAssertTrue(stillArmed)
         router.timeout(id: id)
-        await outcome.value
+        _ = await outcome.value
         let hasPending = router.hasPending
         XCTAssertFalse(hasPending)
     }
@@ -130,14 +131,16 @@ final class LineRouterTests: XCTestCase {
     func testStopFailsPendingAndRejectsNewCommands() async {
         let router = makeRouter()
         let id = UUID()
-        let outcome = Task { try? await pendingResult(router, id: id) }
+        let outcome = Task { try? await Self.pendingResult(router, id: id) }
         await waitForPending(router)
         router.stop()
-        await outcome.value
+        _ = await outcome.value
         let hasPending = router.hasPending
         XCTAssertFalse(hasPending)
         do {
-            try await pendingResult(router, id: UUID())
+            // Only the throw matters (a success would mean stop() was ignored);
+            // discard the result explicitly to silence the unused-result warning.
+            _ = try await Self.pendingResult(router, id: UUID())
             XCTFail("Expected notConnected to be thrown")
         } catch {
             guard case USBCDCError.notConnected = error else {
@@ -154,7 +157,7 @@ final class LineRouterTests: XCTestCase {
         let id = UUID()
         let stale = Task { () -> String? in
             do {
-                return try await pendingResult(router, id: id)
+                return try await Self.pendingResult(router, id: id)
             } catch {
                 guard case USBCDCError.notConnected = error else {
                     return "unexpected: \(error)"
@@ -168,7 +171,7 @@ final class LineRouterTests: XCTestCase {
         XCTAssertNil(result, "The stale pending must fail with notConnected, got \(result ?? "OK")")
         XCTAssertFalse(router.hasPending, "The pending slot must be cleared by restart()")
         // And a new command may arm freely after the restart.
-        let newOutcome = Task { try? await pendingResult(router, id: UUID()) }
+        let newOutcome = Task { try? await Self.pendingResult(router, id: UUID()) }
         await waitForPending(router)
         router.handleLine("OK")
         let newResult = await newOutcome.value
@@ -182,7 +185,7 @@ final class LineRouterTests: XCTestCase {
         router.restart()
         // The stashed response from the previous session must not be handed
         // to a command of the new one.
-        let response = Task { try? await pendingResult(router, id: UUID()) }
+        let response = Task { try? await Self.pendingResult(router, id: UUID()) }
         await waitForPending(router)
         router.handleLine("OK")
         let result = await response.value

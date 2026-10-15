@@ -196,7 +196,10 @@ final class AppViewModelTests: XCTestCase {
     }
 
     /// The observe- loops in the view model are scheduled tasks; give them a
-    /// chance to subscribe before emitting.
+    /// chance to subscribe before emitting. `@MainActor` (like every caller)
+    /// so the call does not send the non-Sendable test-case self across
+    /// isolation boundaries.
+    @MainActor
     private func pump(_ ms: UInt64 = 100) async {
         try? await Task.sleep(for: .milliseconds(ms))
     }
