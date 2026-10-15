@@ -90,7 +90,8 @@ enum RecordingState {
 - Gate unsolicited device events (touch tap) behind explicit user trust, so a
   look-alike USB device cannot toggle the OBS recording by itself: the app
   remembers trusted devices by USB serial number (falling back to the BSD path)
-  and shows a "trust this device" prompt for new ones
+  and shows a "trust this device" prompt for new ones; the user can revoke
+  trust by forgetting a trusted device (this also deletes its stored secret)
 - Emit communication log events (`SerialLogEntry`) for everything that happens
   on the link — commands sent (secrets redacted), lines received, and
   connection lifecycle changes — for the event log service
@@ -187,6 +188,7 @@ Stored values:
 - Auto-connect preferences
 - Recording LED RGB color
 - Trusted ESP32 devices (serial number / path IDs)
+- ESP32 device secret per trusted device, in the macOS Keychain
 
 ## 6. macOS Integration
 

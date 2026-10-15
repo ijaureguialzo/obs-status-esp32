@@ -74,6 +74,14 @@ final class AppSettings {
         save()
     }
 
+    /// Revokes trust for a previously confirmed device (the inverse of
+    /// `trustESPDevice`): its unsolicited events are ignored again.
+    func forgetESPDevice(_ device: USBDevice) {
+        guard _trustedESPDevices.contains(device.trustID) else { return }
+        _trustedESPDevices.removeAll { $0 == device.trustID }
+        save()
+    }
+
     var recordingLEDColor: LEDColor {
         get { _recordingLEDColor }
         set {
@@ -282,6 +290,19 @@ final class AppSettings {
         } catch {
             logger.error(
                 "Unable to save device secret to Keychain: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    /// Deletes the stored ESP32 device secret for a trust ID (used when the
+    /// user forgets the device, so a reconnected board is not silently
+    /// re-authenticated with a stale secret).
+    func removeDeviceSecret(for trustID: String) {
+        do {
+            try keychainSave("", account: Key.espSecretAccountPrefix + trustID)
+        } catch {
+            logger.error(
+                "Unable to remove device secret from Keychain: \(error.localizedDescription, privacy: .public)"
             )
         }
     }

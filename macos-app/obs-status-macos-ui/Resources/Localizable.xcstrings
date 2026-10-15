@@ -1097,6 +1097,22 @@
         }
       }
     },
+    "Forget this device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Olvidar este dispositivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ahaztu gailu hau"
+          }
+        }
+      }
+    },
     "Device untrusted: screen taps won't control OBS": {
       "localizations": {
         "es": {

@@ -99,6 +99,10 @@ struct ESP32ConnectionView: View {
                     )
                     .foregroundColor(.green)
                     .font(.caption)
+                    Button(String(localized: "Forget this device")) {
+                        viewModel.forgetDevice()
+                    }
+                    .buttonStyle(.bordered)
                 }
             }
 

@@ -244,6 +244,17 @@ final class AppViewModel {
         espWarning = nil
     }
 
+    /// Revokes trust for the connected device (persisted) and deletes its
+    /// stored secret, so its unsolicited events are ignored again and a
+    /// later reconnection is not re-authenticated silently. The inverse of
+    /// `trustDevice()`.
+    func forgetDevice() {
+        guard espConnected, let device = selectedDevice else { return }
+        settings.forgetESPDevice(device)
+        settings.removeDeviceSecret(for: device.trustID)
+        refreshDeviceTrust()
+    }
+
     /// Authenticates with the device secret entered by the user (shown by the
     /// board on first pairing). A successful AUTH both grants and persists
     /// trust; the secret is kept in the Keychain like the OBS token.

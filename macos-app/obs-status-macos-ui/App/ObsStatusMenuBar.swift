@@ -78,6 +78,11 @@ struct MenuBarControls: View {
                 Button(String(localized: "Trust this device")) {
                     viewModel.trustDevice()
                 }
+            } else if viewModel.espConnected && viewModel.espDeviceTrusted {
+                Divider()
+                Button(String(localized: "Forget this device")) {
+                    viewModel.forgetDevice()
+                }
             }
 
             Divider()

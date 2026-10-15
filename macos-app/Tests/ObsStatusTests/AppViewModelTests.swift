@@ -290,6 +290,58 @@ final class AppViewModelTests: XCTestCase {
         try? FileManager.default.removeItem(at: fileURL)
     }
 
+    @MainActor
+    func testForgetDeviceRevokesTrustAndPersists() async throws {
+        let fileURL = URL.temporaryDirectory.appendingPathComponent(
+            "obs-status-test-\(UUID().uuidString).json")
+        let settings = AppSettings(fileURL: fileURL)
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(obsService: obs, usbService: usb, settings: settings)
+
+        viewModel.selectedDevice = Self.device
+        viewModel.espConnected = true
+        viewModel.trustDevice()
+        XCTAssertTrue(viewModel.espDeviceTrusted)
+
+        viewModel.forgetDevice()
+
+        // The connected device is untrusted again: the advisory returns and
+        // its unsolicited events no longer drive OBS.
+        XCTAssertFalse(viewModel.espDeviceTrusted)
+        XCTAssertNotNil(viewModel.espWarning)
+        usb.emitEvent("EVENT:TOGGLE_PAUSE")
+        await pump()
+        XCTAssertEqual(
+            obs.togglePauseCount, 0,
+            "A forgotten device must not drive OBS")
+
+        // The revocation is persisted like the trust was.
+        let reloaded = AppSettings(fileURL: fileURL)
+        XCTAssertFalse(reloaded.isESPDeviceTrusted(Self.device))
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    @MainActor
+    func testForgetDeviceRequiresAConnectedDevice() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+
+        // Connected but no selected device: nothing to forget.
+        viewModel.espConnected = true
+        viewModel.selectedDevice = nil
+        viewModel.forgetDevice()
+        XCTAssertFalse(viewModel.espDeviceTrusted)
+
+        // A selected device that is not connected: still a no-op.
+        viewModel.espConnected = false
+        viewModel.selectedDevice = Self.device
+        viewModel.forgetDevice()
+        XCTAssertFalse(viewModel.espDeviceTrusted)
+    }
+
     // MARK: - Command delivery: retries and session lifecycle
 
     /// Connects the view model to the fake device so `deliver` works.
