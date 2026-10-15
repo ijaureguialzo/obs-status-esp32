@@ -83,6 +83,10 @@ struct ESP32ConnectionView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
+                        Button(String(localized: "Show secret on device")) {
+                            Task { await viewModel.showDeviceSecret() }
+                        }
+                        .buttonStyle(.bordered)
                     }
                     Button(
                         viewModel.espAuthSupported
@@ -99,6 +103,12 @@ struct ESP32ConnectionView: View {
                     )
                     .foregroundColor(.green)
                     .font(.caption)
+                    if viewModel.espAuthSupported {
+                        Button(String(localized: "Show secret on device")) {
+                            Task { await viewModel.showDeviceSecret() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
                     Button(String(localized: "Forget this device")) {
                         viewModel.forgetDevice()
                     }

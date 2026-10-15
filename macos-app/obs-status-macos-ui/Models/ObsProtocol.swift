@@ -50,6 +50,11 @@ enum ObsCommand: String, CaseIterable {
     case blinkFast = "BLINK_FAST"
     case blinkSlow = "BLINK_SLOW"
     case status = "STATUS"
+    /// Asks the board to briefly show its authentication secret on the
+    /// screen (display boards; accepted and ignored elsewhere). Lets the
+    /// user read the secret again after first pairing, when the boot screen
+    /// is long gone. Send via `lineTerminated`.
+    case showSecret = "SHOW_SECRET"
 
     var lineTerminated: String {
         "\(rawValue)\n"

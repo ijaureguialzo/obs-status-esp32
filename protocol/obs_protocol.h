@@ -18,6 +18,7 @@
 #define PROTOCOL_CMD_BLINK_SLOW 0x04
 #define PROTOCOL_CMD_STATUS     0x05
 #define PROTOCOL_CMD_SCENE      0x06
+#define PROTOCOL_CMD_SHOW_SECRET 0x07
 
 // ==========================
 // Text Protocol Strings
@@ -31,6 +32,7 @@
 #define PROTOCOL_TXT_STATUS      "STATUS"
 #define PROTOCOL_TXT_SCENE_PREFIX "SCENE:"
 #define PROTOCOL_TXT_AUTH_PREFIX "AUTH:"
+#define PROTOCOL_TXT_SHOW_SECRET "SHOW_SECRET"
 
 // ==========================
 // Event Strings (ESP32 -> macOS, unsolicited)

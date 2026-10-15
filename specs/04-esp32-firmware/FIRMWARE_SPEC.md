@@ -149,6 +149,9 @@ void led_set_color(uint8_t red, uint8_t green, uint8_t blue);
 - Handle unknown commands with error responses
 - On display boards, mirror the LED color to the screen background and
   handle the `SCENE:<name>` command
+- Handle `SHOW_SECRET` by asking the display layer to show the stored auth
+  secret for a few seconds (`display_show_notice`), then restore the scene
+  label
 - Emit `EVENT:TOGGLE_PAUSE` via `protocol_notify_toggle_pause()` (called by
   the touch controller)
 
@@ -164,8 +167,8 @@ void protocol_notify_toggle_pause(void);
   boot and immutable afterwards
 - Answers the `AUTH:<secret>` command (case-insensitive, constant-time
   compare) with `OK` / `ERROR: AUTH_FAILED`
-- Exposes the secret for the boot log / boot screen so the user can enter
-  it in the app on first pairing
+- Exposes the secret for the boot log / boot screen, and for the on-demand
+  `SHOW_SECRET` display, so the user can re-read it after first pairing
 
 #### `display_controller.c/h` – Display Control Layer (display boards only)
 - Initialize the JD9853 LCD panel (SPI) and LEDC backlight
@@ -179,6 +182,10 @@ void protocol_notify_toggle_pause(void);
 - Auto-rotate between the two landscape orientations (USB right / USB
   left) by polling the QMI8658A accelerometer; portrait or flat readings
   keep the current orientation
+- Show timed notices (`display_show_notice`): the text replaces the scene
+  label for a duration, then the previous label is restored; a host scene
+  update takes precedence and cancels the pending restore. The expiry is
+  checked by the existing refresh task, so no extra task is needed
 - Compiled to no-op stubs when `CONFIG_BOARD_HAS_DISPLAY` is not defined
 
 **API**:
@@ -186,6 +193,7 @@ void protocol_notify_toggle_pause(void);
 esp_err_t display_init(void);
 void display_set_background(uint8_t red, uint8_t green, uint8_t blue);
 void display_set_scene(const char *name);
+void display_show_notice(const char *text, uint32_t duration_ms);
 ```
 
 #### `board_i2c.c/h` – Shared I2C Bus (display boards only)

@@ -15,6 +15,10 @@
 
 #define RESPONSE_BUFFER_SIZE 128
 
+/* How long SHOW_SECRET keeps the secret on screen before restoring the
+ * scene label (16 px font, 32 hex chars: comfortably readable in 10 s). */
+#define SHOW_SECRET_NOTICE_MS 10000
+
 /* Screen backgrounds used to mirror the LED state on boards with a display */
 #define DISPLAY_COLOR_RECORDING_DEFAULT_G 255
 #define DISPLAY_COLOR_OFF      0, 0, 0
@@ -100,6 +104,16 @@ esp_err_t protocol_process(const char *line)
                 send_response(PROTOCOL_TXT_ERROR_AUTH);
             }
             return ESP_OK;
+
+        case PROTOCOL_MSG_SHOW_SECRET: {
+            /* Boards without a display accept the command (the notice is a
+             * no-op) so a single macOS build works with every board. */
+            char notice[DEVICE_AUTH_SECRET_LEN + 8];
+            snprintf(notice, sizeof(notice), "AUTH: %s", device_auth_secret());
+            display_show_notice(notice, SHOW_SECRET_NOTICE_MS);
+            send_response(PROTOCOL_TXT_OK);
+            return ESP_OK;
+        }
 
         case PROTOCOL_MSG_SCENE:
             display_set_scene(message.scene);

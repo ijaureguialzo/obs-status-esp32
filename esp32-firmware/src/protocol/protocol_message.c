@@ -89,5 +89,10 @@ protocol_message_result_t protocol_message_parse(const char *line, protocol_mess
         return PROTOCOL_MSG_OK;
     }
 
+    if (strcmp(line, PROTOCOL_TXT_SHOW_SECRET) == 0) {
+        out->type = PROTOCOL_MSG_SHOW_SECRET;
+        return PROTOCOL_MSG_OK;
+    }
+
     return PROTOCOL_MSG_UNKNOWN_COMMAND;
 }

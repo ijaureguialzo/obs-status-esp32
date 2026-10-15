@@ -44,6 +44,16 @@ void display_set_background(uint8_t red, uint8_t green, uint8_t blue);
  */
 void display_set_scene(const char *name);
 
+/**
+ * @brief Temporarily show a notice in place of the current scene label
+ *
+ * Replaces the displayed text with `text` for `duration_ms`, then
+ * restores the label that was shown before the notice. A host scene
+ * update arriving while the notice is up takes precedence and cancels
+ * the pending restore. No-op on boards without a display.
+ */
+void display_show_notice(const char *text, uint32_t duration_ms);
+
 #ifdef __cplusplus
 }
 #endif

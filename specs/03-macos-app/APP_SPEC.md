@@ -40,6 +40,11 @@ The app opens with a single window with two tabs or sections:
   the file name, the event count and the last recorded event, plus a
   "Show in Finder" action (see 4.4)
 - **Recording LED color picker**: Selects any RGB color sent to the ESP32 while recording
+- **Device trust section**: for an untrusted device, a warning plus the device
+  secret field, **Authenticate**, **Show secret on device** and a manual
+  trust button; for a trusted device, a confirmation plus **Show secret on
+  device** (asks the board to display its auth secret on screen, `SHOW_SECRET`)
+  and **Forget this device** to revoke trust
 
 #### Visual Recording Indicator
 - Large circular LED graphic that mirrors the ESP32 LED state

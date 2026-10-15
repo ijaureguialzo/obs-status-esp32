@@ -142,7 +142,29 @@ AUTH:<secret>\n
   the strong gate; a manual one-time confirmation remains as a fallback for
   legacy firmware.
 
-## 3.8 Events (ESP32 → macOS)
+## 3.8 Command: `SHOW_SECRET`
+
+Asks the board to (re)show its stored authentication secret on the screen.
+
+```
+SHOW_SECRET\n
+```
+
+- No arguments.
+- **Response**: `OK\n` on success. Legacy firmware that predates this
+  command answers `ERROR: UNKNOWN_COMMAND\n`.
+- On boards with a display the secret is rendered in place of the scene
+  label for 10 seconds, then the previous label is restored. A host `SCENE`
+  update arriving in the meantime takes precedence and cancels the pending
+  restore. On boards without a display the command is accepted (and ignored)
+  so that a single macOS build works with every board.
+
+**Use case**: the secret is otherwise only visible on the boot screen, which
+the host replaces as soon as it pushes the first scene. This command lets
+the user read the secret again at any time (e.g. when pairing the same board
+with a new Mac and the secret has to be re-entered).
+
+## 3.9 Events (ESP32 → macOS)
 
 Events are unsolicited lines sent by the ESP32 at any time, interleaved with
 command responses. Every event line starts with the `EVENT:` prefix so the

@@ -282,6 +282,15 @@ final class AppViewModel {
         refreshDeviceTrust()
     }
 
+    /// Asks the connected board to briefly show its authentication secret on
+    /// the screen (display boards; accepted and ignored elsewhere). The boot
+    /// screen that shows the secret on first pairing is replaced as soon as
+    /// the app pushes a scene, so this is the way to read it again later.
+    func showDeviceSecret() async {
+        guard espConnected, let device = selectedDevice else { return }
+        await deliver(ObsCommand.showSecret.lineTerminated, to: device)
+    }
+
     /// After (re)connecting, replay a stored secret if one exists so the user
     /// is not asked to re-enter it. Legacy firmware answers
     /// `ERROR: UNKNOWN_COMMAND`; the device then stays untrusted and the

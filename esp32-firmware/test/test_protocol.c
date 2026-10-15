@@ -134,6 +134,19 @@ void test_auth_empty_is_invalid(void)
     TEST_ASSERT_EQUAL(PROTOCOL_MSG_INVALID_FORMAT, protocol_message_parse("AUTH:", &msg));
 }
 
+void test_show_secret(void)
+{
+    TEST_ASSERT_EQUAL(PROTOCOL_MSG_OK, protocol_message_parse("SHOW_SECRET", &msg));
+    TEST_ASSERT_EQUAL(PROTOCOL_MSG_SHOW_SECRET, msg.type);
+}
+
+void test_show_secret_with_arguments_is_unknown(void)
+{
+    /* The command takes no arguments; a suffixed line is not it. */
+    TEST_ASSERT_EQUAL(
+        PROTOCOL_MSG_UNKNOWN_COMMAND, protocol_message_parse("SHOW_SECRET 1", &msg));
+}
+
 void test_unknown_command(void)
 {
     TEST_ASSERT_EQUAL(PROTOCOL_MSG_UNKNOWN_COMMAND, protocol_message_parse("GARBAGE", &msg));
@@ -143,6 +156,7 @@ void test_commands_are_case_sensitive(void)
 {
     TEST_ASSERT_EQUAL(PROTOCOL_MSG_UNKNOWN_COMMAND, protocol_message_parse("led_on", &msg));
     TEST_ASSERT_EQUAL(PROTOCOL_MSG_UNKNOWN_COMMAND, protocol_message_parse("Status", &msg));
+    TEST_ASSERT_EQUAL(PROTOCOL_MSG_UNKNOWN_COMMAND, protocol_message_parse("show_secret", &msg));
 }
 
 void test_empty_line_is_unknown(void)
@@ -470,6 +484,8 @@ int main(void)
     RUN_TEST(test_empty_scene_clears_the_display);
     RUN_TEST(test_auth_with_secret);
     RUN_TEST(test_auth_empty_is_invalid);
+    RUN_TEST(test_show_secret);
+    RUN_TEST(test_show_secret_with_arguments_is_unknown);
     RUN_TEST(test_unknown_command);
     RUN_TEST(test_commands_are_case_sensitive);
     RUN_TEST(test_empty_line_is_unknown);

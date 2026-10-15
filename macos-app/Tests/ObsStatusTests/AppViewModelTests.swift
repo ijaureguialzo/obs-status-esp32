@@ -342,6 +342,37 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.espDeviceTrusted)
     }
 
+    @MainActor
+    func testShowDeviceSecretSendsTheCommand() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let baseline = usb.sentCommands.count
+
+        await viewModel.showDeviceSecret()
+
+        XCTAssertEqual(usb.sentCommands.count, baseline + 1)
+        XCTAssertEqual(usb.sentCommands.last, "SHOW_SECRET\n")
+        XCTAssertTrue(viewModel.espConnected)
+    }
+
+    @MainActor
+    func testShowDeviceSecretWithoutConnectionSendsNothing() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await settleViewModel(viewModel, usb: usb)
+        let baseline = usb.sentCommands.count
+
+        viewModel.espConnected = false
+        await viewModel.showDeviceSecret()
+
+        XCTAssertEqual(usb.sentCommands.count, baseline, "No link, no command")
+    }
+
     // MARK: - Command delivery: retries and session lifecycle
 
     /// Connects the view model to the fake device so `deliver` works.

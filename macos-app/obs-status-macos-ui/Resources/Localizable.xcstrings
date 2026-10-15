@@ -1113,6 +1113,22 @@
         }
       }
     },
+    "Show secret on device": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar el secreto en el dispositivo"
+          }
+        },
+        "eu": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erakutsi sekretua gailuan"
+          }
+        }
+      }
+    },
     "Device untrusted: screen taps won't control OBS": {
       "localizations": {
         "es": {

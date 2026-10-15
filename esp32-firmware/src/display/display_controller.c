@@ -103,6 +103,13 @@ static uint8_t s_bg_red;
 static uint8_t s_bg_green;
 static uint8_t s_bg_blue;
 static char s_scene[SCENE_MAX_LEN];
+/* Timed notice state (display_show_notice): while a notice is up, s_scene
+ * holds the notice text and s_notice_restore keeps the label to bring back
+ * when it expires. A host scene update cancels the pending restore. All
+ * guarded by s_mutex. */
+static char s_notice_restore[SCENE_MAX_LEN];
+static bool s_notice_active = false;
+static TickType_t s_notice_expires = 0;
 static bool s_usb_right = true;
 
 /* A redraw is expensive (full-frame software rotation + a 110 KB SPI
@@ -253,6 +260,16 @@ static void refresh_task(void *pv_parameters)
             continue;
         }
         if (xSemaphoreTake(s_mutex, 0) == pdTRUE) {
+            /* A timed notice (e.g. the auth secret) has expired: bring the
+             * scene label back. The 32-bit delta comparison is tick-
+             * overflow safe. */
+            if (s_notice_active &&
+                (int32_t)(xTaskGetTickCount() - s_notice_expires) >= 0) {
+                s_notice_active = false;
+                strncpy(s_scene, s_notice_restore, sizeof(s_scene) - 1);
+                s_scene[sizeof(s_scene) - 1] = '\0';
+                s_redraw_pending = true;
+            }
             if (s_redraw_pending && s_panel != NULL) {
                 s_redraw_pending = false;
                 redraw_locked();
@@ -447,8 +464,34 @@ void display_set_scene(const char *name)
     if (name == NULL) {
         name = "";
     }
+    /* A host scene update takes precedence over a pending notice: restore
+     * the new scene and drop the notice's pending restore, so the screen
+     * does not later snap back to a stale label. */
+    s_notice_active = false;
     strncpy(s_scene, name, sizeof(s_scene) - 1);
     s_scene[sizeof(s_scene) - 1] = '\0';
+    s_redraw_pending = true;
+    xSemaphoreGive(s_mutex);
+}
+
+void display_show_notice(const char *text, uint32_t duration_ms)
+{
+    if (s_mutex == NULL || xSemaphoreTake(s_mutex, portMAX_DELAY) != pdTRUE) {
+        return;
+    }
+    /* Only remember the label on the first notice of a burst: while one is
+     * already up, s_scene holds the previous notice, not host data. */
+    if (!s_notice_active) {
+        strncpy(s_notice_restore, s_scene, sizeof(s_notice_restore) - 1);
+        s_notice_restore[sizeof(s_notice_restore) - 1] = '\0';
+    }
+    if (text == NULL) {
+        text = "";
+    }
+    strncpy(s_scene, text, sizeof(s_scene) - 1);
+    s_scene[sizeof(s_scene) - 1] = '\0';
+    s_notice_active = true;
+    s_notice_expires = xTaskGetTickCount() + pdMS_TO_TICKS(duration_ms);
     s_redraw_pending = true;
     xSemaphoreGive(s_mutex);
 }
@@ -470,6 +513,12 @@ void display_set_background(uint8_t red, uint8_t green, uint8_t blue)
 void display_set_scene(const char *name)
 {
     (void)name;
+}
+
+void display_show_notice(const char *text, uint32_t duration_ms)
+{
+    (void)text;
+    (void)duration_ms;
 }
 
 #endif /* CONFIG_BOARD_HAS_DISPLAY */

@@ -24,6 +24,7 @@ typedef enum {
     PROTOCOL_MSG_STATUS,
     PROTOCOL_MSG_SCENE,
     PROTOCOL_MSG_AUTH,
+    PROTOCOL_MSG_SHOW_SECRET,
 } protocol_message_type_t;
 
 typedef struct {
