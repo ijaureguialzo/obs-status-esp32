@@ -52,8 +52,11 @@ The app opens with a single window with two tabs or sections:
 
 #### Visual Recording Indicator
 - Large circular LED graphic that mirrors the ESP32 LED state
-- Green glow when recording
-- Dim/off when not recording
+- Solid fill in the recording LED color when recording, with **no glow**
+  around the circle (no blurred halo, no colored shadow)
+- Dimmed gray fill when not recording
+- State changes (fill and border color) animate smoothly; the center icon
+  pulses while recording
 
 ### 3.2 Settings Window (Optional)
 - Persistent config: saved in `~/Library/Preferences/com.<bundle-id>.json`
