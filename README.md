@@ -236,6 +236,7 @@ Full project specifications organized by component:
 - [macOS Application](specs/03-macos-app/APP_SPEC.md)
 - [ESP32 Firmware](specs/04-esp32-firmware/FIRMWARE_SPEC.md)
 - [Deployment & Distribution](specs/05-deployment/DEPLOYMENT_SPEC.md)
+- [AI Agentic Workflow](specs/06-agentic/AGENT_SPEC.md)   # Spec for AI agents: SDD workflow, commit policy, quality gates
 
 ## License
 
