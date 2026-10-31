@@ -55,6 +55,10 @@ The app opens with a single window with two tabs or sections:
 - Solid fill in the recording LED color when recording, with **no glow**
   around the circle (no blurred halo, no colored shadow)
 - Dimmed gray fill when not recording
+- Center icon per state (SF Symbols, all available on the macOS 14
+  minimum deployment target): `video` while recording, `video.slash`
+  when idle, `network` while connecting to OBS, `cpu` while connecting
+  to the ESP32, `cable.connector.slash` when not connected
 - State changes (fill and border color) animate smoothly; the center icon
   pulses while recording
 - Content inside the circle (icon, status text) is rendered in white or

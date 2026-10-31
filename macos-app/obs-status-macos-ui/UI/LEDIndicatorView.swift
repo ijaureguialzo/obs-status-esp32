@@ -84,15 +84,15 @@ struct LEDIndicatorView: View {
     private var iconName: String {
         switch status {
         case .recording:
-            return "record.circle.fill"
+            return "video"
         case .connectingOBS:
-            return "doc.badge.gearshape"
+            return "network"
         case .connectingESP:
             return "cpu"
         case .idle:
-            return "speaker.slash.fill"
+            return "video.slash"
         case .disconnected:
-            return "circle.dashed"
+            return "cable.connector.slash"
         }
     }
 
