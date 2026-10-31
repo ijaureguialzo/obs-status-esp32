@@ -376,6 +376,22 @@ static esp_err_t backlight_init(void)
     return ESP_OK;
 }
 
+/* Initial screen content: title, firmware version and the device auth
+ * secret (the out-of-band way the user enters it in the app on first
+ * pairing). Rendered at boot and whenever the host pushes an empty scene
+ * (no active OBS scene, e.g. after losing the OBS connection), so the panel
+ * is never left blank. Caller must hold s_mutex. */
+static void show_initial_screen_locked(void)
+{
+    char boot[128];
+    snprintf(boot, sizeof(boot), "OBS Status\n\nv%s (%s)\n\nAUTH: %s",
+             FIRMWARE_VERSION, FIRMWARE_BUILD, device_auth_secret());
+    s_notice_active = false;
+    strncpy(s_scene, boot, sizeof(s_scene) - 1);
+    s_scene[sizeof(s_scene) - 1] = '\0';
+    s_redraw_pending = true;
+}
+
 esp_err_t display_init(void)
 {
     s_mutex = xSemaphoreCreateMutex();
@@ -434,13 +450,14 @@ esp_err_t display_init(void)
     ESP_LOGI(TAG, "Display initialized (%dx%d)", LCD_H_RES, LCD_V_RES);
     display_set_background(0, 0, 0);
 
-    /* Boot screen: title, version and the auth secret (the out-of-band way
-     * the user enters it in the app on first pairing). It is replaced by the
-     * first background/scene pushed by the host (an empty scene blanks it). */
-    char boot[128];
-    snprintf(boot, sizeof(boot), "OBS Status\n\nv%s (%s)\n\nAUTH: %s",
-             FIRMWARE_VERSION, FIRMWARE_BUILD, device_auth_secret());
-    display_set_scene(boot);
+    /* Initial screen: title, version and the auth secret (the out-of-band way
+     * the user enters it in the app on first pairing). A host scene update
+     * replaces it; an empty scene falls back to this initial screen instead
+     * of leaving the panel blank. */
+    if (xSemaphoreTake(s_mutex, portMAX_DELAY) == pdTRUE) {
+        show_initial_screen_locked();
+        xSemaphoreGive(s_mutex);
+    }
     return ESP_OK;
 }
 
@@ -464,9 +481,17 @@ void display_set_scene(const char *name)
     if (name == NULL) {
         name = "";
     }
-    /* A host scene update takes precedence over a pending notice: restore
-     * the new scene and drop the notice's pending restore, so the screen
+    /* An empty scene means there is no scene to display (the host clears it
+     * when the OBS scene goes unknown, e.g. after losing the OBS
+     * connection); fall back to the initial screen (version + auth) instead
+     * of leaving the panel blank. A host scene update takes precedence over
+     * a pending notice: drop the notice's pending restore, so the screen
      * does not later snap back to a stale label. */
+    if (name[0] == '\0') {
+        show_initial_screen_locked();
+        xSemaphoreGive(s_mutex);
+        return;
+    }
     s_notice_active = false;
     strncpy(s_scene, name, sizeof(s_scene) - 1);
     s_scene[sizeof(s_scene) - 1] = '\0';

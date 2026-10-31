@@ -113,7 +113,10 @@ SCENE:<name>\n
   input line longer than `PROTOCOL_MAX_LINE_LENGTH` (128) keeps only its first
   127 bytes, which still parses as a scene and is displayed truncated; senders
   should pre-truncate as above rather than rely on that side effect.
-- An empty name (`SCENE:\n`) clears the displayed scene.
+- An empty name (`SCENE:\n`) makes boards with a display fall back to the
+  initial screen (title + firmware version + auth secret) instead of
+  leaving the panel blank; this is what the macOS app sends when the OBS
+  scene goes unknown, e.g. after losing the OBS connection.
 
 **Response**: `OK\n` on success. On boards without a display the command is
 accepted (and ignored) so that a single macOS build works with every board.

@@ -188,6 +188,10 @@ void protocol_notify_toggle_pause(void);
   label for a duration, then the previous label is restored; a host scene
   update takes precedence and cancels the pending restore. The expiry is
   checked by the existing refresh task, so no extra task is needed
+- Render the initial screen (title, firmware version, auth secret) at boot
+  and whenever the host pushes an empty scene (no active OBS scene, e.g.
+  after losing the OBS connection); an empty scene now falls back to the
+  initial screen instead of leaving the panel blank
 - Compiled to no-op stubs when `CONFIG_BOARD_HAS_DISPLAY` is not defined
 
 **API**:
