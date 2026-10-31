@@ -192,6 +192,10 @@ void protocol_notify_toggle_pause(void);
   and whenever the host pushes an empty scene (no active OBS scene, e.g.
   after losing the OBS connection); an empty scene now falls back to the
   initial screen instead of leaving the panel blank
+- The initial screen always renders on a **black background**: showing it
+  resets the display background, so when the host goes away (graceful
+  disconnect or link loss) the version+auth screen is black even if the
+  board was recording with a colored background
 - Compiled to no-op stubs when `CONFIG_BOARD_HAS_DISPLAY` is not defined
 
 **API**:
@@ -240,7 +244,8 @@ esp_err_t touch_init(void);
       - Buffer into line buffer
       - On '\n', parse and dispatch command
       - Send response
-   c. If no data for 10 seconds → BLINK_SLOW (timeout)
+   c. If no data for 10 seconds → enter idle mode: BLINK_SLOW for the LED
+      and the display falls back to the initial screen (black background)
 ```
 
 The `AUTH` command is dispatched by the protocol parser against the secret

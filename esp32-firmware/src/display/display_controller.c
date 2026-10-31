@@ -380,13 +380,21 @@ static esp_err_t backlight_init(void)
  * secret (the out-of-band way the user enters it in the app on first
  * pairing). Rendered at boot and whenever the host pushes an empty scene
  * (no active OBS scene, e.g. after losing the OBS connection), so the panel
- * is never left blank. Caller must hold s_mutex. */
+ * is never left blank.
+ *
+ * The initial screen always renders on a black background: it is the
+ * "no host" state, so showing it resets the background — a host that goes
+ * away while recording must not leave the version+auth text on the
+ * recording color. Caller must hold s_mutex. */
 static void show_initial_screen_locked(void)
 {
     char boot[128];
     snprintf(boot, sizeof(boot), "OBS Status\n\nv%s (%s)\n\nAUTH: %s",
              FIRMWARE_VERSION, FIRMWARE_BUILD, device_auth_secret());
     s_notice_active = false;
+    s_bg_red = 0;
+    s_bg_green = 0;
+    s_bg_blue = 0;
     strncpy(s_scene, boot, sizeof(s_scene) - 1);
     s_scene[sizeof(s_scene) - 1] = '\0';
     s_redraw_pending = true;
@@ -448,12 +456,12 @@ esp_err_t display_init(void)
     }
 
     ESP_LOGI(TAG, "Display initialized (%dx%d)", LCD_H_RES, LCD_V_RES);
-    display_set_background(0, 0, 0);
 
     /* Initial screen: title, version and the auth secret (the out-of-band way
      * the user enters it in the app on first pairing). A host scene update
      * replaces it; an empty scene falls back to this initial screen instead
-     * of leaving the panel blank. */
+     * of leaving the panel blank. The initial screen guarantees its own
+     * black background, so no explicit set_background is needed. */
     if (xSemaphoreTake(s_mutex, portMAX_DELAY) == pdTRUE) {
         show_initial_screen_locked();
         xSemaphoreGive(s_mutex);

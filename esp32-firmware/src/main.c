@@ -126,6 +126,11 @@ static void app_task(void *pv_parameters)
                 ESP_LOGW(TAG, "No commands for %lu ms - entering idle mode",
                          (unsigned long)(elapsed * portTICK_PERIOD_MS));
                 led_blink_slow();
+                /* The host is gone: return the display to the initial screen
+                 * (black background with the version and auth secret). The
+                 * app re-pushes the LED state and scene on reconnect.
+                 * A no-op stub on boards without a display. */
+                display_set_scene("");
                 idle_mode = true;
             }
         }
