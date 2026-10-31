@@ -8,7 +8,14 @@ import SwiftUI
 
 @main
 struct ObsStatusApp: App {
-    @State private var viewModel = AppViewModel()
+    @State private var viewModel: AppViewModel
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
+    init() {
+        let viewModel = AppViewModel()
+        self._viewModel = State(initialValue: viewModel)
+        self.appDelegate.viewModel = viewModel
+    }
 
     var body: some Scene {
         WindowGroup {

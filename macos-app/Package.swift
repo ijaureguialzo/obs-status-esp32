@@ -35,6 +35,7 @@ let package = Package(
             sources: [
                 "App/ObsStatusApp.swift",
                 "App/ObsStatusMenuBar.swift",
+                "App/AppDelegate.swift",
                 "UI/ContentView.swift",
                 "UI/OBSConnectionView.swift",
                 "UI/ESP32ConnectionView.swift",

@@ -69,6 +69,18 @@ The app opens with a single window with two tabs or sections:
 - Default ESP32 baud rate
 - Auto-connect on launch toggle
 
+### 3.3 App Quit
+
+- Quitting the app (Cmd+Q, the Quit menu item, or the menu bar "Quit"
+  button) with a connected ESP32 defers the quit (`NSApplicationDelegate`
+  `applicationShouldTerminate` → `.terminateLater`): the board is first
+  returned to the initial screen — push an empty scene, then close the USB
+  link (display boards fall back to the initial screen on an empty scene)
+  — and only then does the termination complete. With no ESP32 connection
+  the app quits immediately. If the app dies abruptly instead, the
+  firmware's no-command timeout returns the display to the same initial
+  screen (see Spec 04).
+
 ## 4. Core Services
 
 ### 4.1 OBS WebSocket Service
@@ -233,7 +245,8 @@ macos-app/
 ├── obs-status-macos-ui/
 │   ├── App/
 │   │   ├── ObsStatusApp.swift          # @main app entry
-│   │   └── ObsStatusMenuBar.swift      # Optional menu bar integration
+│   │   ├── ObsStatusMenuBar.swift      # Optional menu bar integration
+│   │   └── AppDelegate.swift           # App quit: return the ESP32 to its initial screen
 │   ├── UI/
 │   │   ├── ContentView.swift           # Main window
 │   │   ├── OBSConnectionView.swift     # OBS config panel
