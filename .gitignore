@@ -69,3 +69,4 @@ esp32-firmware/dependencies.lock
 
 # SwiftPM build directories (any package location)
 .build/
+.pi-loop*
