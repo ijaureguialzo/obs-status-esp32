@@ -1,13 +1,15 @@
 //
 //  LEDIndicatorView.swift
 //  Large visual indicator showing current OBS recording status.
-//  Mirrors the ESP32 LED state with a solid color fill (no glow halo).
+//  Mirrors the ESP32 LED state with a solid color fill (no glow halo); the
+//  content adapts its color to stay legible on top of any background.
 //
 
 import SwiftUI
 
 struct LEDIndicatorView: View {
     @Environment(AppViewModel.self) private var viewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
@@ -21,7 +23,9 @@ struct LEDIndicatorView: View {
                 }
                 .animation(.easeInOut(duration: 0.5), value: viewModel.obsRecording)
 
-            // Center icon and status text
+            // Center icon and status text. Both use a content color derived
+            // from the circle background luminance so they stay legible on
+            // top of any recording LED color.
             VStack(spacing: 12) {
                 Image(systemName: iconName)
                     .font(.system(size: 64))
@@ -30,13 +34,13 @@ struct LEDIndicatorView: View {
 
                 Text(statusText)
                     .font(.title2.bold())
-                    .foregroundColor(.primary)
+                    .foregroundColor(contentColor)
                     .multilineTextAlignment(.center)
                     .padding(.top, 4)
 
                 Text(statusDescription)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(contentColor.opacity(0.7))
                     .multilineTextAlignment(.center)
             }
         }
@@ -47,7 +51,29 @@ struct LEDIndicatorView: View {
     // MARK: - Computed Properties
 
     private var circleFill: Color {
-        viewModel.obsRecording ? viewModel.recordingLEDColor.color : Color.gray.opacity(0.25)
+        if viewModel.obsRecording {
+            return viewModel.recordingLEDColor.color
+        }
+        return Color(.sRGB, red: 0.5, green: 0.5, blue: 0.5, opacity: 0.25)
+    }
+
+    /// Approximation of the window background the circle floats on, per
+    /// appearance. The explicit sRGB constants (rather than dynamic system
+    /// colors) keep the luminance evaluation deterministic.
+    private var windowBackground: Color {
+        colorScheme == .dark
+            ? Color(.sRGB, red: 0.118, green: 0.118, blue: 0.118, opacity: 1)
+            : Color(.sRGB, red: 0.925, green: 0.925, blue: 0.929, opacity: 1)
+    }
+
+    /// Effective circle background: the fill composited over the window.
+    private var circleBackground: Color {
+        circleFill.composited(over: windowBackground)
+    }
+
+    /// White or black, whichever contrasts best with the circle background.
+    private var contentColor: Color {
+        circleBackground.contrastingContentColor
     }
 
     private var borderColor: Color {
@@ -73,13 +99,11 @@ struct LEDIndicatorView: View {
     private var iconColor: Color {
         switch status {
         case .recording:
-            return viewModel.recordingLEDColor.color
+            return contentColor
         case .connectingOBS, .connectingESP:
             return .orange
-        case .idle:
-            return .secondary
-        case .disconnected:
-            return .secondary
+        case .idle, .disconnected:
+            return contentColor.opacity(0.7)
         }
     }
 

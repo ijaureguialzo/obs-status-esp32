@@ -57,6 +57,11 @@ The app opens with a single window with two tabs or sections:
 - Dimmed gray fill when not recording
 - State changes (fill and border color) animate smoothly; the center icon
   pulses while recording
+- Content inside the circle (icon, status text) is rendered in white or
+  black, chosen from the effective background luminance (WCAG relative
+  luminance of the fill composited over the window background), so it stays
+  legible for any recording LED color — e.g. a dark red like #370000 gets
+  white content
 
 ### 3.2 Settings Window (Optional)
 - Persistent config: saved in `~/Library/Preferences/com.<bundle-id>.json`

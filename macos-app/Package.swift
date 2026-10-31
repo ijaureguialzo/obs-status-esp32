@@ -48,6 +48,7 @@ let package = Package(
                 "Models/AppSettings.swift",
                 "Models/ObsProtocol.swift",
                 "Extensions/AsyncStream+Extensions.swift",
+                "Extensions/Color+Contrast.swift",
             ],
             plugins: ["VersionGenerator"]
         ),
