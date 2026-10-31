@@ -208,10 +208,23 @@ final class AppViewModel {
         espConnecting = false
     }
 
+    /// Best-effort command push used right before an intentional teardown
+    /// (e.g. returning a display board to the initial screen on disconnect).
+    /// Unlike `deliver`, it does not run retries or teardown bookkeeping: the
+    /// caller owns the disconnect that follows.
+    private func sendBestEffort(_ commandLine: String) async {
+        guard espConnected, let device = selectedDevice else { return }
+        _ = try? await usbService.sendCommand(commandLine, to: device)
+    }
+
     func disconnectESP() async {
         // Idempotent: a stray (double) tap must not bump the session, stop
         // the status polling, or race a link that is already gone.
         guard espConnected else { return }
+        // Before tearing the link down, return the board to the initial
+        // screen (title, version and auth secret): an empty scene makes
+        // display boards fall back to it instead of keeping the last scene.
+        await sendBestEffort(ObsCommand.scene(name: ""))
         espConnected = false
         espConnecting = false
         espDeviceTrusted = false

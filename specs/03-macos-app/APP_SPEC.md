@@ -45,6 +45,10 @@ The app opens with a single window with two tabs or sections:
   trust button; for a trusted device, a confirmation plus **Show secret on
   device** (asks the board to display its auth secret on screen, `SHOW_SECRET`)
   and **Forget this device** to revoke trust
+- **Disconnect behavior**: pressing Disconnect returns the board to the
+  initial screen (title, firmware version and auth secret) by pushing an
+  empty scene before closing the USB link (display boards fall back to the
+  initial screen on an empty scene)
 
 #### Visual Recording Indicator
 - Large circular LED graphic that mirrors the ESP32 LED state
