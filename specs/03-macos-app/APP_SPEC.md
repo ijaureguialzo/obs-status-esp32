@@ -128,6 +128,15 @@ enum RecordingState {
 - Emit communication log events (`SerialLogEntry`) for everything that happens
   on the link — commands sent (secrets redacted), lines received, and
   connection lifecycle changes — for the event log service
+- Detect the physical removal of the connected device (USB cable unplugged):
+  IOKit publish/terminate notifications on the serial registry trigger a
+  device re-scan, and the reader loop also reports link loss (hang-up or
+  read failure) so the detection does not rely on the IOKit notification
+  alone. When the selected device disappears while a link is live, the view
+  model marks the ESP32 as disconnected with a dedicated "device unplugged"
+  message, invalidates the session, and closes the now-stale port. The
+  status-polling loop keeps running, so the connection is re-established
+  automatically when the device is plugged in again
 
 **API**:
 ```swift

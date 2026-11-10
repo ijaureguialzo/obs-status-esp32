@@ -714,6 +714,7 @@ actor USBCDCService: USBCDCServiceProtocol {
         let fd = fileDescriptor
         let router = router
         let logBroadcaster = logBroadcaster
+        let deviceBroadcaster = broadcaster
         let generation = router.readerGenerationToken()
         readerTask = Task.detached(priority: .utility) {
             var splitter = LineSplitter()
@@ -742,6 +743,13 @@ actor USBCDCService: USBCDCServiceProtocol {
                             logBroadcaster.broadcast(
                                 SerialLogEntry(
                                     .warning, message: "Serial link lost (device unplugged?)"))
+                            // Also notify the device observers: the view model
+                            // re-scans the bus and marks the session over when
+                            // the selected device is gone. This keeps the
+                            // detection from depending on the IOKit removal
+                            // notification alone (it can be delayed or missed
+                            // on some USB configurations).
+                            deviceBroadcaster.broadcast()
                         }
                         break
                     }
@@ -765,6 +773,7 @@ actor USBCDCService: USBCDCServiceProtocol {
                                 SerialLogEntry(
                                     .warning, message: "Serial link lost (device unplugged?)"))
                         }
+                        deviceBroadcaster.broadcast()
                     }
                     break
                 }

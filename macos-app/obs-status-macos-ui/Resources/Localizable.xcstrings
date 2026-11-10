@@ -1346,6 +1346,22 @@
         }
       }
     },
+    "The ESP32 was disconnected (device unplugged)" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El ESP32 se ha desconectado (se ha desenchufado)"
+          }
+        },
+        "eu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ESP32a deskonektatu da (gailua deskonektatua)"
+          }
+        }
+      }
+    },
     "The event log is already running" : {
       "localizations" : {
         "es" : {

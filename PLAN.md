@@ -7,8 +7,8 @@
 > verificación y su commit.
 
 **Fecha del análisis:** 2026-10-12
-**Estado del plan:** ✅ completado el 2026-10-12 (Fases 1–3 hechas; Fase 4: 4.1–4.4 hechas,
-4.5 cerrada por decisión documentada, 4.6 propuesta pendiente de confirmación).
+**Estado del plan:** ✅ Fases 1–5 completas (Fase 4: 4.1–4.4 hechas, 4.5 cerrada por
+decisión documentada, 4.6 propuesta pendiente de confirmación; Fase 5: 5.1 hecha).
 **Estado verificado al finalizar:**
 - `swift build --package-path macos-app` → OK, sin warnings (gate `SWIFT_TREAT_WARNINGS_AS_ERRORS` en CI)
 - `swift test --package-path macos-app` → 47/47 tests OK
@@ -345,6 +345,47 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 
 ---
 
+## FASE 5 (P1) — Detección de hardware
+
+### 5.1 ✅ `feat(macos): detectar el ESP32 desenchufado y mostrarlo como desconectado`
+- **Objetivo:** con la app conectada, desenchufar el ESP32 dejaba la UI en
+  "Connected" para siempre: `scanDevices()` limpiaba `selectedDevice` pero
+  `espConnected` nunca cambiaba (el polling hace `continue` sin dispositivo y
+  `queryESPStatus` no hace nada con `selectedDevice == nil`), y el POLLHUP del
+  reader solo escribía en el log de eventos. Tras desenchufar, la app debe
+  marcar el ESP32 como desconectado con un mensaje claro, y reconectar sola al
+  volver a enchufar.
+- **Cambio:**
+  - `USBCDCService` (reader loop): ante pérdida de la línea (POLLHUP/POLLERR/
+    POLLNVAL, o `read()` 0/error) con el router activo, además del log emite un
+    `deviceEvent` (re-scan) — la detección ya no depende solo de la notificación
+    IOKit (puede llegar tarde o no llegar en algunas configuraciones USB).
+  - `AppViewModel.scanDevices()`: si el dispositivo de una conexión viva
+    desaparece de la enumeración → `markDeviceUnplugged()`: `espConnected=false`,
+    sesión incrementada (los comandos en vuelo quedan obsoletos y no tocan el
+    estado), `espError`/`errorMessage` con el mensaje localizado "device
+    unplugged", `selectedDevice=nil`, `usbService.disconnect()` (cierra el fd
+    obsoleto: una placa re-enchufada es una nueva instancia y re-verificar el fd
+    viejo haría fallar el handshake de reconexión). El loop de polling se
+    mantiene vivo y reconecta solo cuando el dispositivo vuelve (path recordado
+    en settings).
+  - `deliver()`: el guard de sesión/conexión del `catch` pasa **antes** de
+    escribir `espError`, para que un comando obsoleto (fallo tras el desenchufe)
+    no pise el aviso de desenchufe.
+  - String nuevo en `Localizable.xcstrings` (es/eu); spec 03 §4.2 actualizada;
+    3 tests nuevos de `AppViewModel` (desenchufe → sesión cerrada + mensaje +
+    `disconnect()` del fd; eventos repetidos idempotentes; re-enchufe →
+    reconexión automática vía polling).
+- **Archivos:** `AppViewModel.swift`, `USBCDCService.swift`, `ESP32ConnectionView`
+  (sin cambios: el estado ya refleja `espConnected`/`espError`),
+  `Tests/ObsStatusTests/AppViewModelTests.swift`, `Resources/Localizable.xcstrings`,
+  `specs/03-macos-app/APP_SPEC.md`.
+- **Aceptación:** `swift build` sin warnings; `swift test` verde; el resto de gates
+  intactos (no toca protocolo ni firmware).
+- [x] Hecho (commit: `feat(macos): detect a physically unplugged ESP32 and show it as disconnected`)
+
+---
+
 ## Orden de ejecución recomendado
 
 1. **Fase 1:** 1.1 → 1.2 → 1.3 (todas pequeñas/montañas de alto impacto: CI sana +
@@ -367,3 +408,4 @@ cd macos-app && xcodebuild -scheme obs-status-macos-ui -configuration Debug buil
 | 2 (P1) | 2.1 ✅ · 2.2 ✅ · 2.3 ✅ · 2.4 ✅ · 2.5 ✅ | ✅ completado |
 | 3 (P2) | 3.1 ✅ · 3.2 ✅ · 3.3 ✅ · 3.4 ✅ · 3.5 ✅ | ✅ completado |
 | 4 (P3) | 4.1 ✅ · 4.2 ✅ · 4.3 ✅ · 4.4 ✅ · 4.5 ⏭️ (decisión) · 4.6 ⏸️ (propuesta) | ✅ completado |
+| 5 (P1) | 5.1 ✅ (detectar ESP32 desenchufado) | ✅ completado |

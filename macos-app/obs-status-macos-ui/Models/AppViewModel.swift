@@ -157,6 +157,7 @@ final class AppViewModel {
     // MARK: - ESP32 Connection
 
     func scanDevices() async {
+        let previouslySelected = selectedDevice
         availableDevices = await usbService.enumerateDevices()
         if let selectedDevice,
             !availableDevices.contains(where: { $0.path == selectedDevice.path })
@@ -166,6 +167,42 @@ final class AppViewModel {
         if selectedDevice == nil, let lastPath = self.settings.lastESPDevicePath {
             selectedDevice = availableDevices.first { $0.path == lastPath }
         }
+        // The device behind a live connection disappeared from the bus (USB
+        // cable unplugged): the open port is stale and the UI must stop
+        // showing "connected". The status-polling loop keeps running, so the
+        // connection is re-established automatically when the device is
+        // plugged in again (its path is remembered in the settings).
+        if espConnected,
+            let previouslySelected,
+            !availableDevices.contains(where: { $0.path == previouslySelected.path })
+        {
+            await markDeviceUnplugged()
+        }
+    }
+
+    /// Synchronizes the UI after the device behind a live connection
+    /// physically disappeared from the USB bus (unplugged), as detected by
+    /// the device re-scan in `scanDevices()`. Unlike `disconnectESP()`, no
+    /// command is pushed to the board first (it is gone, so the empty-scene
+    /// best-effort push could only burn its retries), but the same state
+    /// bookkeeping applies: the session is invalidated so any in-flight
+    /// command from it becomes stale, and the now-dead file descriptor is
+    /// closed — a re-plugged board is a new device instance, and re-verifying
+    /// the stale fd would fail the reconnect. Internal (not private) so
+    /// tests can drive it after a device-scan event.
+    func markDeviceUnplugged() async {
+        guard espConnected else { return }
+        let message = String(localized: "The ESP32 was disconnected (device unplugged)")
+        espConnected = false
+        espConnecting = false
+        espDeviceTrusted = false
+        espAuthSupported = false
+        espWarning = nil
+        espSession &+= 1
+        espError = message
+        errorMessage = message
+        selectedDevice = nil
+        await usbService.disconnect()
     }
 
     func prepare() async {
@@ -456,6 +493,11 @@ final class AppViewModel {
                 break
             } catch {
                 lastError = error
+                // A newer session owns the link now (a user disconnect or a
+                // physical unplug in the meantime): leave its state alone,
+                // or this stale command would overwrite the newer messaging
+                // (e.g. the "device unplugged" notice) with its own failure.
+                guard espConnected, espSession == session else { return }
                 guard isTransientReadFailure(error), attempt < Self.espCommandMaxAttempts else {
                     break
                 }

@@ -23,6 +23,10 @@ final class FakeUSBCDCService: USBCDCServiceProtocol, @unchecked Sendable {
     var connectShouldSucceed = true
     /// Result returned by every sendCommand call.
     var nextCommandResult: Result<String, Error> = .success("OK")
+    /// Devices returned by enumerateDevices. Tests set it to simulate the
+    /// device list the bus scan sees (e.g. the device vanishing after an
+    /// unplug) before emitting a device event.
+    var enumeratedDevices: [USBDevice] = []
     /// Makes sendCommand wait a moment and then fail with a read timeout,
     /// so tests can drive a disconnect while a command is in flight.
     var slowFail = false
@@ -86,7 +90,7 @@ final class FakeUSBCDCService: USBCDCServiceProtocol, @unchecked Sendable {
         }
     }
 
-    func enumerateDevices() async -> [USBDevice] { [] }
+    func enumerateDevices() async -> [USBDevice] { enumeratedDevices }
 
     func connect(_ device: USBDevice) async throws {
         lock.withLock { connectCount += 1 }
@@ -640,6 +644,98 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.espConnected)
         XCTAssertEqual(
             usb.disconnectCount, disconnectBaseline + 1, "Teardown must happen exactly once")
+    }
+
+    // MARK: - Physical unplug detection
+
+    /// Connects the view model to the fake device (through the real
+    /// connectESP flow, so the status-polling loop is running) and settles
+    /// the initial command pushes.
+    @MainActor
+    private func connectToFakeDevice(_ viewModel: AppViewModel, usb: FakeUSBCDCService) async {
+        usb.enumeratedDevices = [Self.device]
+        viewModel.selectedDevice = Self.device
+        await viewModel.connectESP()
+        await pump(150)
+    }
+
+    /// With the view model connected, the device disappearing from the bus
+    /// (a device event with the device no longer enumerated) must end the
+    /// session: the UI shows the disconnected state with an explanatory
+    /// message and the stale port is closed.
+    @MainActor
+    func testUnpluggedDeviceEndsTheSession() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await connectToFakeDevice(viewModel, usb: usb)
+        XCTAssertTrue(viewModel.espConnected)
+        let disconnectBaseline = usb.disconnectCount
+
+        // The board is unplugged: it vanishes from the enumeration and a
+        // device event triggers the re-scan.
+        usb.enumeratedDevices = []
+        usb.emitDeviceEvent()
+        await pump(300)
+
+        XCTAssertFalse(viewModel.espConnected)
+        XCTAssertNil(viewModel.selectedDevice)
+        XCTAssertNotNil(viewModel.espError, "The unplug must be surfaced with a message")
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertEqual(
+            usb.disconnectCount, disconnectBaseline + 1,
+            "The stale port must be closed so the reconnect opens a fresh one")
+    }
+
+    /// A repeated device event while the device is still gone must not
+    /// re-mark the session (no extra disconnect, no session churn).
+    @MainActor
+    func testRepeatedDeviceEventsWhileUnpluggedAreIdempotent() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await connectToFakeDevice(viewModel, usb: usb)
+
+        usb.enumeratedDevices = []
+        usb.emitDeviceEvent()
+        await pump(300)
+        let errorAfterFirst = viewModel.espError
+        let disconnectAfterFirst = usb.disconnectCount
+
+        usb.emitDeviceEvent()
+        await pump(300)
+
+        XCTAssertEqual(viewModel.espError, errorAfterFirst)
+        XCTAssertEqual(usb.disconnectCount, disconnectAfterFirst)
+    }
+
+    /// After an unplug, plugging the same board back in (a device event with
+    /// the remembered device in the list) must re-establish the connection
+    /// automatically, through the still-running status-polling loop.
+    @MainActor
+    func testRepluggedDeviceReconnectsAutomatically() async throws {
+        let usb = FakeUSBCDCService()
+        let obs = FakeOBSWebSocketService()
+        let viewModel = AppViewModel(
+            obsService: obs, usbService: usb, settings: Self.makeSettings())
+        await connectToFakeDevice(viewModel, usb: usb)
+        let connectBaseline = usb.connectCount
+
+        usb.enumeratedDevices = []
+        usb.emitDeviceEvent()
+        await pump(300)
+        XCTAssertFalse(viewModel.espConnected)
+
+        usb.enumeratedDevices = [Self.device]
+        usb.emitDeviceEvent()
+        // The polling loop reconnects on its next tick (2 s period).
+        await pump(4000)
+
+        XCTAssertTrue(viewModel.espConnected)
+        XCTAssertNil(viewModel.espError)
+        XCTAssertGreaterThanOrEqual(usb.connectCount, connectBaseline + 1)
     }
 
     // MARK: - Event log pipe
